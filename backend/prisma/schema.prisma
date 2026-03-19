@@ -21,6 +21,7 @@ model User {
 enum UserRole {
   ADMIN
   CUSTOMER
+  TESTER
 }
 
 model Product {
@@ -74,4 +75,12 @@ model CartItem {
   updatedAt  DateTime @updatedAt
 
   @@unique([userId, productId], name: "userId_productId")
+}
+
+model FaultConfig {
+  key         String   @id
+  enabled     Boolean  @default(false)
+  latencyMs   Int?
+  failureRate Float?
+  updatedAt   DateTime @updatedAt
 }

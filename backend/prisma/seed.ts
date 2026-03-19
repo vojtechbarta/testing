@@ -15,6 +15,18 @@ async function main() {
 
   console.log("Admin user:", admin.email);
 
+  const tester = await prisma.user.upsert({
+    where: { email: "tester@example.com" },
+    update: {},
+    create: {
+      email: "tester@example.com",
+      password: "tester", // pouze pro testovací účely
+      role: UserRole.TESTER,
+    },
+  });
+
+  console.log("Tester user:", tester.email);
+
   const productsData = [
     {
       name: "Testovací myš",

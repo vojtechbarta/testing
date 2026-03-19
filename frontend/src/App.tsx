@@ -9,8 +9,13 @@ import {
   updateAdminProduct,
   type AdminProduct,
 } from "./api/admin";
+import {
+  getAdminFaults,
+  updateAdminFault,
+  type AdminFault,
+} from "./api/faults";
 
-type ViewMode = "shop" | "admin";
+type ViewMode = "shop" | "admin" | "bugs";
 
 function App() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -19,9 +24,11 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [cartError, setCartError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("shop");
-  const [adminToken, setAdminToken] = useState<string | null>(
-    () => localStorage.getItem("adminToken"),
-  );
+  const [adminToken, setAdminToken] = useState<string | null>(() => {
+    const storedRole = localStorage.getItem("adminRole");
+    const storedToken = localStorage.getItem("adminToken");
+    return storedRole && storedToken ? storedToken : null;
+  });
   const [adminProducts, setAdminProducts] = useState<AdminProduct[]>([]);
   const [adminError, setAdminError] = useState<string | null>(null);
   const [adminLoginError, setAdminLoginError] = useState<string | null>(null);
@@ -29,8 +36,17 @@ function App() {
     column: keyof AdminProduct;
     direction: "asc" | "desc";
   }>({ column: "id", direction: "asc" });
+  const [adminRole, setAdminRole] = useState<string | null>(() =>
+    localStorage.getItem("adminRole"),
+  );
+  const [adminFaults, setAdminFaults] = useState<AdminFault[]>([]);
 
   useEffect(() => {
+    // pokud je v localStorage rozbitý stav (token bez role nebo naopak), vyčisti ho
+    if (!adminToken || !adminRole) {
+      localStorage.removeItem("adminToken");
+      localStorage.removeItem("adminRole");
+    }
     let cancelled = false;
     setLoading(true);
     Promise.all([getProducts(), getCart()])
@@ -103,11 +119,27 @@ function App() {
       return;
     }
     try {
-      const data = await getAdminProducts(adminToken);
-      setAdminProducts(data);
+      const productsData = await getAdminProducts(adminToken);
+      setAdminProducts(productsData);
     } catch (err) {
       setAdminError(
         err instanceof Error ? err.message : "Nepodařilo se načíst produkty",
+      );
+    }
+  };
+
+  const handleSwitchToBugs = async () => {
+    setViewMode("bugs");
+    setAdminError(null);
+    if (!adminToken) {
+      return;
+    }
+    try {
+      const faultsData = await getAdminFaults(adminToken);
+      setAdminFaults(faultsData);
+    } catch (err) {
+      setAdminError(
+        err instanceof Error ? err.message : "Nepodařilo se načíst chyby",
       );
     }
   };
@@ -130,8 +162,11 @@ function App() {
       const res = await adminLogin(username, password);
       setAdminToken(res.token);
       localStorage.setItem("adminToken", res.token);
-      const data = await getAdminProducts(res.token);
-      setAdminProducts(data);
+      setAdminRole(res.user.role);
+      localStorage.setItem("adminRole", res.user.role);
+      const productsData =
+        res.user.role === "ADMIN" ? await getAdminProducts(res.token) : [];
+      setAdminProducts(productsData);
     } catch (err) {
       setAdminLoginError(
         err instanceof Error ? err.message : "Přihlášení selhalo",
@@ -142,7 +177,11 @@ function App() {
   const handleAdminLogout = () => {
     setAdminToken(null);
     localStorage.removeItem("adminToken");
+    setAdminRole(null);
+    localStorage.removeItem("adminRole");
     setAdminProducts([]);
+    setAdminFaults([]);
+    setViewMode("shop");
   };
 
   const handleAdminProductChange = (
@@ -237,6 +276,66 @@ function App() {
     }
   };
 
+  const handleAdminToggleFault = async (fault: AdminFault) => {
+    if (!adminToken) return;
+    try {
+      setAdminError(null);
+      const updated = await updateAdminFault(adminToken, fault.key, {
+        enabled: !fault.enabled,
+      });
+      setAdminFaults((prev) =>
+        prev.some((f) => f.key === updated.key)
+          ? prev.map((f) => (f.key === updated.key ? updated : f))
+          : [...prev, updated],
+      );
+    } catch (err) {
+      setAdminError(
+        err instanceof Error ? err.message : "Aktualizace chyby selhala",
+      );
+    }
+  };
+
+  const handleAdminFaultChange = (
+    key: string,
+    field: "latencyMs" | "failureRate",
+    value: string,
+  ) => {
+    setAdminFaults((prev) =>
+      prev.map((f) =>
+        f.key === key
+          ? {
+              ...f,
+              [field]:
+                value.trim() === ""
+                  ? null
+                  : field === "latencyMs"
+                    ? Number(value)
+                    : Number(value),
+            }
+          : f,
+      ),
+    );
+  };
+
+  const handleAdminFaultSave = async (fault: AdminFault) => {
+    if (!adminToken) return;
+    try {
+      setAdminError(null);
+      const updated = await updateAdminFault(adminToken, fault.key, {
+        enabled: fault.enabled,
+        latencyMs: fault.latencyMs,
+        failureRate: fault.failureRate,
+      });
+      setAdminFaults((prev) =>
+        prev.map((f) => (f.key === updated.key ? updated : f)),
+      );
+    } catch (err) {
+      setAdminError(
+        err instanceof Error ? err.message : "Uložení chyby selhalo",
+      );
+    }
+  };
+
   return (
     <main style={{ padding: "2rem", maxWidth: 1100, margin: "0 auto" }}>
       <header
@@ -270,21 +369,75 @@ function App() {
           >
             Obchod
           </button>
-          <button
-            type="button"
-            onClick={handleSwitchToAdmin}
-            style={{
-              padding: "0.4rem 0.8rem",
-              borderRadius: 999,
-              border: "none",
-              background:
-                viewMode === "admin" ? "#2563eb" : "rgba(148,163,184,0.3)",
-              color: "#fff",
-              cursor: "pointer",
-            }}
-          >
-            Admin
-          </button>
+          {!adminToken && (
+            <button
+              type="button"
+              onClick={() => setViewMode("admin")}
+              style={{
+                padding: "0.4rem 0.8rem",
+                borderRadius: 999,
+                border: "none",
+                background:
+                  viewMode === "admin" ? "#2563eb" : "rgba(148,163,184,0.3)",
+                color: "#fff",
+                cursor: "pointer",
+              }}
+            >
+              Login
+            </button>
+          )}
+          {adminToken && adminRole === "ADMIN" && (
+            <button
+              type="button"
+              onClick={handleSwitchToAdmin}
+              style={{
+                padding: "0.4rem 0.8rem",
+                borderRadius: 999,
+                border: "none",
+                background:
+                  viewMode === "admin" ? "#2563eb" : "rgba(148,163,184,0.3)",
+                color: "#fff",
+                cursor: "pointer",
+              }}
+            >
+              Admin
+            </button>
+          )}
+          {adminToken && adminRole === "TESTER" && (
+            <button
+              type="button"
+              onClick={handleSwitchToBugs}
+              style={{
+                padding: "0.4rem 0.8rem",
+                borderRadius: 999,
+                border: "none",
+                background:
+                  viewMode === "bugs" ? "#2563eb" : "rgba(148,163,184,0.3)",
+                color: "#fff",
+                cursor: "pointer",
+              }}
+            >
+              Bugs
+            </button>
+          )}
+          {adminToken && adminRole && (
+            <button
+              type="button"
+              onClick={handleAdminLogout}
+              style={{
+                padding: "0.3rem 0.7rem",
+                borderRadius: 999,
+                border: "1px solid rgba(148,163,184,0.6)",
+                background: "transparent",
+                color: "#e5e7eb",
+                cursor: "pointer",
+                fontSize: 12,
+              }}
+              title="Odhlásit"
+            >
+              {adminRole.toLowerCase()} · Logout
+            </button>
+          )}
         </div>
       </header>
 
@@ -356,20 +509,6 @@ function App() {
               >
                 <button
                   type="button"
-                  onClick={handleAdminAddNewProduct}
-                  style={{
-                    padding: "0.4rem 0.75rem",
-                    borderRadius: 6,
-                    border: "none",
-                    background: "#16a34a",
-                    color: "#fff",
-                    cursor: "pointer",
-                  }}
-                >
-                  Přidat nový produkt
-                </button>
-                <button
-                  type="button"
                   onClick={handleAdminLogout}
                   style={{
                     padding: "0.35rem 0.7rem",
@@ -388,6 +527,22 @@ function App() {
                   {adminError}
                 </p>
               )}
+              <div style={{ marginBottom: "0.5rem" }}>
+                <button
+                  type="button"
+                  onClick={handleAdminAddNewProduct}
+                  style={{
+                    padding: "0.35rem 0.75rem",
+                    borderRadius: 6,
+                    border: "none",
+                    background: "#16a34a",
+                    color: "#fff",
+                    cursor: "pointer",
+                  }}
+                >
+                  Přidat nový produkt
+                </button>
+              </div>
               <div style={{ overflowX: "auto" }}>
                 <table
                   style={{
@@ -620,6 +775,144 @@ function App() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </>
+          )}
+        </section>
+      ) : viewMode === "bugs" ? (
+        <section
+          style={{
+            border: "1px solid #ddd",
+            borderRadius: 8,
+            padding: "1rem",
+            background: "#fff",
+          }}
+        >
+          {!adminToken ? (
+            <p>Pro správu chyb se nejprve přihlas jako admin nebo tester.</p>
+          ) : (
+            <>
+              {adminError && (
+                <p style={{ color: "red", marginBottom: "0.75rem" }}>
+                  {adminError}
+                </p>
+              )}
+              <div style={{ overflowX: "auto" }}>
+                {adminFaults.length === 0 ? (
+                  <p>Zatím nejsou definovány žádné chyby.</p>
+                ) : (
+                  <table
+                    style={{
+                      width: "100%",
+                      borderCollapse: "collapse",
+                      fontSize: 14,
+                    }}
+                  >
+                    <thead>
+                      <tr>
+                        <th style={{ borderBottom: "1px solid #ddd" }}>Klíč</th>
+                        <th style={{ borderBottom: "1px solid #ddd" }}>
+                          Zapnuto
+                        </th>
+                        <th style={{ borderBottom: "1px solid #ddd" }}>
+                          Latence (ms)
+                        </th>
+                        <th style={{ borderBottom: "1px solid #ddd" }}>
+                          Chybovost (0–1)
+                        </th>
+                        <th style={{ borderBottom: "1px solid #ddd" }} />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {adminFaults.map((f) => (
+                        <tr key={f.key}>
+                          <td
+                            style={{
+                              borderBottom: "1px solid #eee",
+                              padding: "0.25rem 0.4rem",
+                            }}
+                          >
+                            {f.key}
+                          </td>
+                          <td
+                            style={{
+                              borderBottom: "1px solid #eee",
+                              textAlign: "center",
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={f.enabled}
+                              onChange={() => handleAdminToggleFault(f)}
+                            />
+                          </td>
+                          <td
+                            style={{
+                              borderBottom: "1px solid #eee",
+                              padding: "0.25rem 0.4rem",
+                            }}
+                          >
+                            <input
+                              type="number"
+                              value={f.latencyMs ?? ""}
+                              onChange={(e) =>
+                                handleAdminFaultChange(
+                                  f.key,
+                                  "latencyMs",
+                                  e.target.value,
+                                )
+                              }
+                              style={{ width: "100%" }}
+                            />
+                          </td>
+                          <td
+                            style={{
+                              borderBottom: "1px solid #eee",
+                              padding: "0.25rem 0.4rem",
+                            }}
+                          >
+                            <input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              max="1"
+                              value={f.failureRate ?? ""}
+                              onChange={(e) =>
+                                handleAdminFaultChange(
+                                  f.key,
+                                  "failureRate",
+                                  e.target.value,
+                                )
+                              }
+                              style={{ width: "100%" }}
+                            />
+                          </td>
+                          <td
+                            style={{
+                              borderBottom: "1px solid #eee",
+                              padding: "0.25rem 0.4rem",
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => handleAdminFaultSave(f)}
+                              style={{
+                                padding: "0.25rem 0.6rem",
+                                borderRadius: 4,
+                                border: "none",
+                                background: "#2563eb",
+                                color: "#fff",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Uložit
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </>
           )}

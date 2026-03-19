@@ -4,11 +4,12 @@ import {
   getAllProductsForAdmin,
   updateProduct,
 } from "../services/productService";
-import { adminAuth } from "../middleware/adminAuth";
+import { roleAuth } from "../middleware/adminAuth";
+import { UserRole } from "@prisma/client";
 
 const router = Router();
 
-router.use(adminAuth);
+router.use(roleAuth([UserRole.ADMIN]));
 
 router.get("/", async (_req, res, next) => {
   try {

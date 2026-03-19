@@ -1,6 +1,7 @@
 import { Router } from "express";
 import prisma from "../db/prisma";
-import { getAdminSecret } from "../middleware/adminAuth";
+import { signAdminToken } from "../middleware/adminAuth";
+import { UserRole } from "@prisma/client";
 
 const router = Router();
 
@@ -16,30 +17,37 @@ router.post("/login", async (req, res, next) => {
       return;
     }
 
-    if (username !== "admin" || password !== "admin") {
+    let expectedRole: UserRole | null = null;
+    let expectedEmail: string | null = null;
+
+    if (username === "admin" && password === "admin") {
+      expectedRole = UserRole.ADMIN;
+      expectedEmail = "admin@example.com";
+    } else if (username === "tester" && password === "tester") {
+      expectedRole = UserRole.TESTER;
+      expectedEmail = "tester@example.com";
+    } else {
       res.status(401).json({ message: "Invalid credentials" });
       return;
     }
 
-    const adminUser = await prisma.user.findFirst({
-      where: { email: "admin@example.com" },
+    const user = await prisma.user.findFirst({
+      where: { email: expectedEmail, role: expectedRole },
     });
 
-    if (!adminUser) {
-      res
-        .status(500)
-        .json({ message: "Admin user is not seeded in the database" });
+    if (!user) {
+      res.status(500).json({ message: "User is not seeded in the database" });
       return;
     }
 
-    const token = getAdminSecret();
+    const token = signAdminToken({ userId: user.id, role: user.role });
 
     res.json({
       token,
       user: {
-        id: adminUser.id,
-        email: adminUser.email,
-        role: adminUser.role,
+        id: user.id,
+        email: user.email,
+        role: user.role,
       },
     });
   } catch (err) {
