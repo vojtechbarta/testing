@@ -14,7 +14,7 @@ import {
   updateAdminFault,
   type AdminFault,
 } from "./api/faults";
-import { getActiveUiFaultKeys } from "./api/uiFaults";
+import { getActiveUiFaultConfigs } from "./api/uiFaults";
 
 type ViewMode = "shop" | "admin" | "bugs";
 
@@ -41,7 +41,9 @@ function App() {
     localStorage.getItem("adminRole"),
   );
   const [adminFaults, setAdminFaults] = useState<AdminFault[]>([]);
-  const [activeUiFaultKeys, setActiveUiFaultKeys] = useState<string[]>([]);
+  const [activeUiFaultConfigs, setActiveUiFaultConfigs] = useState<
+    Array<{ key: string; failureRate: number }>
+  >([]);
 
   useEffect(() => {
     // pokud je v localStorage rozbitý stav (token bez role nebo naopak), vyčisti ho
@@ -51,12 +53,12 @@ function App() {
     }
     let cancelled = false;
     setLoading(true);
-    Promise.all([getProducts(), getCart(), getActiveUiFaultKeys()])
-      .then(([productsData, cartData, uiFaultKeys]) => {
+    Promise.all([getProducts(), getCart(), getActiveUiFaultConfigs()])
+      .then(([productsData, cartData, uiFaultConfigs]) => {
         if (!cancelled) {
           setProducts(productsData);
           setCart(cartData);
-          setActiveUiFaultKeys(uiFaultKeys);
+          setActiveUiFaultConfigs(uiFaultConfigs);
         }
       })
       .catch((err: unknown) => {
@@ -74,8 +76,11 @@ function App() {
     };
   }, []);
 
-  const uiDoubleAddEnabled =
-    activeUiFaultKeys.includes("cart_add_ui_double_call");
+  const uiDoubleAddFailureRate =
+    activeUiFaultConfigs.find((f) => f.key === "cart_add_ui_double_call")
+      ?.failureRate ?? 0;
+
+  const uiDoubleAddAlways = uiDoubleAddFailureRate >= 1;
 
   const handleAddToCart = async (productId: number) => {
     try {
@@ -83,7 +88,10 @@ function App() {
       const currentQty =
         cart?.items.find((i) => i.productId === productId)?.quantity ?? 0;
 
-      if (uiDoubleAddEnabled) {
+      const uiShouldTriggerDoubleAdd =
+        uiDoubleAddAlways || Math.random() < uiDoubleAddFailureRate;
+
+      if (uiShouldTriggerDoubleAdd) {
         // UI mutace: v rámci jednoho kliknutí zavoláme backend 2x,
         // pokaždé přidáme po 1 kuse. Druhý call dopočítáme z odpovědi
         // z prvního volání, aby decrement zůstalo správné.
@@ -310,8 +318,11 @@ function App() {
     if (!adminToken) return;
     try {
       setAdminError(null);
+      const enabling = !fault.enabled;
       const updated = await updateAdminFault(adminToken, fault.key, {
-        enabled: !fault.enabled,
+        enabled: enabling,
+        // Při zapnutí automaticky nastavíme chybovost na "vždy".
+        ...(enabling ? { failureRate: 1 } : {}),
       });
       setAdminFaults((prev) =>
         prev.some((f) => f.key === updated.key)
@@ -1046,7 +1057,7 @@ function App() {
             {products.map((p) => {
               const inCartQty =
                 cart?.items.find((i) => i.productId === p.id)?.quantity ?? 0;
-              const step = uiDoubleAddEnabled ? 2 : 1;
+              const step = uiDoubleAddAlways ? 2 : 1;
               const canAddFromList = inCartQty + step <= p.inStock;
               return (
                 <article
@@ -1151,7 +1162,7 @@ function App() {
                           type="button"
                           onClick={() => handleAddToCart(item.productId)}
                           disabled={
-                            uiDoubleAddEnabled
+                            uiDoubleAddAlways
                               ? item.quantity + 2 > item.inStock
                               : item.quantity >= item.inStock
                           }
@@ -1161,7 +1172,7 @@ function App() {
                             borderRadius: 6,
                             border: "1px solid #cbd5e1",
                             background:
-                              uiDoubleAddEnabled
+                              uiDoubleAddAlways
                                 ? item.quantity + 2 > item.inStock
                                   ? "#e2e8f0"
                                   : "#fff"
@@ -1169,7 +1180,7 @@ function App() {
                                   ? "#e2e8f0"
                                   : "#fff",
                             color:
-                              uiDoubleAddEnabled
+                              uiDoubleAddAlways
                                 ? item.quantity + 2 > item.inStock
                                   ? "#94a3b8"
                                   : "#0f172a"
@@ -1177,7 +1188,7 @@ function App() {
                                   ? "#94a3b8"
                                   : "#0f172a",
                             cursor:
-                              uiDoubleAddEnabled
+                              uiDoubleAddAlways
                                 ? item.quantity + 2 > item.inStock
                                   ? "not-allowed"
                                   : "pointer"

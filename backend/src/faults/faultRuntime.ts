@@ -12,12 +12,14 @@ type FaultRuntimeRow = {
   key: string;
   enabled: boolean;
   level: string;
+  failureRate: number | null;
 };
 
 const CACHE_TTL_MS = 1000;
 let cachedAt = 0;
 let cachedEnabledByKey: Record<string, boolean> = {};
-let cachedUiEnabledKeys: string[] = [];
+let cachedFailureRateByKey: Record<string, number | null> = {};
+let cachedUiEnabledKeys: Array<{ key: string; failureRate: number | null }> = [];
 
 async function refreshCacheIfNeeded() {
   const now = Date.now();
@@ -26,16 +28,18 @@ async function refreshCacheIfNeeded() {
   }
 
   const faults = await prisma.faultConfig.findMany({
-    select: { key: true, enabled: true, level: true },
+    select: { key: true, enabled: true, level: true, failureRate: true },
   });
 
   cachedEnabledByKey = {};
+  cachedFailureRateByKey = {};
   cachedUiEnabledKeys = [];
 
   for (const f of faults) {
     cachedEnabledByKey[f.key] = f.enabled;
+    cachedFailureRateByKey[f.key] = f.failureRate;
     if (f.enabled && f.level === "UI") {
-      cachedUiEnabledKeys.push(f.key);
+      cachedUiEnabledKeys.push({ key: f.key, failureRate: f.failureRate });
     }
   }
 
@@ -47,8 +51,30 @@ export async function isFaultEnabled(key: string): Promise<boolean> {
   return cachedEnabledByKey[key] ?? false;
 }
 
-export async function listEnabledUiFaultKeys(): Promise<string[]> {
+export async function shouldTriggerFault(key: string): Promise<boolean> {
   await refreshCacheIfNeeded();
-  return cachedUiEnabledKeys;
+  const enabled = cachedEnabledByKey[key] ?? false;
+  if (!enabled) return false;
+
+  const failureRate = cachedFailureRateByKey[key];
+  // pokud není nastaveno, chováme se jako "vždy".
+  if (failureRate === null || failureRate === undefined) return true;
+
+  const rateClamped = Math.max(0, Math.min(1, failureRate));
+  return Math.random() < rateClamped;
+}
+
+export async function listEnabledUiFaultConfigs(): Promise<
+  Array<{ key: string; failureRate: number }>
+> {
+  await refreshCacheIfNeeded();
+  return cachedUiEnabledKeys.map((f) => ({
+    key: f.key,
+    // null = vždy
+    failureRate:
+      f.failureRate === null || f.failureRate === undefined
+        ? 1
+        : Math.max(0, Math.min(1, f.failureRate)),
+  }));
 }
 

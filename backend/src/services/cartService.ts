@@ -1,5 +1,5 @@
 import prisma from "../db/prisma";
-import { isFaultEnabled, FAULT_KEYS } from "../faults/faultRuntime";
+import { shouldTriggerFault, FAULT_KEYS } from "../faults/faultRuntime";
 
 const DEFAULT_USER_ID = 1;
 
@@ -68,10 +68,10 @@ export async function addOrUpdateCartItem(
   // Backend/DB mutace: v payload chodí správné množství, ale do DB uložíme dvojnásobek "delta"
   // oproti současnému množství v košíku.
   if (quantity > (existing?.quantity ?? 0)) {
-    const enabled = await isFaultEnabled(
+    const shouldTrigger = await shouldTriggerFault(
       FAULT_KEYS.unitCartAddDoubleQuantityPersist,
     );
-    if (enabled) {
+    if (shouldTrigger) {
       const existingQty = existing?.quantity ?? 0;
       const delta = quantity - existingQty;
       quantity = existingQty + delta * 2;

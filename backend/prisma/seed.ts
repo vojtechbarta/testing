@@ -1,14 +1,18 @@
 import { FaultLevel, PrismaClient, UserRole } from "@prisma/client";
+import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  const adminPasswordHash = await bcrypt.hash("admin", 10);
+  const testerPasswordHash = await bcrypt.hash("tester", 10);
+
   const admin = await prisma.user.upsert({
     where: { email: "admin@example.com" },
-    update: {},
+    update: { password: adminPasswordHash },
     create: {
       email: "admin@example.com",
-      password: "admin123", // pouze pro testovací účely
+      password: adminPasswordHash,
       role: UserRole.ADMIN,
     },
   });
@@ -17,10 +21,10 @@ async function main() {
 
   const tester = await prisma.user.upsert({
     where: { email: "tester@example.com" },
-    update: {},
+    update: { password: testerPasswordHash },
     create: {
       email: "tester@example.com",
-      password: "tester", // pouze pro testovací účely
+      password: testerPasswordHash,
       role: UserRole.TESTER,
     },
   });

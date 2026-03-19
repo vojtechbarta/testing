@@ -2,6 +2,7 @@ import { Router } from "express";
 import prisma from "../db/prisma";
 import { signAdminToken } from "../middleware/adminAuth";
 import { UserRole } from "@prisma/client";
+import bcrypt from "bcrypt";
 
 const router = Router();
 
@@ -20,10 +21,10 @@ router.post("/login", async (req, res, next) => {
     let expectedRole: UserRole | null = null;
     let expectedEmail: string | null = null;
 
-    if (username === "admin" && password === "admin") {
+    if (username === "admin") {
       expectedRole = UserRole.ADMIN;
       expectedEmail = "admin@example.com";
-    } else if (username === "tester" && password === "tester") {
+    } else if (username === "tester") {
       expectedRole = UserRole.TESTER;
       expectedEmail = "tester@example.com";
     } else {
@@ -37,6 +38,12 @@ router.post("/login", async (req, res, next) => {
 
     if (!user) {
       res.status(500).json({ message: "User is not seeded in the database" });
+      return;
+    }
+
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) {
+      res.status(401).json({ message: "Invalid credentials" });
       return;
     }
 

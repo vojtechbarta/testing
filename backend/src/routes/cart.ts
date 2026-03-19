@@ -1,7 +1,7 @@
 import { Router } from "express";
 import prisma from "../db/prisma";
 import { addOrUpdateCartItem, getCart } from "../services/cartService";
-import { FAULT_KEYS, isFaultEnabled } from "../faults/faultRuntime";
+import { FAULT_KEYS, shouldTriggerFault } from "../faults/faultRuntime";
 
 const router = Router();
 
@@ -38,10 +38,10 @@ router.post("/items", async (req, res, next) => {
         const existingQty = existing?.quantity ?? 0;
 
         if (quantityToSave > existingQty) {
-          const enabled = await isFaultEnabled(
+          const shouldTrigger = await shouldTriggerFault(
             FAULT_KEYS.apiCartAddDoubleQuantityPayload,
           );
-          if (enabled) {
+          if (shouldTrigger) {
             const delta = quantityToSave - existingQty;
             quantityToSave = existingQty + delta * 2;
           }
