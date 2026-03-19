@@ -1,0 +1,77 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  role      UserRole  @default(CUSTOMER)
+  orders    Order[]
+  cartItems CartItem[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+enum UserRole {
+  ADMIN
+  CUSTOMER
+}
+
+model Product {
+  id          Int        @id @default(autoincrement())
+  name        String
+  description String
+  priceCents  Int
+  inStock     Int
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  orderItems  OrderItem[]
+  cartItems   CartItem[]
+}
+
+model Order {
+  id          Int         @id @default(autoincrement())
+  user        User        @relation(fields: [userId], references: [id])
+  userId      Int
+  totalCents  Int
+  status      OrderStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  items       OrderItem[]
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+model OrderItem {
+  id             Int     @id @default(autoincrement())
+  order          Order   @relation(fields: [orderId], references: [id])
+  orderId        Int
+  product        Product @relation(fields: [productId], references: [id])
+  productId      Int
+  quantity       Int
+  unitPriceCents Int
+}
+
+model CartItem {
+  id         Int     @id @default(autoincrement())
+  user       User    @relation(fields: [userId], references: [id])
+  userId     Int
+  product    Product @relation(fields: [productId], references: [id])
+  productId  Int
+  quantity   Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, productId], name: "userId_productId")
+}
