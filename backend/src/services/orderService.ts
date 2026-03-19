@@ -15,11 +15,11 @@ export async function createOrder(userId: number, items: OrderItemInput[]) {
   const productMap = new Map(products.map((p) => [p.id, p]));
   const currencyId = products[0]?.currencyId ?? products[0]?.currency?.id ?? null;
 
-  let totalCents = 0;
+  let orderTotal = 0;
   const orderItemsData: {
     productId: number;
     quantity: number;
-    unitPriceCents: number;
+    unitPrice: number;
   }[] = [];
 
   for (const item of items) {
@@ -27,23 +27,23 @@ export async function createOrder(userId: number, items: OrderItemInput[]) {
     if (!product) {
       throw new Error(`Product ${item.productId} not found`);
     }
-    const unitPriceCents = product.priceCents;
-    totalCents += unitPriceCents * item.quantity;
+    const unitPrice = product.price;
+    orderTotal += unitPrice * item.quantity;
     orderItemsData.push({
       productId: item.productId,
       quantity: item.quantity,
-      unitPriceCents,
+      unitPrice,
     });
   }
 
   if (isFaultEnabled("cart_price_miscalculation")) {
-    totalCents = Math.floor(totalCents * 0.9);
+    orderTotal = Math.floor(orderTotal * 0.9);
   }
 
   const order = await prisma.order.create({
     data: {
       userId,
-      totalCents,
+      total: orderTotal,
       currencyId: currencyId ?? undefined,
       items: {
         create: orderItemsData.map((oi) => ({

@@ -110,19 +110,19 @@ async function main() {
     {
       name: "Test Mouse",
       description: "A simple mouse for testing purposes.",
-      priceCents: 499,
+      price: 499,
       inStock: 15,
     },
     {
       name: "Test Keyboard",
       description: "A keyboard for writing tests and bug reports.",
-      priceCents: 1299,
+      price: 1299,
       inStock: 8,
     },
     {
       name: "QA Monitor",
       description: "A monitor for tracking test reports and dashboards.",
-      priceCents: 3999,
+      price: 3999,
       inStock: 5,
     },
   ];

@@ -21,7 +21,7 @@ function mapProductToDto(p: {
   description: string;
   inStock: number;
   active: boolean;
-  priceCents: number;
+  price: number;
   currency?: { code: string } | null;
 }): ProductDto {
   return {
@@ -30,9 +30,8 @@ function mapProductToDto(p: {
     description: p.description,
     inStock: p.inStock,
     active: p.active,
-    // amount je hodnota v CZK (zatím). V DB ukládáme `priceCents`, ale pro tuto ukázku
-    // ho používáme jako přímou částku (tj. bez násobení /100).
-    price: { amount: p.priceCents, currencyCode: p.currency?.code ?? "CZK" },
+    // Stored integer is the display amount in CZK for this demo (not cents).
+    price: { amount: p.price, currencyCode: p.currency?.code ?? "CZK" },
   };
 }
 
@@ -89,7 +88,7 @@ export async function updateProduct(
       description: data.description,
       inStock: data.inStock,
       active: data.active,
-      priceCents: Math.round(data.price.amount),
+      price: Math.round(data.price.amount),
       currencyId: currency.id,
     },
     include: { currency: true },
@@ -112,7 +111,7 @@ export async function createProduct(data: {
       description: data.description,
       inStock: data.inStock,
       active: data.active,
-      priceCents: Math.round(data.price.amount),
+      price: Math.round(data.price.amount),
       currencyId: currency.id,
     },
     include: { currency: true },

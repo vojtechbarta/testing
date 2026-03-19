@@ -10,8 +10,8 @@ export async function getCart(userId: number = DEFAULT_USER_ID) {
     orderBy: { createdAt: "asc" },
   });
 
-  const totalCents = items.reduce((sum, item) => {
-    return sum + item.product.priceCents * item.quantity;
+  const cartTotal = items.reduce((sum, item) => {
+    return sum + item.product.price * item.quantity;
   }, 0);
 
   const currencyCode = items[0]?.product.currency?.code ?? "CZK";
@@ -23,17 +23,17 @@ export async function getCart(userId: number = DEFAULT_USER_ID) {
       name: i.product.name,
       quantity: i.quantity,
       price: {
-        amount: i.product.priceCents,
+        amount: i.product.price,
         currencyCode: i.product.currency?.code ?? "CZK",
       },
       inStock: i.product.inStock,
       lineTotal: {
-        amount: i.product.priceCents * i.quantity,
+        amount: i.product.price * i.quantity,
         currencyCode: i.product.currency?.code ?? "CZK",
       },
     })),
     total: {
-      amount: totalCents,
+      amount: cartTotal,
       currencyCode,
     },
   };

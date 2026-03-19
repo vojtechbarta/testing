@@ -38,7 +38,7 @@ model Product {
   id          Int        @id @default(autoincrement())
   name        String
   description String
-  priceCents  Int
+  price       Int
   inStock     Int
   active      Boolean    @default(true)
   currencyId  Int?
@@ -53,7 +53,7 @@ model Order {
   id          Int         @id @default(autoincrement())
   user        User        @relation(fields: [userId], references: [id])
   userId      Int
-  totalCents  Int
+  total       Int
   status      OrderStatus @default(PENDING)
   currencyId  Int?
   currency    Currency?   @relation(fields: [currencyId], references: [id])
@@ -75,7 +75,7 @@ model OrderItem {
   product        Product @relation(fields: [productId], references: [id])
   productId      Int
   quantity       Int
-  unitPriceCents Int
+  unitPrice      Int
   currencyId     Int?
   currency       Currency? @relation(fields: [currencyId], references: [id])
 }
