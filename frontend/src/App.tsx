@@ -109,7 +109,7 @@ function App() {
       setCart(updated);
     } catch (err) {
       setCartError(
-        err instanceof Error ? err.message : "Chyba při aktualizaci košíku",
+        err instanceof Error ? err.message : "Cart update failed",
       );
     }
   };
@@ -124,7 +124,7 @@ function App() {
       setCart(updated);
     } catch (err) {
       setCartError(
-        err instanceof Error ? err.message : "Chyba při aktualizaci košíku",
+        err instanceof Error ? err.message : "Cart update failed",
       );
     }
   };
@@ -136,7 +136,7 @@ function App() {
       setCart(updated);
     } catch (err) {
       setCartError(
-        err instanceof Error ? err.message : "Chyba při aktualizaci košíku",
+        err instanceof Error ? err.message : "Cart update failed",
       );
     }
   };
@@ -152,7 +152,7 @@ function App() {
       setAdminProducts(productsData);
     } catch (err) {
       setAdminError(
-        err instanceof Error ? err.message : "Nepodařilo se načíst produkty",
+        err instanceof Error ? err.message : "Failed to load products",
       );
     }
   };
@@ -168,7 +168,7 @@ function App() {
       setAdminFaults(faultsData);
     } catch (err) {
       setAdminError(
-        err instanceof Error ? err.message : "Nepodařilo se načíst chyby",
+        err instanceof Error ? err.message : "Failed to load faults",
       );
     }
   };
@@ -198,7 +198,7 @@ function App() {
       setAdminProducts(productsData);
     } catch (err) {
       setAdminLoginError(
-        err instanceof Error ? err.message : "Přihlášení selhalo",
+        err instanceof Error ? err.message : "Login failed",
       );
     }
   };
@@ -290,7 +290,7 @@ function App() {
       );
     } catch (err) {
       setAdminError(
-        err instanceof Error ? err.message : "Uložení produktu selhalo",
+        err instanceof Error ? err.message : "Product save failed",
       );
     }
   };
@@ -300,8 +300,8 @@ function App() {
     try {
       setAdminError(null);
       const created = await createAdminProduct(adminToken, {
-        name: "Nový produkt",
-        description: "Popis nového produktu",
+        name: "New product",
+        description: "Product description",
         price: { amount: 100, currencyCode: "CZK" },
         inStock: 0,
         active: false,
@@ -309,7 +309,7 @@ function App() {
       setAdminProducts((prev) => [...prev, created]);
     } catch (err) {
       setAdminError(
-        err instanceof Error ? err.message : "Vytvoření produktu selhalo",
+        err instanceof Error ? err.message : "Product creation failed",
       );
     }
   };
@@ -331,7 +331,7 @@ function App() {
       );
     } catch (err) {
       setAdminError(
-        err instanceof Error ? err.message : "Aktualizace chyby selhala",
+        err instanceof Error ? err.message : "Fault update failed",
       );
     }
   };
@@ -377,7 +377,7 @@ function App() {
       );
     } catch (err) {
       setAdminError(
-        err instanceof Error ? err.message : "Uložení chyby selhalo",
+        err instanceof Error ? err.message : "Fault save failed",
       );
     }
   };
@@ -395,8 +395,7 @@ function App() {
         <div>
           <h1>AI Testing Shop</h1>
           <p>
-            Jednoduchý e-shop pro experimenty s AI testováním a chybami
-            (fault-injection).
+            A simple e-shop for AI testing experiments and fault injection.
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
@@ -413,7 +412,7 @@ function App() {
               cursor: "pointer",
             }}
           >
-            Obchod
+            Shop
           </button>
           {!adminToken && (
             <button
@@ -479,7 +478,7 @@ function App() {
                 cursor: "pointer",
                 fontSize: 12,
               }}
-              title="Odhlásit"
+              title="Logout"
             >
               {adminRole.toLowerCase()} · Logout
             </button>
@@ -487,9 +486,9 @@ function App() {
         </div>
       </header>
 
-      {loading && <p>Načítám produkty…</p>}
-      {error && <p style={{ color: "red" }}>Chyba: {error}</p>}
-      {cartError && <p style={{ color: "red" }}>Chyba košíku: {cartError}</p>}
+      {loading && <p>Loading products…</p>}
+      {error && <p style={{ color: "red" }}>Error: {error}</p>}
+      {cartError && <p style={{ color: "red" }}>Cart error: {cartError}</p>}
 
       {viewMode === "admin" ? (
         <section
@@ -507,7 +506,7 @@ function App() {
             >
               <div style={{ marginBottom: "0.5rem" }}>
                 <label>
-                  Uživatelské jméno
+                  Username
                   <input
                     name="username"
                     defaultValue="admin"
@@ -517,7 +516,7 @@ function App() {
               </div>
               <div style={{ marginBottom: "0.5rem" }}>
                 <label>
-                  Heslo
+                  Password
                   <input
                     name="password"
                     type="password"
@@ -540,7 +539,7 @@ function App() {
                   cursor: "pointer",
                 }}
               >
-                Přihlásit se
+                Sign in
               </button>
             </form>
           ) : (
@@ -565,7 +564,7 @@ function App() {
                     cursor: "pointer",
                   }}
                 >
-                  Odhlásit
+                  Logout
                 </button>
               </div>
               {adminError && (
@@ -586,7 +585,7 @@ function App() {
                     cursor: "pointer",
                   }}
                 >
-                  Přidat nový produkt
+                Add new product
                 </button>
               </div>
               <div style={{ overflowX: "auto" }}>
@@ -626,7 +625,7 @@ function App() {
                             color: "#111827",
                           }}
                         >
-                          Název {getSortArrow("name")}
+                          Name {getSortArrow("name")}
                         </button>
                       </th>
                       <th style={{ borderBottom: "1px solid #ddd" }}>
@@ -641,7 +640,7 @@ function App() {
                             color: "#111827",
                           }}
                         >
-                          Popis {getSortArrow("description")}
+                          Description {getSortArrow("description")}
                         </button>
                       </th>
                       <th style={{ borderBottom: "1px solid #ddd" }}>
@@ -656,7 +655,7 @@ function App() {
                             color: "#111827",
                           }}
                         >
-                          Cena (Kč) {getSortArrow("price")}
+                          Price (CZK) {getSortArrow("price")}
                         </button>
                       </th>
                       <th style={{ borderBottom: "1px solid #ddd" }}>
@@ -671,7 +670,7 @@ function App() {
                             color: "#111827",
                           }}
                         >
-                          Sklad {getSortArrow("inStock")}
+                          Stock {getSortArrow("inStock")}
                         </button>
                       </th>
                       <th style={{ borderBottom: "1px solid #ddd" }}>
@@ -686,7 +685,7 @@ function App() {
                             color: "#111827",
                           }}
                         >
-                          Aktivní {getSortArrow("active")}
+                          Active {getSortArrow("active")}
                         </button>
                       </th>
                       <th style={{ borderBottom: "1px solid #ddd" }} />
@@ -814,7 +813,7 @@ function App() {
                               cursor: "pointer",
                             }}
                           >
-                            Uložit
+                            Save
                           </button>
                         </td>
                       </tr>
@@ -835,7 +834,9 @@ function App() {
           }}
         >
           {!adminToken ? (
-            <p>Pro správu chyb se nejprve přihlas jako admin nebo tester.</p>
+            <p>
+              To manage faults, please sign in as Admin or Tester first.
+            </p>
           ) : (
             <>
               {adminError && (
@@ -845,7 +846,7 @@ function App() {
               )}
               <div style={{ overflowX: "auto" }}>
                 {adminFaults.length === 0 ? (
-                  <p>Zatím nejsou definovány žádné chyby.</p>
+                  <p>No faults defined yet.</p>
                 ) : (
                   <table
                     style={{
@@ -856,24 +857,24 @@ function App() {
                   >
                     <thead>
                       <tr>
-                        <th style={{ borderBottom: "1px solid #ddd" }}>Klíč</th>
+                        <th style={{ borderBottom: "1px solid #ddd" }}>Key</th>
                         <th style={{ borderBottom: "1px solid #ddd" }}>
-                          Název
+                          Name
                         </th>
                         <th style={{ borderBottom: "1px solid #ddd" }}>
-                          Popis
+                          Description
                         </th>
                         <th style={{ borderBottom: "1px solid #ddd" }}>
                           Level
                         </th>
                         <th style={{ borderBottom: "1px solid #ddd" }}>
-                          Zapnuto
+                          Enabled
                         </th>
                         <th style={{ borderBottom: "1px solid #ddd" }}>
-                          Latence (ms)
+                          Latency (ms)
                         </th>
                         <th style={{ borderBottom: "1px solid #ddd" }}>
-                          Chybovost (0–1)
+                          Failure rate (0–1)
                         </th>
                         <th style={{ borderBottom: "1px solid #ddd" }} />
                       </tr>
@@ -1020,7 +1021,7 @@ function App() {
                                 cursor: "pointer",
                               }}
                             >
-                              Uložit
+                              Save
                             </button>
                           </td>
                         </tr>
@@ -1043,7 +1044,7 @@ function App() {
       >
         <div>
           {!loading && !error && products.length === 0 && (
-            <p>Žádné produkty zatím nejsou.</p>
+            <p>No products available yet.</p>
           )}
 
           <div
@@ -1087,7 +1088,7 @@ function App() {
                     </strong>
                   </p>
                   <p style={{ fontSize: 12, color: "#555" }}>
-                    Sklad: {p.inStock}
+                    Stock: {p.inStock}
                   </p>
                   <button
                     type="button"
@@ -1104,7 +1105,7 @@ function App() {
                       cursor: canAddFromList ? "pointer" : "not-allowed",
                     }}
                   >
-                    {canAddFromList ? "Přidat do košíku" : "Max na skladě"}
+                    {canAddFromList ? "Add to cart" : "Max in stock"}
                   </button>
                 </div>
                 </article>
@@ -1123,7 +1124,7 @@ function App() {
           }}
         >
           {!cart || cart.items.length === 0 ? (
-            <p>Košík je prázdný.</p>
+            <p>Your cart is empty.</p>
           ) : (
             <>
               <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
@@ -1144,7 +1145,7 @@ function App() {
                     <div>
                       <strong>{item.name}</strong>
                       <div style={{ fontSize: 12, marginTop: 2, color: "#475569" }}>
-                        Jednotková cena:{" "}
+                        Unit price:{" "}
                         {(item.price.amount).toLocaleString("cs-CZ", {
                           style: "currency",
                           currency: item.price.currencyCode,
@@ -1221,10 +1222,10 @@ function App() {
                           -
                         </button>
                         <span style={{ minWidth: 24, textAlign: "center" }}>
-                          {item.quantity} ks
+                          {item.quantity} pcs
                         </span>
                         <span style={{ fontSize: 12, color: "#64748b" }}>
-                          / sklad {item.inStock}
+                          / In stock {item.inStock}
                         </span>
                         <div style={{ marginLeft: "auto" }}>
                           <button
@@ -1241,13 +1242,13 @@ function App() {
                               whiteSpace: "nowrap",
                             }}
                           >
-                            Odebrat všechny
+                            Remove all
                           </button>
                         </div>
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 12, color: "#64748b" }}>Mezisoučet</div>
+                      <div style={{ fontSize: 12, color: "#64748b" }}>Subtotal</div>
                       {(item.lineTotal.amount).toLocaleString("cs-CZ", {
                         style: "currency",
                         currency: item.lineTotal.currencyCode,
@@ -1258,7 +1259,7 @@ function App() {
               </ul>
               <hr />
               <p style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Celkem:</span>
+                <span>Total:</span>
                 <strong>
                   {(cart.total.amount).toLocaleString("cs-CZ", {
                     style: "currency",
@@ -1279,7 +1280,7 @@ function App() {
                   cursor: "pointer",
                 }}
               >
-                Dokončit objednávku (zatím mock)
+                Checkout (mock)
               </button>
             </>
           )}

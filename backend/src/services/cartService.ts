@@ -49,7 +49,7 @@ export async function addOrUpdateCartItem(
   });
 
   if (!product || !product.active) {
-    throw new Error("Produkt není dostupný.");
+    throw new Error("Product is not available.");
   }
 
   const currencyId = product.currencyId ?? undefined;
@@ -79,7 +79,7 @@ export async function addOrUpdateCartItem(
   }
 
   if (quantity > product.inStock) {
-    throw new Error(`Nelze přidat více než ${product.inStock} ks na skladě.`);
+    throw new Error(`Cannot add more than ${product.inStock} items in stock.`);
   }
 
   if (existing) {

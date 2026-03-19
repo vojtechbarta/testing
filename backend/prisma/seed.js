@@ -40,16 +40,16 @@ async function main() {
     await prisma.faultConfig.upsert({
         where: { key: "cart_add_ui_double_call" },
         update: {
-            name: "UI: Dvojité přidání do košíku",
-            description: "Jedním klikem se v UI zavolá endpoint pro přidání do košíku 2x (mutace na úrovni UI).",
+            name: "UI: Double-add to cart",
+            description: "With a single click, the UI calls the cart-add endpoint twice (UI-level mutation).",
             level: client_1.FaultLevel.UI,
             latencyMs: null,
             failureRate: null,
         },
         create: {
             key: "cart_add_ui_double_call",
-            name: "UI: Dvojité přidání do košíku",
-            description: "Jedním klikem se v UI zavolá endpoint pro přidání do košíku 2x (mutace na úrovni UI).",
+            name: "UI: Double-add to cart",
+            description: "With a single click, the UI calls the cart-add endpoint twice (UI-level mutation).",
             level: client_1.FaultLevel.UI,
             enabled: false,
             latencyMs: null,
@@ -59,16 +59,16 @@ async function main() {
     await prisma.faultConfig.upsert({
         where: { key: "cart_add_api_double_quantity_payload" },
         update: {
-            name: "API: Dvojnásobná payload delta pro košík",
-            description: "API vrstva při přidání do košíku zdvojnásobí změnu množství oproti aktuálnímu košíku (mutace na úrovni API).",
+            name: "API: Doubled cart quantity delta",
+            description: "The API layer doubles the quantity change compared to the current cart (API-level mutation).",
             level: client_1.FaultLevel.API,
             latencyMs: null,
             failureRate: null,
         },
         create: {
             key: "cart_add_api_double_quantity_payload",
-            name: "API: Dvojnásobná payload delta pro košík",
-            description: "API vrstva při přidání do košíku zdvojnásobí změnu množství oproti aktuálnímu košíku (mutace na úrovni API).",
+            name: "API: Doubled cart quantity delta",
+            description: "The API layer doubles the quantity change compared to the current cart (API-level mutation).",
             level: client_1.FaultLevel.API,
             enabled: false,
             latencyMs: null,
@@ -78,16 +78,16 @@ async function main() {
     await prisma.faultConfig.upsert({
         where: { key: "cart_add_unit_double_quantity_persist" },
         update: {
-            name: "Backend/DB: Dvojnásobná delta uložená do košíku",
-            description: "Backend/DB při přidání do košíku uloží dvojnásobnou změnu množství oproti aktuálnímu košíku (mutace na úrovni backend/DB).",
+            name: "Backend/DB: Doubled cart quantity delta",
+            description: "The Backend/DB layer stores a doubled quantity change compared to the current cart (backend/DB-level mutation).",
             level: client_1.FaultLevel.Unit,
             latencyMs: null,
             failureRate: null,
         },
         create: {
             key: "cart_add_unit_double_quantity_persist",
-            name: "Backend/DB: Dvojnásobná delta uložená do košíku",
-            description: "Backend/DB při přidání do košíku uloží dvojnásobnou změnu množství oproti aktuálnímu košíku (mutace na úrovni backend/DB).",
+            name: "Backend/DB: Doubled cart quantity delta",
+            description: "The Backend/DB layer stores a doubled quantity change compared to the current cart (backend/DB-level mutation).",
             level: client_1.FaultLevel.Unit,
             enabled: false,
             latencyMs: null,
@@ -96,20 +96,20 @@ async function main() {
     });
     const productsData = [
         {
-            name: "Testovací myš",
-            description: "Jednoduchá myš pro testovací účely.",
+            name: "Test Mouse",
+            description: "A simple mouse for testing purposes.",
             priceCents: 499,
             inStock: 15,
         },
         {
-            name: "Testovací klávesnice",
-            description: "Klávesnice pro psaní testů a bug reportů.",
+            name: "Test Keyboard",
+            description: "A keyboard for writing tests and bug reports.",
             priceCents: 1299,
             inStock: 8,
         },
         {
-            name: "Monitor QA",
-            description: "Monitor pro sledování test reportů a dashboardů.",
+            name: "QA Monitor",
+            description: "A monitor for tracking test reports and dashboards.",
             priceCents: 3999,
             inStock: 5,
         },
