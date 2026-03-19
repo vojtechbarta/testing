@@ -4,15 +4,24 @@ export interface CartItem {
   productId: number;
   name: string;
   quantity: number;
-  priceCents: number;
   inStock: number;
-  lineTotalCents: number;
+  price: {
+    amount: number;
+    currencyCode: string;
+  };
+  lineTotal: {
+    amount: number;
+    currencyCode: string;
+  };
 }
 
 export interface Cart {
   userId: number;
   items: CartItem[];
-  totalCents: number;
+  total: {
+    amount: number;
+    currencyCode: string;
+  };
 }
 
 export async function getCart(): Promise<Cart> {

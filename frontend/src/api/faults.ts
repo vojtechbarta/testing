@@ -2,6 +2,9 @@ const API_BASE_URL = "http://localhost:4000";
 
 export interface AdminFault {
   key: string;
+  name: string;
+  description: string;
+  level: "UI" | "API" | "Unit";
   enabled: boolean;
   latencyMs: number | null;
   failureRate: number | null;
@@ -24,7 +27,9 @@ export async function getAdminFaults(token: string): Promise<AdminFault[]> {
 export async function updateAdminFault(
   token: string,
   key: string,
-  data: Partial<Pick<AdminFault, "enabled" | "latencyMs" | "failureRate">>,
+  data: Partial<
+    Pick<AdminFault, "enabled" | "latencyMs" | "failureRate" | "name" | "description" | "level">
+  >,
 ): Promise<AdminFault> {
   const res = await fetch(`${API_BASE_URL}/admin/faults/${encodeURIComponent(key)}`, {
     method: "PATCH",

@@ -4,7 +4,10 @@ export interface AdminProduct {
   id: number;
   name: string;
   description: string;
-  priceCents: number;
+  price: {
+    amount: number;
+    currencyCode: string;
+  };
   inStock: number;
   active: boolean;
 }

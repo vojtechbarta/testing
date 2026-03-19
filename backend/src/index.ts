@@ -6,6 +6,7 @@ import cartRouter from "./routes/cart";
 import authRouter from "./routes/auth";
 import adminProductsRouter from "./routes/adminProducts";
 import adminFaultsRouter from "./routes/adminFaults";
+import uiFaultsRouter from "./routes/uiFaults";
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -28,6 +29,7 @@ app.use("/orders", ordersRouter);
 app.use("/cart", cartRouter);
 app.use("/admin/products", adminProductsRouter);
 app.use("/admin/faults", adminFaultsRouter);
+app.use("/faults", uiFaultsRouter);
 
 app.listen(port, () => {
   // eslint-disable-next-line no-console

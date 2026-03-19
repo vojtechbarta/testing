@@ -1,47 +1,121 @@
 import prisma from "../db/prisma";
 import { getFaultSettings, isFaultEnabled } from "../faults/faultService";
 
-export async function getAllProducts() {
+export type Money = {
+  amount: number;
+  currencyCode: string;
+};
+
+export type ProductDto = {
+  id: number;
+  name: string;
+  description: string;
+  inStock: number;
+  active: boolean;
+  price: Money;
+};
+
+function mapProductToDto(p: {
+  id: number;
+  name: string;
+  description: string;
+  inStock: number;
+  active: boolean;
+  priceCents: number;
+  currency?: { code: string } | null;
+}): ProductDto {
+  return {
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    inStock: p.inStock,
+    active: p.active,
+    // amount je hodnota v CZK (zatím). V DB ukládáme `priceCents`, ale pro tuto ukázku
+    // ho používáme jako přímou částku (tj. bez násobení /100).
+    price: { amount: p.priceCents, currencyCode: p.currency?.code ?? "CZK" },
+  };
+}
+
+export async function getAllProducts(): Promise<ProductDto[]> {
   if (isFaultEnabled("productListing_latency")) {
     const settings = getFaultSettings("productListing_latency");
     const latency = settings?.latencyMs ?? 1000;
     await new Promise((resolve) => setTimeout(resolve, latency));
   }
 
-  return prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: { active: true },
+    include: { currency: true },
   });
+
+  return products.map(mapProductToDto);
 }
 
-export function getAllProductsForAdmin() {
-  return prisma.product.findMany({
+export async function getAllProductsForAdmin(): Promise<ProductDto[]> {
+  const products = await prisma.product.findMany({
     orderBy: { id: "asc" },
+    include: { currency: true },
   });
+
+  return products.map(mapProductToDto);
 }
 
-export function updateProduct(
+async function upsertProductCurrencyId(currencyCode?: string) {
+  const code = currencyCode ?? "CZK";
+  const currency = await prisma.currency.findUnique({ where: { code } });
+  if (!currency) {
+    // for now: create missing currency; in this project we seed CZK anyway.
+    return prisma.currency.create({ data: { code } });
+  }
+  return currency;
+}
+
+export async function updateProduct(
   id: number,
   data: {
     name: string;
     description: string;
-    priceCents: number;
+    price: Money;
     inStock: number;
     active: boolean;
   },
 ) {
+  const currency = await upsertProductCurrencyId(data.price.currencyCode);
+
   return prisma.product.update({
     where: { id },
-    data,
-  });
+    data: {
+      name: data.name,
+      description: data.description,
+      inStock: data.inStock,
+      active: data.active,
+      priceCents: Math.round(data.price.amount),
+      currencyId: currency.id,
+    },
+    include: { currency: true },
+  }).then(mapProductToDto);
 }
 
-export function createProduct(data: {
+export async function createProduct(data: {
   name: string;
   description: string;
-  priceCents: number;
+  price: Money;
   inStock: number;
   active: boolean;
+  currencyCode?: string;
 }) {
-  return prisma.product.create({ data });
+  const currency = await upsertProductCurrencyId(data.price.currencyCode);
+
+  return prisma.product.create({
+    data: {
+      name: data.name,
+      description: data.description,
+      inStock: data.inStock,
+      active: data.active,
+      priceCents: Math.round(data.price.amount),
+      currencyId: currency.id,
+    },
+    include: { currency: true },
+  }).then(mapProductToDto);
 }
 

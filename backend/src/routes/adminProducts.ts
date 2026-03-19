@@ -22,10 +22,10 @@ router.get("/", async (_req, res, next) => {
 
 router.post("/", async (req, res, next) => {
   try {
-    const { name, description, priceCents, inStock, active } = req.body as {
+    const { name, description, price, inStock, active } = req.body as {
       name: string;
       description: string;
-      priceCents: number;
+      price: { amount: number; currencyCode: string };
       inStock: number;
       active: boolean;
     };
@@ -38,7 +38,10 @@ router.post("/", async (req, res, next) => {
     const product = await createProduct({
       name,
       description,
-      priceCents: Number(priceCents),
+      price: {
+        amount: Number(price.amount),
+        currencyCode: price.currencyCode,
+      },
       inStock: Number(inStock),
       active: Boolean(active),
     });
@@ -52,10 +55,10 @@ router.post("/", async (req, res, next) => {
 router.put("/:id", async (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    const { name, description, priceCents, inStock, active } = req.body as {
+    const { name, description, price, inStock, active } = req.body as {
       name: string;
       description: string;
-      priceCents: number;
+      price: { amount: number; currencyCode: string };
       inStock: number;
       active: boolean;
     };
@@ -68,7 +71,10 @@ router.put("/:id", async (req, res, next) => {
     const product = await updateProduct(id, {
       name,
       description,
-      priceCents: Number(priceCents),
+      price: {
+        amount: Number(price.amount),
+        currencyCode: price.currencyCode,
+      },
       inStock: Number(inStock),
       active: Boolean(active),
     });

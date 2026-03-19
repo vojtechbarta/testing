@@ -4,8 +4,12 @@ export interface Product {
   id: number;
   name: string;
   description: string;
-  priceCents: number;
+  price: {
+    amount: number;
+    currencyCode: string;
+  };
   inStock: number;
+  active: boolean;
 }
 
 export function getProducts() {

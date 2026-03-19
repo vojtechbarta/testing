@@ -1,18 +1,20 @@
 import prisma from "../db/prisma";
+import { isFaultEnabled, FAULT_KEYS } from "../faults/faultRuntime";
 
 const DEFAULT_USER_ID = 1;
 
 export async function getCart(userId: number = DEFAULT_USER_ID) {
   const items = await prisma.cartItem.findMany({
     where: { userId },
-    include: { product: true },
+    include: { product: { include: { currency: true } } },
     orderBy: { createdAt: "asc" },
   });
 
-  const totalCents = items.reduce(
-    (sum, item) => sum + item.product.priceCents * item.quantity,
-    0,
-  );
+  const totalCents = items.reduce((sum, item) => {
+    return sum + item.product.priceCents * item.quantity;
+  }, 0);
+
+  const currencyCode = items[0]?.product.currency?.code ?? "CZK";
 
   return {
     userId,
@@ -20,11 +22,20 @@ export async function getCart(userId: number = DEFAULT_USER_ID) {
       productId: i.productId,
       name: i.product.name,
       quantity: i.quantity,
-      priceCents: i.product.priceCents,
+      price: {
+        amount: i.product.priceCents,
+        currencyCode: i.product.currency?.code ?? "CZK",
+      },
       inStock: i.product.inStock,
-      lineTotalCents: i.product.priceCents * i.quantity,
+      lineTotal: {
+        amount: i.product.priceCents * i.quantity,
+        currencyCode: i.product.currency?.code ?? "CZK",
+      },
     })),
-    totalCents,
+    total: {
+      amount: totalCents,
+      currencyCode,
+    },
   };
 }
 
@@ -41,6 +52,8 @@ export async function addOrUpdateCartItem(
     throw new Error("Produkt není dostupný.");
   }
 
+  const currencyId = product.currencyId ?? undefined;
+
   if (quantity <= 0) {
     await prisma.cartItem.deleteMany({
       where: { userId, productId },
@@ -48,18 +61,31 @@ export async function addOrUpdateCartItem(
     return getCart(userId);
   }
 
-  if (quantity > product.inStock) {
-    throw new Error(`Nelze přidat více než ${product.inStock} ks na skladě.`);
-  }
-
   const existing = await prisma.cartItem.findFirst({
     where: { userId, productId },
   });
 
+  // Backend/DB mutace: v payload chodí správné množství, ale do DB uložíme dvojnásobek "delta"
+  // oproti současnému množství v košíku.
+  if (quantity > (existing?.quantity ?? 0)) {
+    const enabled = await isFaultEnabled(
+      FAULT_KEYS.unitCartAddDoubleQuantityPersist,
+    );
+    if (enabled) {
+      const existingQty = existing?.quantity ?? 0;
+      const delta = quantity - existingQty;
+      quantity = existingQty + delta * 2;
+    }
+  }
+
+  if (quantity > product.inStock) {
+    throw new Error(`Nelze přidat více než ${product.inStock} ks na skladě.`);
+  }
+
   if (existing) {
     await prisma.cartItem.update({
       where: { id: existing.id },
-      data: { quantity },
+      data: { quantity, currencyId },
     });
   } else {
     await prisma.cartItem.create({
@@ -67,6 +93,7 @@ export async function addOrUpdateCartItem(
         userId,
         productId,
         quantity,
+        currencyId,
       },
     });
   }

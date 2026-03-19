@@ -7,6 +7,16 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model Currency {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  createdAt DateTime @default(now())
+  products  Product[]
+  orders    Order[]
+  cartItems CartItem[]
+  orderItems OrderItem[]
+}
+
 model User {
   id        Int       @id @default(autoincrement())
   email     String    @unique
@@ -31,6 +41,8 @@ model Product {
   priceCents  Int
   inStock     Int
   active      Boolean    @default(true)
+  currencyId  Int?
+  currency    Currency?  @relation(fields: [currencyId], references: [id])
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   orderItems  OrderItem[]
@@ -43,6 +55,8 @@ model Order {
   userId      Int
   totalCents  Int
   status      OrderStatus @default(PENDING)
+  currencyId  Int?
+  currency    Currency?   @relation(fields: [currencyId], references: [id])
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   items       OrderItem[]
@@ -62,6 +76,8 @@ model OrderItem {
   productId      Int
   quantity       Int
   unitPriceCents Int
+  currencyId     Int?
+  currency       Currency? @relation(fields: [currencyId], references: [id])
 }
 
 model CartItem {
@@ -71,6 +87,8 @@ model CartItem {
   product    Product @relation(fields: [productId], references: [id])
   productId  Int
   quantity   Int
+  currencyId Int?
+  currency   Currency? @relation(fields: [currencyId], references: [id])
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -79,8 +97,17 @@ model CartItem {
 
 model FaultConfig {
   key         String   @id
+  name        String
+  description String
+  level       FaultLevel
   enabled     Boolean  @default(false)
   latencyMs   Int?
   failureRate Float?
   updatedAt   DateTime @updatedAt
+}
+
+enum FaultLevel {
+  UI
+  API
+  Unit
 }

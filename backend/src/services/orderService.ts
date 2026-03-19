@@ -9,9 +9,11 @@ type OrderItemInput = {
 export async function createOrder(userId: number, items: OrderItemInput[]) {
   const products = await prisma.product.findMany({
     where: { id: { in: items.map((i) => i.productId) } },
+    include: { currency: true },
   });
 
   const productMap = new Map(products.map((p) => [p.id, p]));
+  const currencyId = products[0]?.currencyId ?? products[0]?.currency?.id ?? null;
 
   let totalCents = 0;
   const orderItemsData: {
@@ -42,8 +44,12 @@ export async function createOrder(userId: number, items: OrderItemInput[]) {
     data: {
       userId,
       totalCents,
+      currencyId: currencyId ?? undefined,
       items: {
-        create: orderItemsData,
+        create: orderItemsData.map((oi) => ({
+          ...oi,
+          currencyId: currencyId ?? undefined,
+        })),
       },
     },
     include: {

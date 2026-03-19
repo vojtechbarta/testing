@@ -19,10 +19,13 @@ router.get("/", async (_req, res, next) => {
 router.patch("/:key", async (req, res, next) => {
   try {
     const { key } = req.params;
-    const { enabled, latencyMs, failureRate } = req.body as {
+    const { enabled, latencyMs, failureRate, name, description, level } = req.body as {
       enabled?: boolean;
       latencyMs?: number | null;
       failureRate?: number | null;
+      name?: string;
+      description?: string;
+      level?: string;
     };
 
     if (!key) {
@@ -48,6 +51,9 @@ router.patch("/:key", async (req, res, next) => {
       enabled,
       latencyMs: parsedLatency,
       failureRate: parsedFailureRate,
+      name,
+      description,
+      level,
     });
 
     res.json(updated);

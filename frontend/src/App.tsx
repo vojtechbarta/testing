@@ -14,6 +14,7 @@ import {
   updateAdminFault,
   type AdminFault,
 } from "./api/faults";
+import { getActiveUiFaultKeys } from "./api/uiFaults";
 
 type ViewMode = "shop" | "admin" | "bugs";
 
@@ -40,6 +41,7 @@ function App() {
     localStorage.getItem("adminRole"),
   );
   const [adminFaults, setAdminFaults] = useState<AdminFault[]>([]);
+  const [activeUiFaultKeys, setActiveUiFaultKeys] = useState<string[]>([]);
 
   useEffect(() => {
     // pokud je v localStorage rozbitý stav (token bez role nebo naopak), vyčisti ho
@@ -49,11 +51,12 @@ function App() {
     }
     let cancelled = false;
     setLoading(true);
-    Promise.all([getProducts(), getCart()])
-      .then(([productsData, cartData]) => {
+    Promise.all([getProducts(), getCart(), getActiveUiFaultKeys()])
+      .then(([productsData, cartData, uiFaultKeys]) => {
         if (!cancelled) {
           setProducts(productsData);
           setCart(cartData);
+          setActiveUiFaultKeys(uiFaultKeys);
         }
       })
       .catch((err: unknown) => {
@@ -71,11 +74,29 @@ function App() {
     };
   }, []);
 
+  const uiDoubleAddEnabled =
+    activeUiFaultKeys.includes("cart_add_ui_double_call");
+
   const handleAddToCart = async (productId: number) => {
     try {
       setCartError(null);
       const currentQty =
         cart?.items.find((i) => i.productId === productId)?.quantity ?? 0;
+
+      if (uiDoubleAddEnabled) {
+        // UI mutace: v rámci jednoho kliknutí zavoláme backend 2x,
+        // pokaždé přidáme po 1 kuse. Druhý call dopočítáme z odpovědi
+        // z prvního volání, aby decrement zůstalo správné.
+        const first = await updateCartItem(productId, currentQty + 1);
+        const firstQty =
+          first.items.find((i) => i.productId === productId)?.quantity ??
+          currentQty + 1;
+
+        const second = await updateCartItem(productId, firstQty + 1);
+        setCart(second);
+        return;
+      }
+
       const updated = await updateCartItem(productId, currentQty + 1);
       setCart(updated);
     } catch (err) {
@@ -194,14 +215,18 @@ function App() {
         p.id === id
           ? {
               ...p,
-              [field]:
-                field === "active"
-                  ? Boolean(value)
-                  : field === "priceCents"
-                    ? Math.round(Number(value) * 100)
-                    : field === "inStock"
-                      ? Number(value)
-                      : value,
+              ...(field === "active"
+                ? { active: Boolean(value) }
+                : field === "inStock"
+                  ? { inStock: Number(value) }
+                  : field === "price"
+                    ? {
+                        price: {
+                          ...p.price,
+                            amount: Number(value),
+                        },
+                      }
+                    : { [field]: value }),
             }
           : p,
       ),
@@ -211,14 +236,19 @@ function App() {
   const sortedAdminProducts = [...adminProducts].sort((a, b) => {
     const dir = adminSort.direction === "asc" ? 1 : -1;
     const col = adminSort.column;
-    const av = a[col];
-    const bv = b[col];
+
+    if (col === "price") {
+      return (a.price.amount - b.price.amount) * dir;
+    }
+
+    const av = a[col] as unknown;
+    const bv = b[col] as unknown;
+
     if (typeof av === "number" && typeof bv === "number") {
       return (av - bv) * dir;
     }
-    const as = String(av ?? "");
-    const bs = String(bv ?? "");
-    return as.localeCompare(bs, "cs") * dir;
+
+    return String(av ?? "").localeCompare(String(bv ?? ""), "cs") * dir;
   });
 
   const handleAdminSort = (column: keyof AdminProduct) => {
@@ -243,7 +273,7 @@ function App() {
       const updated = await updateAdminProduct(adminToken, product.id, {
         name: product.name,
         description: product.description,
-        priceCents: product.priceCents,
+        price: product.price,
         inStock: product.inStock,
         active: product.active,
       });
@@ -264,7 +294,7 @@ function App() {
       const created = await createAdminProduct(adminToken, {
         name: "Nový produkt",
         description: "Popis nového produktu",
-        priceCents: 10000,
+        price: { amount: 100, currencyCode: "CZK" },
         inStock: 0,
         active: false,
       });
@@ -297,7 +327,7 @@ function App() {
 
   const handleAdminFaultChange = (
     key: string,
-    field: "latencyMs" | "failureRate",
+    field: "latencyMs" | "failureRate" | "name" | "description" | "level",
     value: string,
   ) => {
     setAdminFaults((prev) =>
@@ -306,11 +336,13 @@ function App() {
           ? {
               ...f,
               [field]:
-                value.trim() === ""
-                  ? null
-                  : field === "latencyMs"
-                    ? Number(value)
-                    : Number(value),
+                field === "name" || field === "description" || field === "level"
+                  ? value
+                  : value.trim() === ""
+                    ? null
+                    : field === "latencyMs"
+                      ? Number(value)
+                      : Number(value),
             }
           : f,
       ),
@@ -325,6 +357,9 @@ function App() {
         enabled: fault.enabled,
         latencyMs: fault.latencyMs,
         failureRate: fault.failureRate,
+        name: fault.name,
+        description: fault.description,
+        level: fault.level,
       });
       setAdminFaults((prev) =>
         prev.map((f) => (f.key === updated.key ? updated : f)),
@@ -601,7 +636,7 @@ function App() {
                       <th style={{ borderBottom: "1px solid #ddd" }}>
                         <button
                           type="button"
-                          onClick={() => handleAdminSort("priceCents")}
+                          onClick={() => handleAdminSort("price")}
                           style={{
                             background: "transparent",
                             border: "none",
@@ -610,7 +645,7 @@ function App() {
                             color: "#111827",
                           }}
                         >
-                          Cena (Kč) {getSortArrow("priceCents")}
+                          Cena (Kč) {getSortArrow("price")}
                         </button>
                       </th>
                       <th style={{ borderBottom: "1px solid #ddd" }}>
@@ -702,11 +737,11 @@ function App() {
                           <input
                             type="text"
                             inputMode="decimal"
-                            value={p.priceCents / 100}
+                            value={p.price.amount}
                             onChange={(e) =>
                               handleAdminProductChange(
                                 p.id,
-                                "priceCents",
+                                "price",
                                 e.target.value,
                               )
                             }
@@ -812,6 +847,15 @@ function App() {
                       <tr>
                         <th style={{ borderBottom: "1px solid #ddd" }}>Klíč</th>
                         <th style={{ borderBottom: "1px solid #ddd" }}>
+                          Název
+                        </th>
+                        <th style={{ borderBottom: "1px solid #ddd" }}>
+                          Popis
+                        </th>
+                        <th style={{ borderBottom: "1px solid #ddd" }}>
+                          Level
+                        </th>
+                        <th style={{ borderBottom: "1px solid #ddd" }}>
                           Zapnuto
                         </th>
                         <th style={{ borderBottom: "1px solid #ddd" }}>
@@ -833,6 +877,66 @@ function App() {
                             }}
                           >
                             {f.key}
+                          </td>
+                          <td
+                            style={{
+                              borderBottom: "1px solid #eee",
+                              padding: "0.25rem 0.4rem",
+                            }}
+                          >
+                            <input
+                              type="text"
+                              value={f.name}
+                              onChange={(e) =>
+                                handleAdminFaultChange(
+                                  f.key,
+                                  "name",
+                                  e.target.value,
+                                )
+                              }
+                              style={{ width: "100%" }}
+                            />
+                          </td>
+                          <td
+                            style={{
+                              borderBottom: "1px solid #eee",
+                              padding: "0.25rem 0.4rem",
+                            }}
+                          >
+                            <input
+                              type="text"
+                              value={f.description}
+                              onChange={(e) =>
+                                handleAdminFaultChange(
+                                  f.key,
+                                  "description",
+                                  e.target.value,
+                                )
+                              }
+                              style={{ width: "100%" }}
+                            />
+                          </td>
+                          <td
+                            style={{
+                              borderBottom: "1px solid #eee",
+                              padding: "0.25rem 0.4rem",
+                            }}
+                          >
+                            <select
+                              value={f.level}
+                              onChange={(e) =>
+                                handleAdminFaultChange(
+                                  f.key,
+                                  "level",
+                                  e.target.value,
+                                )
+                              }
+                              style={{ width: "100%" }}
+                            >
+                              <option value="UI">UI</option>
+                              <option value="API">API</option>
+                              <option value="Unit">Unit</option>
+                            </select>
                           </td>
                           <td
                             style={{
@@ -942,7 +1046,8 @@ function App() {
             {products.map((p) => {
               const inCartQty =
                 cart?.items.find((i) => i.productId === p.id)?.quantity ?? 0;
-              const canAddFromList = inCartQty < p.inStock;
+              const step = uiDoubleAddEnabled ? 2 : 1;
+              const canAddFromList = inCartQty + step <= p.inStock;
               return (
                 <article
                 key={p.id}
@@ -964,9 +1069,9 @@ function App() {
                 <div>
                   <p style={{ marginBottom: "0.5rem" }}>
                     <strong>
-                      {(p.priceCents / 100).toLocaleString("cs-CZ", {
+                      {(p.price.amount).toLocaleString("cs-CZ", {
                         style: "currency",
-                        currency: "CZK",
+                        currency: p.price.currencyCode,
                       })}
                     </strong>
                   </p>
@@ -1029,9 +1134,9 @@ function App() {
                       <strong>{item.name}</strong>
                       <div style={{ fontSize: 12, marginTop: 2, color: "#475569" }}>
                         Jednotková cena:{" "}
-                        {(item.priceCents / 100).toLocaleString("cs-CZ", {
+                        {(item.price.amount).toLocaleString("cs-CZ", {
                           style: "currency",
-                          currency: "CZK",
+                          currency: item.price.currencyCode,
                         })}
                       </div>
                       <div
@@ -1045,20 +1150,40 @@ function App() {
                         <button
                           type="button"
                           onClick={() => handleAddToCart(item.productId)}
-                          disabled={item.quantity >= item.inStock}
+                          disabled={
+                            uiDoubleAddEnabled
+                              ? item.quantity + 2 > item.inStock
+                              : item.quantity >= item.inStock
+                          }
                           style={{
                             width: 26,
                             height: 26,
                             borderRadius: 6,
                             border: "1px solid #cbd5e1",
                             background:
-                              item.quantity >= item.inStock ? "#e2e8f0" : "#fff",
+                              uiDoubleAddEnabled
+                                ? item.quantity + 2 > item.inStock
+                                  ? "#e2e8f0"
+                                  : "#fff"
+                                : item.quantity >= item.inStock
+                                  ? "#e2e8f0"
+                                  : "#fff",
                             color:
-                              item.quantity >= item.inStock ? "#94a3b8" : "#0f172a",
+                              uiDoubleAddEnabled
+                                ? item.quantity + 2 > item.inStock
+                                  ? "#94a3b8"
+                                  : "#0f172a"
+                                : item.quantity >= item.inStock
+                                  ? "#94a3b8"
+                                  : "#0f172a",
                             cursor:
-                              item.quantity >= item.inStock
-                                ? "not-allowed"
-                                : "pointer",
+                              uiDoubleAddEnabled
+                                ? item.quantity + 2 > item.inStock
+                                  ? "not-allowed"
+                                  : "pointer"
+                                : item.quantity >= item.inStock
+                                  ? "not-allowed"
+                                  : "pointer",
                             fontSize: 16,
                             lineHeight: "24px",
                             padding: 0,
@@ -1112,9 +1237,9 @@ function App() {
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <div style={{ fontSize: 12, color: "#64748b" }}>Mezisoučet</div>
-                      {(item.lineTotalCents / 100).toLocaleString("cs-CZ", {
+                      {(item.lineTotal.amount).toLocaleString("cs-CZ", {
                         style: "currency",
-                        currency: "CZK",
+                        currency: item.lineTotal.currencyCode,
                       })}
                     </div>
                   </li>
@@ -1124,9 +1249,9 @@ function App() {
               <p style={{ display: "flex", justifyContent: "space-between" }}>
                 <span>Celkem:</span>
                 <strong>
-                  {(cart.totalCents / 100).toLocaleString("cs-CZ", {
+                  {(cart.total.amount).toLocaleString("cs-CZ", {
                     style: "currency",
-                    currency: "CZK",
+                    currency: cart.total.currencyCode,
                   })}
                 </strong>
               </p>
