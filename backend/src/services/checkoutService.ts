@@ -1,6 +1,9 @@
 import prisma from "../db/prisma";
 import { isFaultEnabled } from "../faults/faultService";
 import { OrderStatus, PaymentMethod, Prisma } from "@prisma/client";
+import { loadMockPaymentOutcomeForEmail } from "./mockPaymentConfigService";
+
+export type { MockPayOutcome } from "./mockPaymentConfigService";
 
 const cartWithProduct = Prisma.validator<Prisma.CartItemDefaultArgs>()({
   include: {
@@ -228,12 +231,7 @@ export async function checkoutGatewayInit(userId: number, buyer: BuyerPayload) {
   });
 }
 
-export type MockPayOutcome = "success" | "failure" | "random";
-
-export async function mockGatewayPayment(
-  orderId: number,
-  outcome: MockPayOutcome = "success",
-) {
+export async function mockGatewayPayment(orderId: number) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
@@ -256,14 +254,18 @@ export async function mockGatewayPayment(
     );
   }
 
-  let success: boolean;
-  if (outcome === "random") {
-    success = Math.random() >= 0.5;
+  const behavior = loadMockPaymentOutcomeForEmail(order.customerEmail);
+
+  let paymentSucceeded: boolean;
+  let mockRandomRollSuccess: boolean | undefined;
+  if (behavior === "random") {
+    mockRandomRollSuccess = Math.random() >= 0.5;
+    paymentSucceeded = mockRandomRollSuccess;
   } else {
-    success = outcome === "success";
+    paymentSucceeded = behavior === "success";
   }
 
-  if (!success) {
+  if (!paymentSucceeded) {
     await prisma.order.update({
       where: { id: orderId },
       data: { status: OrderStatus.CANCELLED },
@@ -272,6 +274,10 @@ export async function mockGatewayPayment(
       success: false as const,
       orderId,
       message: "Mock payment gateway declined the payment.",
+      mockPaymentBehavior: behavior,
+      ...(behavior === "random"
+        ? { mockRandomRollSuccess: mockRandomRollSuccess! }
+        : {}),
     };
   }
 
@@ -314,6 +320,10 @@ export async function mockGatewayPayment(
     success: true as const,
     orderId,
     message: "Mock payment gateway completed successfully.",
+    mockPaymentBehavior: behavior,
+    ...(behavior === "random"
+      ? { mockRandomRollSuccess: mockRandomRollSuccess! }
+      : {}),
   };
 }
 

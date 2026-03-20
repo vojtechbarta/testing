@@ -5,7 +5,6 @@ import {
   checkoutGatewayInit,
   mockGatewayPayment,
   type BuyerPayload,
-  type MockPayOutcome,
 } from "../services/checkoutService";
 import {
   isSmtpConfigured,
@@ -94,7 +93,8 @@ router.post("/gateway/init", async (req, res, next) => {
     const order = await checkoutGatewayInit(userId, buyer);
     res.status(201).json({
       order,
-      nextStep: "POST /checkout/gateway/:orderId/mock-pay with { outcome: 'success' | 'failure' | 'random' }",
+      nextStep:
+        "POST /checkout/gateway/:orderId/mock-pay — outcome from MockConfigs/PaymentConfigs.json by buyer email",
     });
   } catch (err) {
     next(err);
@@ -104,13 +104,7 @@ router.post("/gateway/init", async (req, res, next) => {
 router.post("/gateway/:orderId/mock-pay", async (req, res, next) => {
   try {
     const orderId = Number(req.params.orderId);
-    const raw = req.body?.outcome as string | undefined;
-    const outcome: MockPayOutcome =
-      raw === "failure" || raw === "random" || raw === "success"
-        ? raw
-        : "success";
-
-    const result = await mockGatewayPayment(orderId, outcome);
+    const result = await mockGatewayPayment(orderId);
     res.status(200).json(result);
   } catch (err) {
     next(err);

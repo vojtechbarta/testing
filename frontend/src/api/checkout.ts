@@ -76,22 +76,18 @@ export async function checkoutGatewayInit(
   return res.json();
 }
 
-export type MockOutcome = "success" | "failure" | "random";
-
-export async function checkoutMockPay(
-  orderId: number,
-  outcome: MockOutcome,
-): Promise<{
+export async function checkoutMockPay(orderId: number): Promise<{
   success: boolean;
   orderId: number;
   message: string;
+  mockPaymentBehavior?: string;
+  mockRandomRollSuccess?: boolean;
 }> {
   const res = await fetch(
     `${API_BASE}/checkout/gateway/${orderId}/mock-pay`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ outcome }),
     },
   );
   if (!res.ok) {

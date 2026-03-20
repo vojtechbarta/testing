@@ -22,7 +22,6 @@ import {
   checkoutMockPay,
   type BankTransferDetails,
   type BuyerFormPayload,
-  type MockOutcome,
 } from "./api/checkout";
 
 type ViewMode = "shop" | "admin" | "bugs";
@@ -89,7 +88,6 @@ function App() {
     emailError?: string;
   } | null>(null);
   const [gatewayOrderId, setGatewayOrderId] = useState<number | null>(null);
-  const [mockOutcome, setMockOutcome] = useState<MockOutcome>("success");
 
   useEffect(() => {
     // pokud je v localStorage rozbitý stav (token bez role nebo naopak), vyčisti ho
@@ -225,7 +223,6 @@ function App() {
     setBankTransferInfo(null);
     setBankEmailInfo(null);
     setGatewayOrderId(null);
-    setMockOutcome("success");
   };
 
   const closeCheckout = () => {
@@ -293,12 +290,16 @@ function App() {
     setCheckoutError(null);
     setCheckoutBusy(true);
     try {
-      const res = await checkoutMockPay(gatewayOrderId, mockOutcome);
+      const res = await checkoutMockPay(gatewayOrderId);
       if (res.success) {
         await refreshShopData();
         closeCheckout();
       } else {
-        setCheckoutError(res.message);
+        const rule =
+          res.mockPaymentBehavior != null
+            ? ` Rule: ${res.mockPaymentBehavior}${res.mockRandomRollSuccess === false ? " (random → declined)" : res.mockRandomRollSuccess === true ? " (random → approved)" : ""}.`
+            : "";
+        setCheckoutError(res.message + rule);
       }
     } catch (err) {
       setCheckoutError(
@@ -1373,8 +1374,10 @@ function App() {
                     onChange={() => setPaymentChoice("gateway")}
                   />
                   <span>
-                    <strong>Payment gateway</strong> — internal mock only;
-                    choose success / failure / random.
+                    <strong>Payment gateway</strong> — mock result is driven by
+                    buyer email in{" "}
+                    <code className="inline-code">MockConfigs/PaymentConfigs.json</code>{" "}
+                    on the server (emails not listed → success).
                   </span>
                 </label>
                 <div className="checkout-actions">
@@ -1464,19 +1467,14 @@ function App() {
                   succeeds. If you go back and submit again, the same pending
                   order is reused when possible.
                 </p>
-                <label>
-                  Mock outcome
-                  <select
-                    value={mockOutcome}
-                    onChange={(e) =>
-                      setMockOutcome(e.target.value as MockOutcome)
-                    }
-                  >
-                    <option value="success">Success</option>
-                    <option value="failure">Failure</option>
-                    <option value="random">Random</option>
-                  </select>
-                </label>
+                <p className="muted" style={{ fontSize: "0.82rem" }}>
+                  Result for <strong>{buyerForm.customerEmail}</strong> is read
+                  from <code className="inline-code">PaymentConfigs.json</code>{" "}
+                  (<code className="inline-code">byBuyerEmail</code>). Example
+                  test emails: <code className="inline-code">pay-fail@example.com</code>
+                  ,{" "}
+                  <code className="inline-code">pay-random@example.com</code>.
+                </p>
                 <div className="checkout-actions">
                   <button
                     type="button"

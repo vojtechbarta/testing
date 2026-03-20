@@ -1,0 +1,7 @@
+{
+  "byBuyerEmail": {
+    "bartavoj_fail@gmail.com": "failure",
+    "bartavoj_random@gmail.com": "random", 
+    "bartavoj_success@gmail.com": "success"
+  }
+}
