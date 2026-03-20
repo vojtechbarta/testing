@@ -63,6 +63,7 @@ function App() {
     localStorage.getItem("adminRole"),
   );
   const [adminFaults, setAdminFaults] = useState<AdminFault[]>([]);
+  const [faultsSaving, setFaultsSaving] = useState(false);
   const [activeUiFaultConfigs, setActiveUiFaultConfigs] = useState<
     Array<{ key: string; failureRate: number }>
   >([]);
@@ -354,8 +355,19 @@ function App() {
     }
   };
 
+  /** Re-fetch enabled UI faults — they only load on initial mount otherwise, so toggling in Bugs would leave Shop stale. */
+  const reloadActiveUiFaults = async () => {
+    try {
+      const configs = await getActiveUiFaultConfigs();
+      setActiveUiFaultConfigs(configs);
+    } catch {
+      /* keep existing activeUiFaultConfigs */
+    }
+  };
+
   const handleSwitchToShop = () => {
     setViewMode("shop");
+    void reloadActiveUiFaults();
   };
 
   const handleAdminLoginSubmit: React.FormEventHandler<HTMLFormElement> = async (
@@ -495,25 +507,47 @@ function App() {
     }
   };
 
-  const handleAdminToggleFault = async (fault: AdminFault) => {
+  /** Local-only: enabling still sets failure rate to 1 (same UX as before); nothing hits the API until Save all. */
+  const handleAdminFaultEnabledLocalChange = (key: string) => {
+    setAdminFaults((prev) =>
+      prev.map((f) => {
+        if (f.key !== key) return f;
+        const enabling = !f.enabled;
+        return {
+          ...f,
+          enabled: enabling,
+          ...(enabling ? { failureRate: 1 } : {}),
+        };
+      }),
+    );
+  };
+
+  const handleAdminSaveAllFaults = async () => {
     if (!adminToken) return;
     try {
       setAdminError(null);
-      const enabling = !fault.enabled;
-      const updated = await updateAdminFault(adminToken, fault.key, {
-        enabled: enabling,
-        // Při zapnutí automaticky nastavíme chybovost na "vždy".
-        ...(enabling ? { failureRate: 1 } : {}),
-      });
-      setAdminFaults((prev) =>
-        prev.some((f) => f.key === updated.key)
-          ? prev.map((f) => (f.key === updated.key ? updated : f))
-          : [...prev, updated],
+      setFaultsSaving(true);
+      await Promise.all(
+        adminFaults.map((f) =>
+          updateAdminFault(adminToken, f.key, {
+            enabled: f.enabled,
+            latencyMs: f.latencyMs,
+            failureRate: f.failureRate,
+            name: f.name,
+            description: f.description,
+            level: f.level,
+          }),
+        ),
       );
+      const refreshed = await getAdminFaults(adminToken);
+      setAdminFaults(refreshed);
+      await reloadActiveUiFaults();
     } catch (err) {
       setAdminError(
-        err instanceof Error ? err.message : "Fault update failed",
+        err instanceof Error ? err.message : "Fault save failed",
       );
+    } finally {
+      setFaultsSaving(false);
     }
   };
 
@@ -539,28 +573,6 @@ function App() {
           : f,
       ),
     );
-  };
-
-  const handleAdminFaultSave = async (fault: AdminFault) => {
-    if (!adminToken) return;
-    try {
-      setAdminError(null);
-      const updated = await updateAdminFault(adminToken, fault.key, {
-        enabled: fault.enabled,
-        latencyMs: fault.latencyMs,
-        failureRate: fault.failureRate,
-        name: fault.name,
-        description: fault.description,
-        level: fault.level,
-      });
-      setAdminFaults((prev) =>
-        prev.map((f) => (f.key === updated.key ? updated : f)),
-      );
-    } catch (err) {
-      setAdminError(
-        err instanceof Error ? err.message : "Fault save failed",
-      );
-    }
   };
 
   return (
@@ -879,6 +891,23 @@ function App() {
                   {adminError}
                 </p>
               )}
+              <div className="admin-toolbar" style={{ marginBottom: "0.75rem" }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={
+                    faultsSaving ||
+                    adminFaults.length === 0 ||
+                    !adminToken
+                  }
+                  onClick={() => void handleAdminSaveAllFaults()}
+                >
+                  {faultsSaving ? "Saving…" : "Save all faults"}
+                </button>
+                <span className="muted" style={{ marginLeft: "0.75rem" }}>
+                  Edits are kept locally until you save.
+                </span>
+              </div>
               <div className="table-wrap">
                 {adminFaults.length === 0 ? (
                   <p className="empty-state">No faults defined yet.</p>
@@ -893,7 +922,6 @@ function App() {
                         <th>Enabled</th>
                         <th>Latency (ms)</th>
                         <th>Failure rate (0–1)</th>
-                        <th />
                       </tr>
                     </thead>
                     <tbody>
@@ -946,7 +974,9 @@ function App() {
                             <input
                               type="checkbox"
                               checked={f.enabled}
-                              onChange={() => handleAdminToggleFault(f)}
+                              onChange={() =>
+                                handleAdminFaultEnabledLocalChange(f.key)
+                              }
                             />
                           </td>
                           <td>
@@ -977,15 +1007,6 @@ function App() {
                                 )
                               }
                             />
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              onClick={() => handleAdminFaultSave(f)}
-                              className="btn-table"
-                            >
-                              Save
-                            </button>
                           </td>
                         </tr>
                       ))}

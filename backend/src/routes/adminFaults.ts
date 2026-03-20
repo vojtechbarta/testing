@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { roleAuth } from "../middleware/adminAuth";
+import { invalidateFaultRuntimeCache } from "../faults/faultRuntime";
 import { getAllFaultConfigs, upsertFaultConfig } from "../services/faultAdminService";
 import { UserRole } from "@prisma/client";
 
@@ -55,6 +56,8 @@ router.patch("/:key", async (req, res, next) => {
       description,
       level,
     });
+
+    invalidateFaultRuntimeCache();
 
     res.json(updated);
   } catch (err) {

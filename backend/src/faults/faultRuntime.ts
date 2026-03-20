@@ -23,7 +23,8 @@ let cachedUiEnabledKeys: Array<{ key: string; failureRate: number | null }> = []
 
 async function refreshCacheIfNeeded() {
   const now = Date.now();
-  if (now - cachedAt < CACHE_TTL_MS && cachedUiEnabledKeys) {
+  // Skip only after a successful warm-up; avoid `&& cachedUiEnabledKeys` (empty [] is still truthy in JS).
+  if (cachedAt > 0 && now - cachedAt < CACHE_TTL_MS) {
     return;
   }
 
@@ -76,5 +77,10 @@ export async function listEnabledUiFaultConfigs(): Promise<
         ? 1
         : Math.max(0, Math.min(1, f.failureRate)),
   }));
+}
+
+/** Call after admin updates FaultConfig so /faults/ui and shouldTriggerFault see changes immediately. */
+export function invalidateFaultRuntimeCache(): void {
+  cachedAt = 0;
 }
 
