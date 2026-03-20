@@ -10,6 +10,7 @@ import {
   isSmtpConfigured,
   sendBankTransferOrderEmail,
 } from "../services/emailService";
+import { requireCartSessionIdHeader } from "../utils/cartSession";
 
 const router = Router();
 
@@ -29,10 +30,10 @@ function parseBuyer(body: Record<string, unknown>): BuyerPayload {
 
 router.post("/bank-transfer", async (req, res, next) => {
   try {
-    const userId = Number(req.body?.userId ?? 1);
+    const cartKey = requireCartSessionIdHeader(req.get("x-cart-session"));
     const buyer = parseBuyer(req.body ?? {});
 
-    const order = await checkoutBankTransfer(userId, buyer);
+    const order = await checkoutBankTransfer(cartKey, buyer);
 
     const bankTransfer = buildDummyBankTransferInfo({
       id: order.id,
@@ -87,10 +88,10 @@ router.post("/bank-transfer", async (req, res, next) => {
 
 router.post("/gateway/init", async (req, res, next) => {
   try {
-    const userId = Number(req.body?.userId ?? 1);
+    const cartKey = requireCartSessionIdHeader(req.get("x-cart-session"));
     const buyer = parseBuyer(req.body ?? {});
 
-    const order = await checkoutGatewayInit(userId, buyer);
+    const order = await checkoutGatewayInit(cartKey, buyer);
     res.status(201).json({
       order,
       nextStep:

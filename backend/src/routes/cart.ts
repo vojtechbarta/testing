@@ -2,12 +2,14 @@ import { Router } from "express";
 import prisma from "../db/prisma";
 import { addOrUpdateCartItem, getCart } from "../services/cartService";
 import { FAULT_KEYS, shouldTriggerFault } from "../faults/faultRuntime";
+import { requireCartSessionIdHeader } from "../utils/cartSession";
 
 const router = Router();
 
-router.get("/", async (_req, res, next) => {
+router.get("/", async (req, res, next) => {
   try {
-    const cart = await getCart();
+    const cartKey = requireCartSessionIdHeader(req.get("x-cart-session"));
+    const cart = await getCart(cartKey);
     res.json(cart);
   } catch (err) {
     next(err);
@@ -16,6 +18,7 @@ router.get("/", async (_req, res, next) => {
 
 router.post("/items", async (req, res, next) => {
   try {
+    const cartKey = requireCartSessionIdHeader(req.get("x-cart-session"));
     const { productId, quantity } = req.body as {
       productId: number;
       quantity: number;
@@ -26,14 +29,11 @@ router.post("/items", async (req, res, next) => {
     }
 
     try {
-      // Pomocná proměnná pro případné fault mutace (nesmí to být `const`).
       let quantityToSave = quantity;
 
-      // API mutace: v payload od UI (pro přidání 1 ks) uložíme dvojnásobnou "delta"
-      // oproti aktuálnímu množství v košíku.
       if (quantityToSave > 0) {
         const existing = await prisma.cartItem.findFirst({
-          where: { userId: 1, productId },
+          where: { cartKey, productId },
         });
         const existingQty = existing?.quantity ?? 0;
 
@@ -48,7 +48,11 @@ router.post("/items", async (req, res, next) => {
         }
       }
 
-      const cart = await addOrUpdateCartItem(productId, quantityToSave);
+      const cart = await addOrUpdateCartItem(
+        cartKey,
+        productId,
+        quantityToSave,
+      );
       res.status(200).json(cart);
     } catch (serviceErr) {
       const message =
@@ -63,4 +67,3 @@ router.post("/items", async (req, res, next) => {
 });
 
 export default router;
-

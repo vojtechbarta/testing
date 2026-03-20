@@ -13,9 +13,16 @@ import checkoutRouter from "./routes/checkout";
 const app = express();
 const port = process.env.PORT || 4000;
 
+/** Vite dev server may be opened as localhost or 127.0.0.1 — both must be allowed (Playwright uses 127.0.0.1 by default). */
+const FRONTEND_DEV_ORIGINS = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+];
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: FRONTEND_DEV_ORIGINS,
+    allowedHeaders: ["Content-Type", "X-Cart-Session", "Authorization"],
   }),
 );
 
@@ -43,7 +50,7 @@ app.use(
   ) => {
     const message = err instanceof Error ? err.message : "Internal error";
     const clientIssue =
-      /required|empty|not found|Insufficient|not available|cannot be processed|no longer awaiting|not using/i.test(
+      /required|empty|not found|Insufficient|not available|cannot be processed|no longer awaiting|not using|X-Cart-Session/i.test(
         message,
       );
     res.status(clientIssue ? 400 : 500).json({ message });

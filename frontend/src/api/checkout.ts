@@ -1,3 +1,5 @@
+import { cartSessionHeaders } from "./client";
+
 const API_BASE = "http://localhost:4000";
 
 export type BuyerFormPayload = {
@@ -26,7 +28,6 @@ export type BankTransferDetails = {
 
 export async function checkoutBankTransfer(
   buyer: BuyerFormPayload,
-  userId = 1,
 ): Promise<{
   order: unknown;
   bankTransfer: BankTransferDetails;
@@ -38,8 +39,8 @@ export async function checkoutBankTransfer(
 }> {
   const res = await fetch(`${API_BASE}/checkout/bank-transfer`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, ...buyer }),
+    headers: { "Content-Type": "application/json", ...cartSessionHeaders() },
+    body: JSON.stringify(buyer),
   });
   if (!res.ok) {
     let message = `Checkout failed (${res.status})`;
@@ -56,12 +57,11 @@ export async function checkoutBankTransfer(
 
 export async function checkoutGatewayInit(
   buyer: BuyerFormPayload,
-  userId = 1,
 ): Promise<{ order: { id: number }; nextStep: string }> {
   const res = await fetch(`${API_BASE}/checkout/gateway/init`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, ...buyer }),
+    headers: { "Content-Type": "application/json", ...cartSessionHeaders() },
+    body: JSON.stringify(buyer),
   });
   if (!res.ok) {
     let message = `Could not start payment (${res.status})`;

@@ -1,4 +1,4 @@
-import { apiGet } from "./client";
+import { apiGet, cartSessionHeaders } from "./client";
 
 export interface CartItem {
   productId: number;
@@ -16,7 +16,7 @@ export interface CartItem {
 }
 
 export interface Cart {
-  userId: number;
+  cartSessionId: string;
   items: CartItem[];
   total: {
     amount: number;
@@ -36,6 +36,7 @@ export async function updateCartItem(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...cartSessionHeaders(),
     },
     body: JSON.stringify({ productId, quantity }),
   });

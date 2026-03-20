@@ -29,6 +29,8 @@ vi.mock("../../faults/faultRuntime", () => ({
 
 import { addOrUpdateCartItem, getCart } from "../cartService";
 
+const TEST_CART_KEY = "aaaaaaaa-bbbb-4ccc-bddd-111111111111";
+
 describe("cartService", () => {
   // Default: unit-level fault does not fire (disabled / non-triggered behaviour).
   beforeEach(() => {
@@ -64,8 +66,9 @@ describe("cartService", () => {
       },
     ]);
 
-    const cart = await getCart(1);
+    const cart = await getCart(TEST_CART_KEY);
 
+    expect(cart.cartSessionId).toBe(TEST_CART_KEY);
     expect(cart.total.amount).toBe(1300);
     expect(cart.total.currencyCode).toBe("CZK");
     expect(cart.items[0]?.lineTotal.amount).toBe(1000);
@@ -82,10 +85,10 @@ describe("cartService", () => {
     });
     mockPrisma.cartItem.findMany.mockResolvedValue([]);
 
-    await addOrUpdateCartItem(10, 0, 1);
+    await addOrUpdateCartItem(TEST_CART_KEY, 10, 0);
 
     expect(mockPrisma.cartItem.deleteMany).toHaveBeenCalledWith({
-      where: { userId: 1, productId: 10 },
+      where: { cartKey: TEST_CART_KEY, productId: 10 },
     });
   });
 
@@ -93,9 +96,9 @@ describe("cartService", () => {
   it("throws when product is missing or inactive", async () => {
     mockPrisma.product.findUnique.mockResolvedValue(null);
 
-    await expect(addOrUpdateCartItem(999, 1, 1)).rejects.toThrow(
-      "Product is not available.",
-    );
+    await expect(
+      addOrUpdateCartItem(TEST_CART_KEY, 999, 1),
+    ).rejects.toThrow("Product is not available.");
   });
 
   // Verifies an existing line is updated to the exact requested quantity when the unit fault does not apply.
@@ -109,7 +112,7 @@ describe("cartService", () => {
     mockPrisma.cartItem.findFirst.mockResolvedValue({ id: 123, quantity: 1 });
     mockPrisma.cartItem.findMany.mockResolvedValue([]);
 
-    await addOrUpdateCartItem(10, 3, 1);
+    await addOrUpdateCartItem(TEST_CART_KEY, 10, 3);
 
     expect(mockShouldTriggerFault).toHaveBeenCalled();
     expect(mockPrisma.cartItem.update).toHaveBeenCalledWith({
@@ -131,7 +134,7 @@ describe("cartService", () => {
     mockPrisma.cartItem.findFirst.mockResolvedValue({ id: 123, quantity: 2 });
     mockPrisma.cartItem.findMany.mockResolvedValue([]);
 
-    await addOrUpdateCartItem(10, 3, 1);
+    await addOrUpdateCartItem(TEST_CART_KEY, 10, 3);
 
     expect(mockPrisma.cartItem.update).toHaveBeenCalledWith({
       where: { id: 123 },
@@ -149,9 +152,8 @@ describe("cartService", () => {
     });
     mockPrisma.cartItem.findFirst.mockResolvedValue(null);
 
-    await expect(addOrUpdateCartItem(10, 5, 1)).rejects.toThrow(
+    await expect(addOrUpdateCartItem(TEST_CART_KEY, 10, 5)).rejects.toThrow(
       "Cannot add more than 2 items in stock.",
     );
   });
 });
-

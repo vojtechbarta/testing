@@ -5,6 +5,9 @@ import { loadMockPaymentOutcomeForEmail } from "./mockPaymentConfigService";
 
 export type { MockPayOutcome } from "./mockPaymentConfigService";
 
+/** Demo storefront: guest orders attach to this User for FK consistency. Cart scoping is via `guestCartKey` / `CartItem.cartKey`. */
+export const STOREFRONT_DEMO_USER_ID = 1;
+
 const cartWithProduct = Prisma.validator<Prisma.CartItemDefaultArgs>()({
   include: {
     product: { include: { currency: true } },
@@ -88,14 +91,14 @@ function assertCartRowsValidForCheckout(cartItems: CartRow[]) {
 }
 
 export async function checkoutBankTransfer(
-  userId: number,
+  cartKey: string,
   buyer: BuyerPayload,
 ) {
   validateBuyer(buyer);
 
   return prisma.$transaction(async (tx) => {
     const cartItems = await tx.cartItem.findMany({
-      where: { userId },
+      where: { cartKey },
       include: { product: { include: { currency: true } } },
       orderBy: { createdAt: "asc" },
     });
@@ -111,7 +114,8 @@ export async function checkoutBankTransfer(
 
     const order = await tx.order.create({
       data: {
-        userId,
+        userId: STOREFRONT_DEMO_USER_ID,
+        guestCartKey: cartKey,
         total: orderTotal,
         currencyId: currencyId ?? undefined,
         status: OrderStatus.PAID,
@@ -152,18 +156,22 @@ export async function checkoutBankTransfer(
       });
     }
 
-    await tx.cartItem.deleteMany({ where: { userId } });
+    await tx.cartItem.deleteMany({ where: { cartKey } });
 
     return order;
   });
 }
 
-export async function checkoutGatewayInit(userId: number, buyer: BuyerPayload) {
+export async function checkoutGatewayInit(
+  cartKey: string,
+  buyer: BuyerPayload,
+) {
   validateBuyer(buyer);
 
   const existingPending = await prisma.order.findFirst({
     where: {
-      userId,
+      userId: STOREFRONT_DEMO_USER_ID,
+      guestCartKey: cartKey,
       status: OrderStatus.PENDING,
       paymentMethod: PaymentMethod.PAYMENT_GATEWAY,
     },
@@ -177,7 +185,7 @@ export async function checkoutGatewayInit(userId: number, buyer: BuyerPayload) {
 
   return prisma.$transaction(async (tx) => {
     const cartItems = await tx.cartItem.findMany({
-      where: { userId },
+      where: { cartKey },
       include: { product: { include: { currency: true } } },
       orderBy: { createdAt: "asc" },
     });
@@ -193,7 +201,8 @@ export async function checkoutGatewayInit(userId: number, buyer: BuyerPayload) {
 
     const order = await tx.order.create({
       data: {
-        userId,
+        userId: STOREFRONT_DEMO_USER_ID,
+        guestCartKey: cartKey,
         total: orderTotal,
         currencyId: currencyId ?? undefined,
         status: OrderStatus.PENDING,
@@ -313,7 +322,10 @@ export async function mockGatewayPayment(orderId: number) {
       data: { status: OrderStatus.PAID },
     });
 
-    await tx.cartItem.deleteMany({ where: { userId: fresh.userId } });
+    const sessionKey = fresh.guestCartKey;
+    if (sessionKey) {
+      await tx.cartItem.deleteMany({ where: { cartKey: sessionKey } });
+    }
   });
 
   return {

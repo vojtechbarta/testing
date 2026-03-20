@@ -54,6 +54,8 @@ const buyer = {
   phone: "+420123456789",
 };
 
+const TEST_CART_KEY = "aaaaaaaa-bbbb-4ccc-bddd-111111111111";
+
 const activeProductCartRow = {
   productId: 101,
   quantity: 2,
@@ -123,7 +125,9 @@ describe("checkoutService", () => {
         return fn(tx);
       });
 
-      await expect(checkoutBankTransfer(1, buyer)).rejects.toThrow("Cart is empty");
+      await expect(checkoutBankTransfer(TEST_CART_KEY, buyer)).rejects.toThrow(
+        "Cart is empty",
+      );
     });
 
     it("creates PAID bank-transfer order, decrements stock, clears cart", async () => {
@@ -153,7 +157,7 @@ describe("checkoutService", () => {
         return fn(tx);
       });
 
-      const result = await checkoutBankTransfer(1, buyer);
+      const result = await checkoutBankTransfer(TEST_CART_KEY, buyer);
 
       expect(result).toBe(createdOrder);
       const fn = mockPrisma.$transaction.mock.calls[0]?.[0];
@@ -172,7 +176,18 @@ describe("checkoutService", () => {
       };
       mockPrisma.order.findFirst.mockResolvedValue(existing);
 
-      const result = await checkoutGatewayInit(1, buyer);
+      const result = await checkoutGatewayInit(TEST_CART_KEY, buyer);
+
+      expect(mockPrisma.order.findFirst).toHaveBeenCalledWith({
+        where: {
+          userId: 1,
+          guestCartKey: TEST_CART_KEY,
+          status: OrderStatus.PENDING,
+          paymentMethod: PaymentMethod.PAYMENT_GATEWAY,
+        },
+        orderBy: { id: "desc" },
+        include: { items: { include: { product: true } }, currency: true },
+      });
 
       expect(result).toBe(existing);
       expect(mockPrisma.$transaction).not.toHaveBeenCalled();
@@ -191,7 +206,9 @@ describe("checkoutService", () => {
         return fn(tx);
       });
 
-      await expect(checkoutGatewayInit(1, buyer)).rejects.toThrow("Cart is empty");
+      await expect(checkoutGatewayInit(TEST_CART_KEY, buyer)).rejects.toThrow(
+        "Cart is empty",
+      );
     });
   });
 
@@ -252,9 +269,12 @@ describe("checkoutService", () => {
         customerEmail: "ok@example.com",
         items: [{ productId: 20, quantity: 1 }],
         userId: 7,
+        guestCartKey: TEST_CART_KEY,
         currency: null,
       });
       mockLoadMockPaymentOutcomeForEmail.mockReturnValue("success");
+
+      const cartDeleteMany = vi.fn().mockResolvedValue({ count: 2 });
 
       mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => {
         const tx = {
@@ -263,6 +283,7 @@ describe("checkoutService", () => {
               id: 10,
               status: OrderStatus.PENDING,
               userId: 7,
+              guestCartKey: TEST_CART_KEY,
               items: [{ productId: 20, quantity: 1 }],
             }),
             update: vi.fn().mockResolvedValue({}),
@@ -272,7 +293,7 @@ describe("checkoutService", () => {
             update: vi.fn().mockResolvedValue({}),
           },
           cartItem: {
-            deleteMany: vi.fn().mockResolvedValue({ count: 2 }),
+            deleteMany: cartDeleteMany,
           },
         };
         return fn(tx);
@@ -283,6 +304,9 @@ describe("checkoutService", () => {
       expect(result.success).toBe(true);
       expect(result.mockPaymentBehavior).toBe("success");
       expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(cartDeleteMany).toHaveBeenCalledWith({
+        where: { cartKey: TEST_CART_KEY },
+      });
     });
 
     // With behavior "random", payment fails when Math.random() < 0.5; here we fix 0.1 so the outcome is a declined random roll.

@@ -1,11 +1,9 @@
 import prisma from "../db/prisma";
 import { shouldTriggerFault, FAULT_KEYS } from "../faults/faultRuntime";
 
-const DEFAULT_USER_ID = 1;
-
-export async function getCart(userId: number = DEFAULT_USER_ID) {
+export async function getCart(cartKey: string) {
   const items = await prisma.cartItem.findMany({
-    where: { userId },
+    where: { cartKey },
     include: { product: { include: { currency: true } } },
     orderBy: { createdAt: "asc" },
   });
@@ -17,7 +15,7 @@ export async function getCart(userId: number = DEFAULT_USER_ID) {
   const currencyCode = items[0]?.product.currency?.code ?? "CZK";
 
   return {
-    userId,
+    cartSessionId: cartKey,
     items: items.map((i) => ({
       productId: i.productId,
       name: i.product.name,
@@ -40,9 +38,9 @@ export async function getCart(userId: number = DEFAULT_USER_ID) {
 }
 
 export async function addOrUpdateCartItem(
+  cartKey: string,
   productId: number,
   quantity: number,
-  userId: number = DEFAULT_USER_ID,
 ) {
   const product = await prisma.product.findUnique({
     where: { id: productId },
@@ -56,17 +54,15 @@ export async function addOrUpdateCartItem(
 
   if (quantity <= 0) {
     await prisma.cartItem.deleteMany({
-      where: { userId, productId },
+      where: { cartKey, productId },
     });
-    return getCart(userId);
+    return getCart(cartKey);
   }
 
   const existing = await prisma.cartItem.findFirst({
-    where: { userId, productId },
+    where: { cartKey, productId },
   });
 
-  // Backend/DB mutace: v payload chodí správné množství, ale do DB uložíme dvojnásobek "delta"
-  // oproti současnému množství v košíku.
   if (quantity > (existing?.quantity ?? 0)) {
     const shouldTrigger = await shouldTriggerFault(
       FAULT_KEYS.unitCartAddDoubleQuantityPersist,
@@ -90,7 +86,7 @@ export async function addOrUpdateCartItem(
   } else {
     await prisma.cartItem.create({
       data: {
-        userId,
+        cartKey,
         productId,
         quantity,
         currencyId,
@@ -98,10 +94,9 @@ export async function addOrUpdateCartItem(
     });
   }
 
-  return getCart(userId);
+  return getCart(cartKey);
 }
 
-export async function clearCart(userId: number = DEFAULT_USER_ID) {
-  await prisma.cartItem.deleteMany({ where: { userId } });
+export async function clearCart(cartKey: string) {
+  await prisma.cartItem.deleteMany({ where: { cartKey } });
 }
-
