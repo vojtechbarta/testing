@@ -12,7 +12,9 @@ export interface Product {
   active: boolean;
 }
 
-export function getProducts() {
-  return apiGet<Product[]>("/products");
+export function getProducts(searchQuery?: string) {
+  const q = searchQuery?.trim();
+  const suffix = q ? `?${new URLSearchParams({ q }).toString()}` : "";
+  return apiGet<Product[]>(`/products${suffix}`);
 }
 

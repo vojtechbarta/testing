@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import prisma from "../db/prisma";
 import { getFaultSettings, isFaultEnabled } from "../faults/faultService";
 
@@ -35,15 +36,24 @@ function mapProductToDto(p: {
   };
 }
 
-export async function getAllProducts(): Promise<ProductDto[]> {
+export async function getAllProducts(searchQuery?: string): Promise<ProductDto[]> {
   if (isFaultEnabled("productListing_latency")) {
     const settings = getFaultSettings("productListing_latency");
     const latency = settings?.latencyMs ?? 1000;
     await new Promise((resolve) => setTimeout(resolve, latency));
   }
 
+  const q = searchQuery?.trim();
+  const where: Prisma.ProductWhereInput = { active: true };
+  if (q) {
+    where.OR = [
+      { name: { contains: q } },
+      { description: { contains: q } },
+    ];
+  }
+
   const products = await prisma.product.findMany({
-    where: { active: true },
+    where,
     include: { currency: true },
   });
 

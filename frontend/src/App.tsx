@@ -15,6 +15,7 @@ import {
   type AdminFault,
 } from "./api/faults";
 import { getActiveUiFaultConfigs } from "./api/uiFaults";
+import { getProductImageSrc } from "./productImages";
 
 type ViewMode = "shop" | "admin" | "bugs";
 
@@ -44,6 +45,7 @@ function App() {
   const [activeUiFaultConfigs, setActiveUiFaultConfigs] = useState<
     Array<{ key: string; failureRate: number }>
   >([]);
+  const [productSearch, setProductSearch] = useState("");
 
   useEffect(() => {
     // pokud je v localStorage rozbitý stav (token bez role nebo naopak), vyčisti ho
@@ -81,6 +83,36 @@ function App() {
       ?.failureRate ?? 0;
 
   const uiDoubleAddAlways = uiDoubleAddFailureRate >= 1;
+
+  const handleProductSearchSubmit: React.FormEventHandler<
+    HTMLFormElement
+  > = async (event) => {
+    event.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const data = await getProducts(productSearch);
+      setProducts(data);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Search failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearProductSearch = async () => {
+    setProductSearch("");
+    setError(null);
+    setLoading(true);
+    try {
+      const data = await getProducts();
+      setProducts(data);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Search failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAddToCart = async (productId: number) => {
     try {
@@ -383,331 +415,227 @@ function App() {
   };
 
   return (
-    <main style={{ padding: "2rem", maxWidth: 1100, margin: "0 auto" }}>
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "1.5rem",
-        }}
-      >
-        <div>
-          <h1>AI Testing Shop</h1>
-          <p>
-            A simple e-shop for AI testing experiments and fault injection.
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-          <button
-            type="button"
-            onClick={handleSwitchToShop}
-            style={{
-              padding: "0.4rem 0.8rem",
-              borderRadius: 999,
-              border: "none",
-              background:
-                viewMode === "shop" ? "#2563eb" : "rgba(148,163,184,0.3)",
-              color: "#fff",
-              cursor: "pointer",
-            }}
+    <div className="store">
+      <header className="store-header">
+        <div className="store-header-inner">
+          <div className="store-brand">
+            <h1>AI Testing Shop</h1>
+            <p className="store-tagline">
+              A simple e-shop for AI testing experiments and fault injection.
+            </p>
+          </div>
+          <form
+            className="store-search"
+            role="search"
+            onSubmit={handleProductSearchSubmit}
           >
-            Shop
-          </button>
-          {!adminToken && (
+            <input
+              className="store-search-input"
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+              placeholder="Search products by name or description"
+              aria-label="Search products"
+              autoComplete="off"
+              name="q"
+            />
+            <button
+              type="submit"
+              className={`store-search-btn${productSearch.trim() !== "" ? " store-search-btn--with-clear" : ""}`}
+            >
+              Go
+            </button>
+            {productSearch.trim() !== "" && (
+              <button
+                type="button"
+                className="store-search-clear"
+                onClick={() => void handleClearProductSearch()}
+              >
+                Clear
+              </button>
+            )}
+          </form>
+          <div className="store-actions">
             <button
               type="button"
-              onClick={() => setViewMode("admin")}
-              style={{
-                padding: "0.4rem 0.8rem",
-                borderRadius: 999,
-                border: "none",
-                background:
-                  viewMode === "admin" ? "#2563eb" : "rgba(148,163,184,0.3)",
-                color: "#fff",
-                cursor: "pointer",
-              }}
+              onClick={handleSwitchToShop}
+              className={`btn btn-nav${viewMode === "shop" ? " btn-nav-active" : ""}`}
             >
-              Login
+              Shop
             </button>
-          )}
-          {adminToken && adminRole === "ADMIN" && (
-            <button
-              type="button"
-              onClick={handleSwitchToAdmin}
-              style={{
-                padding: "0.4rem 0.8rem",
-                borderRadius: 999,
-                border: "none",
-                background:
-                  viewMode === "admin" ? "#2563eb" : "rgba(148,163,184,0.3)",
-                color: "#fff",
-                cursor: "pointer",
-              }}
-            >
-              Admin
-            </button>
-          )}
-          {adminToken && adminRole === "TESTER" && (
-            <button
-              type="button"
-              onClick={handleSwitchToBugs}
-              style={{
-                padding: "0.4rem 0.8rem",
-                borderRadius: 999,
-                border: "none",
-                background:
-                  viewMode === "bugs" ? "#2563eb" : "rgba(148,163,184,0.3)",
-                color: "#fff",
-                cursor: "pointer",
-              }}
-            >
-              Bugs
-            </button>
-          )}
-          {adminToken && adminRole && (
-            <button
-              type="button"
-              onClick={handleAdminLogout}
-              style={{
-                padding: "0.3rem 0.7rem",
-                borderRadius: 999,
-                border: "1px solid rgba(148,163,184,0.6)",
-                background: "transparent",
-                color: "#e5e7eb",
-                cursor: "pointer",
-                fontSize: 12,
-              }}
-              title="Logout"
-            >
-              {adminRole.toLowerCase()} · Logout
-            </button>
-          )}
+            {!adminToken && (
+              <button
+                type="button"
+                onClick={() => setViewMode("admin")}
+                className={`btn btn-nav${viewMode === "admin" ? " btn-nav-active" : ""}`}
+              >
+                Login
+              </button>
+            )}
+            {adminToken && adminRole === "ADMIN" && (
+              <button
+                type="button"
+                onClick={handleSwitchToAdmin}
+                className={`btn btn-nav${viewMode === "admin" ? " btn-nav-active" : ""}`}
+              >
+                Admin
+              </button>
+            )}
+            {adminToken && adminRole === "TESTER" && (
+              <button
+                type="button"
+                onClick={handleSwitchToBugs}
+                className={`btn btn-nav${viewMode === "bugs" ? " btn-nav-active" : ""}`}
+              >
+                Bugs
+              </button>
+            )}
+            {adminToken && adminRole && (
+              <button
+                type="button"
+                onClick={handleAdminLogout}
+                className="btn btn-ghost-dark"
+                title="Logout"
+              >
+                <span className="store-user-chip">
+                  {adminRole.toLowerCase()} · Logout
+                </span>
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
-      {loading && <p>Loading products…</p>}
-      {error && <p style={{ color: "red" }}>Error: {error}</p>}
-      {cartError && <p style={{ color: "red" }}>Cart error: {cartError}</p>}
+      <div className="store-subnav">
+        <div className="store-subnav-inner">
+          <span>Demo storefront · All categories</span>
+          {cart && cart.items.length > 0 && (
+            <span className="muted" style={{ marginLeft: "auto" }}>
+              Cart: {cart.items.reduce((n, i) => n + i.quantity, 0)} item(s)
+            </span>
+          )}
+        </div>
+      </div>
+
+      <main className="store-main">
+        <div className="store-alerts">
+          {loading && (
+            <p className="store-alert store-alert--info">Loading products…</p>
+          )}
+          {error && (
+            <p className="store-alert store-alert--error">Error: {error}</p>
+          )}
+          {cartError && (
+            <p className="store-alert store-alert--error">
+              Cart error: {cartError}
+            </p>
+          )}
+        </div>
 
       {viewMode === "admin" ? (
-        <section
-          style={{
-            border: "1px solid #ddd",
-            borderRadius: 8,
-            padding: "1rem",
-            background: "#fff",
-          }}
-        >
+        <section className="panel">
+          <h2 className="panel-title">Admin · Products</h2>
           {!adminToken ? (
             <form
               onSubmit={handleAdminLoginSubmit}
-              style={{ maxWidth: 320, marginTop: "1rem" }}
+              className="form-stack"
             >
-              <div style={{ marginBottom: "0.5rem" }}>
-                <label>
-                  Username
-                  <input
-                    name="username"
-                    defaultValue="admin"
-                    style={{ width: "100%", marginTop: 4 }}
-                  />
-                </label>
-              </div>
-              <div style={{ marginBottom: "0.5rem" }}>
-                <label>
-                  Password
-                  <input
-                    name="password"
-                    type="password"
-                    defaultValue="admin"
-                    style={{ width: "100%", marginTop: 4 }}
-                  />
-                </label>
-              </div>
+              <label>
+                Username
+                <input name="username" defaultValue="admin" />
+              </label>
+              <label>
+                Password
+                <input name="password" type="password" defaultValue="admin" />
+              </label>
               {adminLoginError && (
-                <p style={{ color: "red" }}>{adminLoginError}</p>
+                <p className="store-alert store-alert--error">{adminLoginError}</p>
               )}
-              <button
-                type="submit"
-                style={{
-                  padding: "0.5rem 0.75rem",
-                  borderRadius: 6,
-                  border: "none",
-                  background: "#2563eb",
-                  color: "#fff",
-                  cursor: "pointer",
-                }}
-              >
+              <button type="submit" className="btn btn-primary">
                 Sign in
               </button>
             </form>
           ) : (
             <>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "0.75rem",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={handleAdminLogout}
-                  style={{
-                    padding: "0.35rem 0.7rem",
-                    borderRadius: 6,
-                    border: "none",
-                    background: "#ef4444",
-                    color: "#fff",
-                    cursor: "pointer",
-                  }}
-                >
-                  Logout
-                </button>
-              </div>
-              {adminError && (
-                <p style={{ color: "red", marginBottom: "0.75rem" }}>
-                  {adminError}
-                </p>
-              )}
-              <div style={{ marginBottom: "0.5rem" }}>
+              <div className="admin-toolbar">
                 <button
                   type="button"
                   onClick={handleAdminAddNewProduct}
-                  style={{
-                    padding: "0.35rem 0.75rem",
-                    borderRadius: 6,
-                    border: "none",
-                    background: "#16a34a",
-                    color: "#fff",
-                    cursor: "pointer",
-                  }}
+                  className="btn btn-success"
                 >
-                Add new product
+                  Add new product
                 </button>
               </div>
-              <div style={{ overflowX: "auto" }}>
-                <table
-                  style={{
-                    width: "100%",
-                    borderCollapse: "collapse",
-                    fontSize: 14,
-                  }}
-                >
+              {adminError && (
+                <p className="store-alert store-alert--error" style={{ marginBottom: "0.75rem" }}>
+                  {adminError}
+                </p>
+              )}
+              <div className="table-wrap">
+                <table className="data-table">
                   <thead>
                     <tr>
-                      <th style={{ borderBottom: "1px solid #ddd" }}>
+                      <th>
                         <button
                           type="button"
                           onClick={() => handleAdminSort("id")}
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            cursor: "pointer",
-                            fontWeight: "bold",
-                            color: "#111827",
-                          }}
+                          className="sort-btn"
                         >
                           ID {getSortArrow("id")}
                         </button>
                       </th>
-                      <th style={{ borderBottom: "1px solid #ddd" }}>
+                      <th>
                         <button
                           type="button"
                           onClick={() => handleAdminSort("name")}
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            cursor: "pointer",
-                            fontWeight: "bold",
-                            color: "#111827",
-                          }}
+                          className="sort-btn"
                         >
                           Name {getSortArrow("name")}
                         </button>
                       </th>
-                      <th style={{ borderBottom: "1px solid #ddd" }}>
+                      <th>
                         <button
                           type="button"
                           onClick={() => handleAdminSort("description")}
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            cursor: "pointer",
-                            fontWeight: "bold",
-                            color: "#111827",
-                          }}
+                          className="sort-btn"
                         >
                           Description {getSortArrow("description")}
                         </button>
                       </th>
-                      <th style={{ borderBottom: "1px solid #ddd" }}>
+                      <th>
                         <button
                           type="button"
                           onClick={() => handleAdminSort("price")}
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            cursor: "pointer",
-                            fontWeight: "bold",
-                            color: "#111827",
-                          }}
+                          className="sort-btn"
                         >
                           Price (CZK) {getSortArrow("price")}
                         </button>
                       </th>
-                      <th style={{ borderBottom: "1px solid #ddd" }}>
+                      <th>
                         <button
                           type="button"
                           onClick={() => handleAdminSort("inStock")}
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            cursor: "pointer",
-                            fontWeight: "bold",
-                            color: "#111827",
-                          }}
+                          className="sort-btn"
                         >
                           Stock {getSortArrow("inStock")}
                         </button>
                       </th>
-                      <th style={{ borderBottom: "1px solid #ddd" }}>
+                      <th>
                         <button
                           type="button"
                           onClick={() => handleAdminSort("active")}
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            cursor: "pointer",
-                            fontWeight: "bold",
-                            color: "#111827",
-                          }}
+                          className="sort-btn"
                         >
                           Active {getSortArrow("active")}
                         </button>
                       </th>
-                      <th style={{ borderBottom: "1px solid #ddd" }} />
+                      <th />
                     </tr>
                   </thead>
                   <tbody>
                     {sortedAdminProducts.map((p) => (
                       <tr key={p.id}>
-                        <td
-                          style={{
-                            borderBottom: "1px solid #eee",
-                            padding: "0.25rem 0.4rem",
-                          }}
-                        >
-                          {p.id}
-                        </td>
-                        <td
-                          style={{
-                            borderBottom: "1px solid #eee",
-                            padding: "0.25rem 0.4rem",
-                          }}
-                        >
+                        <td>{p.id}</td>
+                        <td>
                           <input
                             value={p.name}
                             onChange={(e) =>
@@ -717,15 +645,9 @@ function App() {
                                 e.target.value,
                               )
                             }
-                            style={{ width: "100%" }}
                           />
                         </td>
-                        <td
-                          style={{
-                            borderBottom: "1px solid #eee",
-                            padding: "0.25rem 0.4rem",
-                          }}
-                        >
+                        <td>
                           <input
                             value={p.description}
                             onChange={(e) =>
@@ -735,15 +657,9 @@ function App() {
                                 e.target.value,
                               )
                             }
-                            style={{ width: "100%" }}
                           />
                         </td>
-                        <td
-                          style={{
-                            borderBottom: "1px solid #eee",
-                            padding: "0.25rem 0.4rem",
-                          }}
-                        >
+                        <td>
                           <input
                             type="text"
                             inputMode="decimal"
@@ -755,15 +671,9 @@ function App() {
                                 e.target.value,
                               )
                             }
-                            style={{ width: "100%" }}
                           />
                         </td>
-                        <td
-                          style={{
-                            borderBottom: "1px solid #eee",
-                            padding: "0.25rem 0.4rem",
-                          }}
-                        >
+                        <td>
                           <input
                             type="number"
                             value={p.inStock}
@@ -774,15 +684,9 @@ function App() {
                                 e.target.value,
                               )
                             }
-                            style={{ width: "100%" }}
                           />
                         </td>
-                        <td
-                          style={{
-                            borderBottom: "1px solid #eee",
-                            textAlign: "center",
-                          }}
-                        >
+                        <td style={{ textAlign: "center" }}>
                           <input
                             type="checkbox"
                             checked={p.active}
@@ -795,23 +699,11 @@ function App() {
                             }
                           />
                         </td>
-                        <td
-                          style={{
-                            borderBottom: "1px solid #eee",
-                            padding: "0.25rem 0.4rem",
-                          }}
-                        >
+                        <td>
                           <button
                             type="button"
                             onClick={() => handleAdminSaveProduct(p)}
-                            style={{
-                              padding: "0.25rem 0.6rem",
-                              borderRadius: 4,
-                              border: "none",
-                              background: "#2563eb",
-                              color: "#fff",
-                              cursor: "pointer",
-                            }}
+                            className="btn-table"
                           >
                             Save
                           </button>
@@ -825,77 +717,41 @@ function App() {
           )}
         </section>
       ) : viewMode === "bugs" ? (
-        <section
-          style={{
-            border: "1px solid #ddd",
-            borderRadius: 8,
-            padding: "1rem",
-            background: "#fff",
-          }}
-        >
+        <section className="panel">
+          <h2 className="panel-title">Fault injection</h2>
           {!adminToken ? (
-            <p>
+            <p className="muted">
               To manage faults, please sign in as Admin or Tester first.
             </p>
           ) : (
             <>
               {adminError && (
-                <p style={{ color: "red", marginBottom: "0.75rem" }}>
+                <p className="store-alert store-alert--error" style={{ marginBottom: "0.75rem" }}>
                   {adminError}
                 </p>
               )}
-              <div style={{ overflowX: "auto" }}>
+              <div className="table-wrap">
                 {adminFaults.length === 0 ? (
-                  <p>No faults defined yet.</p>
+                  <p className="empty-state">No faults defined yet.</p>
                 ) : (
-                  <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                      fontSize: 14,
-                    }}
-                  >
+                  <table className="data-table">
                     <thead>
                       <tr>
-                        <th style={{ borderBottom: "1px solid #ddd" }}>Key</th>
-                        <th style={{ borderBottom: "1px solid #ddd" }}>
-                          Name
-                        </th>
-                        <th style={{ borderBottom: "1px solid #ddd" }}>
-                          Description
-                        </th>
-                        <th style={{ borderBottom: "1px solid #ddd" }}>
-                          Level
-                        </th>
-                        <th style={{ borderBottom: "1px solid #ddd" }}>
-                          Enabled
-                        </th>
-                        <th style={{ borderBottom: "1px solid #ddd" }}>
-                          Latency (ms)
-                        </th>
-                        <th style={{ borderBottom: "1px solid #ddd" }}>
-                          Failure rate (0–1)
-                        </th>
-                        <th style={{ borderBottom: "1px solid #ddd" }} />
+                        <th>Key</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Level</th>
+                        <th>Enabled</th>
+                        <th>Latency (ms)</th>
+                        <th>Failure rate (0–1)</th>
+                        <th />
                       </tr>
                     </thead>
                     <tbody>
                       {adminFaults.map((f) => (
                         <tr key={f.key}>
-                          <td
-                            style={{
-                              borderBottom: "1px solid #eee",
-                              padding: "0.25rem 0.4rem",
-                            }}
-                          >
-                            {f.key}
-                          </td>
-                          <td
-                            style={{
-                              borderBottom: "1px solid #eee",
-                              padding: "0.25rem 0.4rem",
-                            }}
-                          >
+                          <td>{f.key}</td>
+                          <td>
                             <input
                               type="text"
                               value={f.name}
@@ -906,15 +762,9 @@ function App() {
                                   e.target.value,
                                 )
                               }
-                              style={{ width: "100%" }}
                             />
                           </td>
-                          <td
-                            style={{
-                              borderBottom: "1px solid #eee",
-                              padding: "0.25rem 0.4rem",
-                            }}
-                          >
+                          <td>
                             <input
                               type="text"
                               value={f.description}
@@ -925,15 +775,9 @@ function App() {
                                   e.target.value,
                                 )
                               }
-                              style={{ width: "100%" }}
                             />
                           </td>
-                          <td
-                            style={{
-                              borderBottom: "1px solid #eee",
-                              padding: "0.25rem 0.4rem",
-                            }}
-                          >
+                          <td>
                             <select
                               value={f.level}
                               onChange={(e) =>
@@ -943,31 +787,20 @@ function App() {
                                   e.target.value,
                                 )
                               }
-                              style={{ width: "100%" }}
                             >
                               <option value="UI">UI</option>
                               <option value="API">API</option>
                               <option value="Unit">Unit</option>
                             </select>
                           </td>
-                          <td
-                            style={{
-                              borderBottom: "1px solid #eee",
-                              textAlign: "center",
-                            }}
-                          >
+                          <td style={{ textAlign: "center" }}>
                             <input
                               type="checkbox"
                               checked={f.enabled}
                               onChange={() => handleAdminToggleFault(f)}
                             />
                           </td>
-                          <td
-                            style={{
-                              borderBottom: "1px solid #eee",
-                              padding: "0.25rem 0.4rem",
-                            }}
-                          >
+                          <td>
                             <input
                               type="number"
                               value={f.latencyMs ?? ""}
@@ -978,15 +811,9 @@ function App() {
                                   e.target.value,
                                 )
                               }
-                              style={{ width: "100%" }}
                             />
                           </td>
-                          <td
-                            style={{
-                              borderBottom: "1px solid #eee",
-                              padding: "0.25rem 0.4rem",
-                            }}
-                          >
+                          <td>
                             <input
                               type="number"
                               step="0.1"
@@ -1000,26 +827,13 @@ function App() {
                                   e.target.value,
                                 )
                               }
-                              style={{ width: "100%" }}
                             />
                           </td>
-                          <td
-                            style={{
-                              borderBottom: "1px solid #eee",
-                              padding: "0.25rem 0.4rem",
-                            }}
-                          >
+                          <td>
                             <button
                               type="button"
                               onClick={() => handleAdminFaultSave(f)}
-                              style={{
-                                padding: "0.25rem 0.6rem",
-                                borderRadius: 4,
-                                border: "none",
-                                background: "#2563eb",
-                                color: "#fff",
-                                cursor: "pointer",
-                              }}
+                              className="btn-table"
                             >
                               Save
                             </button>
@@ -1034,260 +848,154 @@ function App() {
           )}
         </section>
       ) : (
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "2fr 1fr",
-          gap: "2rem",
-          alignItems: "flex-start",
-        }}
-      >
-        <div>
-          {!loading && !error && products.length === 0 && (
-            <p>No products available yet.</p>
-          )}
+        <section className="shop-layout">
+          <div>
+            {!loading && !error && products.length === 0 && (
+              <p className="empty-state">No products available yet.</p>
+            )}
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: "1.5rem",
-              marginTop: 0,
-            }}
-          >
-            {products.map((p) => {
-              const inCartQty =
-                cart?.items.find((i) => i.productId === p.id)?.quantity ?? 0;
-              const step = uiDoubleAddAlways ? 2 : 1;
-              const canAddFromList = inCartQty + step <= p.inStock;
-              return (
-                <article
-                key={p.id}
-                style={{
-                  border: "1px solid #ddd",
-                  borderRadius: 8,
-                  padding: "1rem",
-                  background: "#fff",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  gap: "0.5rem",
-                }}
-              >
-                <div>
-                  <h3 style={{ marginTop: 0 }}>{p.name}</h3>
-                  <p>{p.description}</p>
-                </div>
-                <div>
-                  <p style={{ marginBottom: "0.5rem" }}>
-                    <strong>
-                      {(p.price.amount).toLocaleString("cs-CZ", {
+            <div className="product-grid">
+              {products.map((p) => {
+                const inCartQty =
+                  cart?.items.find((i) => i.productId === p.id)?.quantity ?? 0;
+                const step = uiDoubleAddAlways ? 2 : 1;
+                const canAddFromList = inCartQty + step <= p.inStock;
+                const imgSrc = getProductImageSrc(p.name);
+                return (
+                  <article key={p.id} className="product-card">
+                    <div className="product-card__image">
+                      {imgSrc ? (
+                        <img
+                          src={imgSrc}
+                          alt={p.name}
+                          width={220}
+                          height={165}
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      ) : (
+                        <span className="product-card__placeholder">Photo</span>
+                      )}
+                    </div>
+                    <h3 className="product-card__title">{p.name}</h3>
+                    <p className="product-card__desc">{p.description}</p>
+                    <div className="product-card__price">
+                      {p.price.amount.toLocaleString("en-US", {
                         style: "currency",
                         currency: p.price.currencyCode,
                       })}
-                    </strong>
-                  </p>
-                  <p style={{ fontSize: 12, color: "#555" }}>
-                    Stock: {p.inStock}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => handleAddToCart(p.id)}
-                    disabled={!canAddFromList}
-                    style={{
-                      marginTop: "0.5rem",
-                      width: "100%",
-                      padding: "0.5rem 0.75rem",
-                      borderRadius: 6,
-                      border: "none",
-                      background: canAddFromList ? "#2563eb" : "#94a3b8",
-                      color: "#fff",
-                      cursor: canAddFromList ? "pointer" : "not-allowed",
-                    }}
-                  >
-                    {canAddFromList ? "Add to cart" : "Max in stock"}
-                  </button>
-                </div>
-                </article>
-              );
-            })}
+                    </div>
+                    <p className="product-card__stock">
+                      In Stock · {p.inStock} left
+                    </p>
+                    <button
+                      type="button"
+                      className="btn-add-cart"
+                      onClick={() => handleAddToCart(p.id)}
+                      disabled={!canAddFromList}
+                    >
+                      {canAddFromList ? "Add to Cart" : "Max in stock"}
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        <aside
-          style={{
-            border: "1px solid #ddd",
-            borderRadius: 8,
-            padding: "1rem",
-            background: "#fff",
-            color: "#0f172a",
-          }}
-        >
-          {!cart || cart.items.length === 0 ? (
-            <p>Your cart is empty.</p>
-          ) : (
-            <>
-              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                {cart.items.map((item) => (
-                  <li
-                    key={item.productId}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr auto",
-                      columnGap: "0.75rem",
-                      marginBottom: "0.75rem",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 8,
-                      padding: "0.65rem",
-                      background: "#f8fafc",
-                    }}
-                  >
-                    <div>
-                      <strong>{item.name}</strong>
-                      <div style={{ fontSize: 12, marginTop: 2, color: "#475569" }}>
-                        Unit price:{" "}
-                        {(item.price.amount).toLocaleString("cs-CZ", {
-                          style: "currency",
-                          currency: item.price.currencyCode,
-                        })}
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                          marginTop: 8,
-                        }}
-                      >
+          <aside className="cart-panel">
+            <div className="cart-panel__title">Shopping Cart</div>
+            {!cart || cart.items.length === 0 ? (
+              <p className="muted">Your cart is empty.</p>
+            ) : (
+              <>
+                <ul className="cart-list">
+                  {cart.items.map((item) => {
+                    const plusDisabled =
+                      uiDoubleAddAlways
+                        ? item.quantity + 2 > item.inStock
+                        : item.quantity >= item.inStock;
+                    return (
+                      <li key={item.productId} className="cart-item">
                         <button
                           type="button"
-                          onClick={() => handleAddToCart(item.productId)}
-                          disabled={
-                            uiDoubleAddAlways
-                              ? item.quantity + 2 > item.inStock
-                              : item.quantity >= item.inStock
+                          className="cart-item__remove"
+                          onClick={() =>
+                            handleRemoveCartItem(item.productId)
                           }
-                          style={{
-                            width: 26,
-                            height: 26,
-                            borderRadius: 6,
-                            border: "1px solid #cbd5e1",
-                            background:
-                              uiDoubleAddAlways
-                                ? item.quantity + 2 > item.inStock
-                                  ? "#e2e8f0"
-                                  : "#fff"
-                                : item.quantity >= item.inStock
-                                  ? "#e2e8f0"
-                                  : "#fff",
-                            color:
-                              uiDoubleAddAlways
-                                ? item.quantity + 2 > item.inStock
-                                  ? "#94a3b8"
-                                  : "#0f172a"
-                                : item.quantity >= item.inStock
-                                  ? "#94a3b8"
-                                  : "#0f172a",
-                            cursor:
-                              uiDoubleAddAlways
-                                ? item.quantity + 2 > item.inStock
-                                  ? "not-allowed"
-                                  : "pointer"
-                                : item.quantity >= item.inStock
-                                  ? "not-allowed"
-                                  : "pointer",
-                            fontSize: 16,
-                            lineHeight: "24px",
-                            padding: 0,
-                          }}
+                          aria-label={`Remove ${item.name} from cart`}
                         >
-                          +
+                          ×
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDecreaseCartItem(item.productId)}
-                          style={{
-                            width: 26,
-                            height: 26,
-                            borderRadius: 6,
-                            border: "1px solid #cbd5e1",
-                            background: "#fff",
-                            color: "#0f172a",
-                            cursor: "pointer",
-                            fontSize: 18,
-                            lineHeight: "22px",
-                            padding: 0,
-                          }}
-                        >
-                          -
-                        </button>
-                        <span style={{ minWidth: 24, textAlign: "center" }}>
-                          {item.quantity} pcs
-                        </span>
-                        <span style={{ fontSize: 12, color: "#64748b" }}>
-                          / In stock {item.inStock}
-                        </span>
-                        <div style={{ marginLeft: "auto" }}>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveCartItem(item.productId)}
-                            style={{
-                              padding: "0.15rem 0.4rem",
-                              borderRadius: 4,
-                              border: "1px solid #fecaca",
-                              background: "#fee2e2",
-                              color: "#b91c1c",
-                              cursor: "pointer",
-                              fontSize: 11,
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            Remove all
-                          </button>
+                        <div className="cart-item__body">
+                          <div className="cart-item__name">{item.name}</div>
+                          <div className="cart-item__meta">
+                            Unit price:{" "}
+                            {item.price.amount.toLocaleString("en-US", {
+                              style: "currency",
+                              currency: item.price.currencyCode,
+                            })}
+                          </div>
+                          <div className="cart-item__controls">
+                            <button
+                              type="button"
+                              className="cart-qty-btn"
+                              onClick={() => handleAddToCart(item.productId)}
+                              disabled={plusDisabled}
+                              aria-label="Increase quantity"
+                            >
+                              +
+                            </button>
+                            <button
+                              type="button"
+                              className="cart-qty-btn"
+                              onClick={() =>
+                                handleDecreaseCartItem(item.productId)
+                              }
+                              aria-label="Decrease quantity"
+                            >
+                              −
+                            </button>
+                            <span className="cart-qty-label">
+                              {item.quantity}
+                            </span>
+                            <span className="cart-qty-stock">
+                              of {item.inStock}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 12, color: "#64748b" }}>Subtotal</div>
-                      {(item.lineTotal.amount).toLocaleString("cs-CZ", {
-                        style: "currency",
-                        currency: item.lineTotal.currencyCode,
-                      })}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              <hr />
-              <p style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Total:</span>
-                <strong>
-                  {(cart.total.amount).toLocaleString("cs-CZ", {
-                    style: "currency",
-                    currency: cart.total.currencyCode,
+                        <div className="cart-item__sub">
+                          <div className="cart-item__sub-label">Subtotal</div>
+                          <strong>
+                            {item.lineTotal.amount.toLocaleString("en-US", {
+                              style: "currency",
+                              currency: item.lineTotal.currencyCode,
+                            })}
+                          </strong>
+                        </div>
+                      </li>
+                    );
                   })}
-                </strong>
-              </p>
-              <button
-                type="button"
-                style={{
-                  marginTop: "0.75rem",
-                  width: "100%",
-                  padding: "0.6rem 0.75rem",
-                  borderRadius: 6,
-                  border: "none",
-                  background: "#16a34a",
-                  color: "#fff",
-                  cursor: "pointer",
-                }}
-              >
-                Checkout (mock)
-              </button>
-            </>
-          )}
-        </aside>
-      </section>
+                </ul>
+                <hr className="cart-divider" />
+                <div className="cart-total-row">
+                  <span>Estimated total</span>
+                  <strong>
+                    {cart.total.amount.toLocaleString("en-US", {
+                      style: "currency",
+                      currency: cart.total.currencyCode,
+                    })}
+                  </strong>
+                </div>
+                <button type="button" className="btn-add-cart">
+                  Proceed to checkout (mock)
+                </button>
+              </>
+            )}
+          </aside>
+        </section>
       )}
-    </main>
+      </main>
+    </div>
   );
 }
 
