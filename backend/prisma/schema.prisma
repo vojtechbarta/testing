@@ -50,16 +50,31 @@ model Product {
 }
 
 model Order {
-  id          Int         @id @default(autoincrement())
-  user        User        @relation(fields: [userId], references: [id])
-  userId      Int
-  total       Int
-  status      OrderStatus @default(PENDING)
-  currencyId  Int?
-  currency    Currency?   @relation(fields: [currencyId], references: [id])
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  items       OrderItem[]
+  id                Int           @id @default(autoincrement())
+  user              User          @relation(fields: [userId], references: [id])
+  userId            Int
+  total             Int
+  status            OrderStatus   @default(PENDING)
+  currencyId        Int?
+  currency          Currency?     @relation(fields: [currencyId], references: [id])
+  customerEmail     String
+  customerFirstName String
+  customerLastName  String
+  customerPhone     String
+  addressLine1      String?
+  addressLine2      String?
+  city              String?
+  postalCode        String?
+  country           String?
+  paymentMethod     PaymentMethod
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  items             OrderItem[]
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  PAYMENT_GATEWAY
 }
 
 enum OrderStatus {

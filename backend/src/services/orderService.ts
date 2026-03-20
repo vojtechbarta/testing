@@ -1,11 +1,13 @@
 import prisma from "../db/prisma";
 import { isFaultEnabled } from "../faults/faultService";
+import { PaymentMethod } from "@prisma/client";
 
 type OrderItemInput = {
   productId: number;
   quantity: number;
 };
 
+/** Direct order API (no stock change). Prefer /checkout for storefront checkout. */
 export async function createOrder(userId: number, items: OrderItemInput[]) {
   const products = await prisma.product.findMany({
     where: { id: { in: items.map((i) => i.productId) } },
@@ -45,6 +47,11 @@ export async function createOrder(userId: number, items: OrderItemInput[]) {
       userId,
       total: orderTotal,
       currencyId: currencyId ?? undefined,
+      paymentMethod: PaymentMethod.BANK_TRANSFER,
+      customerEmail: "legacy-api@example.com",
+      customerFirstName: "Legacy",
+      customerLastName: "API",
+      customerPhone: "n/a",
       items: {
         create: orderItemsData.map((oi) => ({
           ...oi,

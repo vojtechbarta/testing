@@ -16,8 +16,30 @@ import {
 } from "./api/faults";
 import { getActiveUiFaultConfigs } from "./api/uiFaults";
 import { getProductImageSrc } from "./productImages";
+import {
+  checkoutBankTransfer,
+  checkoutGatewayInit,
+  checkoutMockPay,
+  type BankTransferDetails,
+  type BuyerFormPayload,
+  type MockOutcome,
+} from "./api/checkout";
 
 type ViewMode = "shop" | "admin" | "bugs";
+
+type CheckoutStep = "buyer" | "payment" | "bankResult" | "gatewayPay";
+
+const emptyBuyer: BuyerFormPayload = {
+  customerEmail: "",
+  customerFirstName: "",
+  customerLastName: "",
+  customerPhone: "",
+  addressLine1: "",
+  addressLine2: "",
+  city: "",
+  postalCode: "",
+  country: "",
+};
 
 function App() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -46,6 +68,28 @@ function App() {
     Array<{ key: string; failureRate: number }>
   >([]);
   const [productSearch, setProductSearch] = useState("");
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>("buyer");
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [buyerForm, setBuyerForm] = useState<BuyerFormPayload>(emptyBuyer);
+  const [buyerFieldErrors, setBuyerFieldErrors] = useState<
+    Partial<Record<string, string>>
+  >({});
+  const [paymentChoice, setPaymentChoice] = useState<
+    "bank" | "gateway"
+  >("bank");
+  const [bankTransferInfo, setBankTransferInfo] =
+    useState<BankTransferDetails | null>(null);
+  const [bankEmailInfo, setBankEmailInfo] = useState<{
+    message: string;
+    emailConfigured: boolean;
+    emailSent: boolean;
+    emailPreviewUrl?: string;
+    emailError?: string;
+  } | null>(null);
+  const [gatewayOrderId, setGatewayOrderId] = useState<number | null>(null);
+  const [mockOutcome, setMockOutcome] = useState<MockOutcome>("success");
 
   useEffect(() => {
     // pokud je v localStorage rozbitý stav (token bez role nebo naopak), vyčisti ho
@@ -158,6 +202,110 @@ function App() {
       setCartError(
         err instanceof Error ? err.message : "Cart update failed",
       );
+    }
+  };
+
+  const refreshShopData = async () => {
+    const q = productSearch.trim() || undefined;
+    const [productsData, cartData] = await Promise.all([
+      getProducts(q),
+      getCart(),
+    ]);
+    setProducts(productsData);
+    setCart(cartData);
+  };
+
+  const openCheckout = () => {
+    setCheckoutOpen(true);
+    setCheckoutStep("buyer");
+    setCheckoutError(null);
+    setBuyerForm(emptyBuyer);
+    setBuyerFieldErrors({});
+    setPaymentChoice("bank");
+    setBankTransferInfo(null);
+    setBankEmailInfo(null);
+    setGatewayOrderId(null);
+    setMockOutcome("success");
+  };
+
+  const closeCheckout = () => {
+    setCheckoutOpen(false);
+    setCheckoutBusy(false);
+    setCheckoutError(null);
+  };
+
+  const validateBuyerClient = (): boolean => {
+    const next: Partial<Record<string, string>> = {};
+    if (!buyerForm.customerEmail.trim()) {
+      next.customerEmail = "Email is required";
+    }
+    if (!buyerForm.customerFirstName.trim()) {
+      next.customerFirstName = "First name is required";
+    }
+    if (!buyerForm.customerLastName.trim()) {
+      next.customerLastName = "Last name is required";
+    }
+    if (!buyerForm.customerPhone.trim()) {
+      next.customerPhone = "Phone is required";
+    }
+    setBuyerFieldErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const handleCheckoutContinueFromBuyer = () => {
+    setCheckoutError(null);
+    if (!validateBuyerClient()) return;
+    setCheckoutStep("payment");
+  };
+
+  const handleCheckoutPaymentSubmit = async () => {
+    setCheckoutError(null);
+    setCheckoutBusy(true);
+    try {
+      if (paymentChoice === "bank") {
+        const res = await checkoutBankTransfer(buyerForm);
+        setBankTransferInfo(res.bankTransfer);
+        setBankEmailInfo({
+          message: res.message,
+          emailConfigured: res.emailConfigured,
+          emailSent: res.emailSent,
+          emailPreviewUrl: res.emailPreviewUrl,
+          emailError: res.emailError,
+        });
+        await refreshShopData();
+        setCheckoutStep("bankResult");
+      } else {
+        const res = await checkoutGatewayInit(buyerForm);
+        setGatewayOrderId(res.order.id);
+        setCheckoutStep("gatewayPay");
+      }
+    } catch (err) {
+      setCheckoutError(
+        err instanceof Error ? err.message : "Checkout failed",
+      );
+    } finally {
+      setCheckoutBusy(false);
+    }
+  };
+
+  const handleMockGatewayPay = async () => {
+    if (gatewayOrderId == null) return;
+    setCheckoutError(null);
+    setCheckoutBusy(true);
+    try {
+      const res = await checkoutMockPay(gatewayOrderId, mockOutcome);
+      if (res.success) {
+        await refreshShopData();
+        closeCheckout();
+      } else {
+        setCheckoutError(res.message);
+      }
+    } catch (err) {
+      setCheckoutError(
+        err instanceof Error ? err.message : "Mock payment failed",
+      );
+    } finally {
+      setCheckoutBusy(false);
     }
   };
 
@@ -986,8 +1134,12 @@ function App() {
                     })}
                   </strong>
                 </div>
-                <button type="button" className="btn-add-cart">
-                  Proceed to checkout (mock)
+                <button
+                  type="button"
+                  className="btn-add-cart"
+                  onClick={openCheckout}
+                >
+                  Proceed to checkout
                 </button>
               </>
             )}
@@ -995,6 +1147,359 @@ function App() {
         </section>
       )}
       </main>
+
+      {checkoutOpen && (
+        <div
+          className="checkout-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="checkout-title"
+        >
+          <div className="checkout-modal">
+            <button
+              type="button"
+              className="checkout-close"
+              onClick={closeCheckout}
+              aria-label="Close checkout"
+            >
+              ×
+            </button>
+            <h2 id="checkout-title" className="checkout-title">
+              Checkout
+            </h2>
+
+            {checkoutError && (
+              <p className="store-alert store-alert--error checkout-alert">
+                {checkoutError}
+              </p>
+            )}
+
+            {checkoutStep === "buyer" && (
+              <div className="checkout-form-stack">
+                <p className="muted checkout-hint">
+                  Required fields are marked. Address fields are optional.
+                </p>
+                <label>
+                  Email <span className="req">*</span>
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    value={buyerForm.customerEmail}
+                    onChange={(e) =>
+                      setBuyerForm((f) => ({
+                        ...f,
+                        customerEmail: e.target.value,
+                      }))
+                    }
+                    className={
+                      buyerFieldErrors.customerEmail ? "input-invalid" : ""
+                    }
+                  />
+                  {buyerFieldErrors.customerEmail && (
+                    <span className="field-error">
+                      {buyerFieldErrors.customerEmail}
+                    </span>
+                  )}
+                </label>
+                <label>
+                  First name <span className="req">*</span>
+                  <input
+                    autoComplete="given-name"
+                    value={buyerForm.customerFirstName}
+                    onChange={(e) =>
+                      setBuyerForm((f) => ({
+                        ...f,
+                        customerFirstName: e.target.value,
+                      }))
+                    }
+                    className={
+                      buyerFieldErrors.customerFirstName ? "input-invalid" : ""
+                    }
+                  />
+                  {buyerFieldErrors.customerFirstName && (
+                    <span className="field-error">
+                      {buyerFieldErrors.customerFirstName}
+                    </span>
+                  )}
+                </label>
+                <label>
+                  Last name <span className="req">*</span>
+                  <input
+                    autoComplete="family-name"
+                    value={buyerForm.customerLastName}
+                    onChange={(e) =>
+                      setBuyerForm((f) => ({
+                        ...f,
+                        customerLastName: e.target.value,
+                      }))
+                    }
+                    className={
+                      buyerFieldErrors.customerLastName ? "input-invalid" : ""
+                    }
+                  />
+                  {buyerFieldErrors.customerLastName && (
+                    <span className="field-error">
+                      {buyerFieldErrors.customerLastName}
+                    </span>
+                  )}
+                </label>
+                <label>
+                  Phone <span className="req">*</span>
+                  <input
+                    autoComplete="tel"
+                    value={buyerForm.customerPhone}
+                    onChange={(e) =>
+                      setBuyerForm((f) => ({
+                        ...f,
+                        customerPhone: e.target.value,
+                      }))
+                    }
+                    className={
+                      buyerFieldErrors.customerPhone ? "input-invalid" : ""
+                    }
+                  />
+                  {buyerFieldErrors.customerPhone && (
+                    <span className="field-error">
+                      {buyerFieldErrors.customerPhone}
+                    </span>
+                  )}
+                </label>
+                <fieldset className="checkout-fieldset">
+                  <legend>Address (optional)</legend>
+                  <label>
+                    Street / line 1
+                    <input
+                      value={buyerForm.addressLine1 ?? ""}
+                      onChange={(e) =>
+                        setBuyerForm((f) => ({
+                          ...f,
+                          addressLine1: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    Street / line 2
+                    <input
+                      value={buyerForm.addressLine2 ?? ""}
+                      onChange={(e) =>
+                        setBuyerForm((f) => ({
+                          ...f,
+                          addressLine2: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    City
+                    <input
+                      value={buyerForm.city ?? ""}
+                      onChange={(e) =>
+                        setBuyerForm((f) => ({
+                          ...f,
+                          city: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    Postal code
+                    <input
+                      value={buyerForm.postalCode ?? ""}
+                      onChange={(e) =>
+                        setBuyerForm((f) => ({
+                          ...f,
+                          postalCode: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    Country
+                    <input
+                      value={buyerForm.country ?? ""}
+                      onChange={(e) =>
+                        setBuyerForm((f) => ({
+                          ...f,
+                          country: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </fieldset>
+                <div className="checkout-actions">
+                  <button
+                    type="button"
+                    className="btn btn-ghost-dark"
+                    onClick={closeCheckout}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleCheckoutContinueFromBuyer}
+                  >
+                    Continue to payment
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {checkoutStep === "payment" && (
+              <div className="checkout-form-stack">
+                <p className="muted">
+                  Choose how you want to pay. Stock is updated after bank
+                  transfer confirmation or after a successful mock gateway
+                  payment.
+                </p>
+                <label className="checkout-radio">
+                  <input
+                    type="radio"
+                    name="pay"
+                    checked={paymentChoice === "bank"}
+                    onChange={() => setPaymentChoice("bank")}
+                  />
+                  <span>
+                    <strong>Bank transfer</strong> — mock email with order PDF +
+                    dummy payment details (no real email sent).
+                  </span>
+                </label>
+                <label className="checkout-radio">
+                  <input
+                    type="radio"
+                    name="pay"
+                    checked={paymentChoice === "gateway"}
+                    onChange={() => setPaymentChoice("gateway")}
+                  />
+                  <span>
+                    <strong>Payment gateway</strong> — internal mock only;
+                    choose success / failure / random.
+                  </span>
+                </label>
+                <div className="checkout-actions">
+                  <button
+                    type="button"
+                    className="btn btn-ghost-dark"
+                    onClick={() => setCheckoutStep("buyer")}
+                    disabled={checkoutBusy}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => void handleCheckoutPaymentSubmit()}
+                    disabled={checkoutBusy}
+                  >
+                    {checkoutBusy ? "Processing…" : "Continue"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {checkoutStep === "bankResult" && bankTransferInfo && (
+              <div className="checkout-form-stack">
+                <p
+                  className={`store-alert checkout-alert ${bankEmailInfo?.emailError ? "store-alert--error" : "store-alert--info"}`}
+                >
+                  {bankEmailInfo?.emailConfigured && bankEmailInfo.emailError
+                    ? `Order placed but email failed: ${bankEmailInfo.emailError}`
+                    : bankEmailInfo?.message ??
+                      `Order placed. Add SMTP_USE_ETHEREAL=true or SMTP to the backend .env to send mail to ${buyerForm.customerEmail}.`}
+                </p>
+                {bankEmailInfo?.emailPreviewUrl && (
+                  <p className="checkout-ethereal-link">
+                    <a
+                      href={bankEmailInfo.emailPreviewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Open email in Ethereal (preview in browser)
+                    </a>
+                  </p>
+                )}
+                <div className="bank-box">
+                  <h3 className="bank-box__title">Dummy transfer details</h3>
+                  <p className="bank-box__note">{bankTransferInfo.note}</p>
+                  <dl className="bank-dl">
+                    <dt>Beneficiary</dt>
+                    <dd>{bankTransferInfo.beneficiary}</dd>
+                    <dt>IBAN</dt>
+                    <dd className="mono">{bankTransferInfo.iban}</dd>
+                    <dt>BIC</dt>
+                    <dd className="mono">{bankTransferInfo.bic}</dd>
+                    <dt>Bank</dt>
+                    <dd>{bankTransferInfo.bankName}</dd>
+                    <dt>Variable symbol</dt>
+                    <dd className="mono">{bankTransferInfo.variableSymbol}</dd>
+                    <dt>Specific symbol</dt>
+                    <dd className="mono">{bankTransferInfo.specificSymbol}</dd>
+                    <dt>Amount</dt>
+                    <dd>
+                      {bankTransferInfo.amount.value.toLocaleString("en-US", {
+                        style: "currency",
+                        currency: bankTransferInfo.amount.currencyCode,
+                      })}
+                    </dd>
+                  </dl>
+                </div>
+                <div className="checkout-actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={closeCheckout}
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {checkoutStep === "gatewayPay" && (
+              <div className="checkout-form-stack">
+                <p>
+                  Order <strong>#{gatewayOrderId}</strong> is waiting for mock
+                  gateway payment. Stock is not reduced until the mock gateway
+                  succeeds. If you go back and submit again, the same pending
+                  order is reused when possible.
+                </p>
+                <label>
+                  Mock outcome
+                  <select
+                    value={mockOutcome}
+                    onChange={(e) =>
+                      setMockOutcome(e.target.value as MockOutcome)
+                    }
+                  >
+                    <option value="success">Success</option>
+                    <option value="failure">Failure</option>
+                    <option value="random">Random</option>
+                  </select>
+                </label>
+                <div className="checkout-actions">
+                  <button
+                    type="button"
+                    className="btn btn-ghost-dark"
+                    onClick={() => setCheckoutStep("payment")}
+                    disabled={checkoutBusy}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => void handleMockGatewayPay()}
+                    disabled={checkoutBusy}
+                  >
+                    {checkoutBusy ? "Processing…" : "Pay with mock gateway"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
