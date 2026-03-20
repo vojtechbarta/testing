@@ -4,7 +4,10 @@ export default defineConfig({
   test: {
     testTimeout: 15_000,
     hookTimeout: 15_000,
-    /** Keep integration-style API tests in a dedicated file pattern if you want to split later. */
+    /**
+     * - `src/integration-tests/` — HTTP + DB (internal API contract)
+     * - `src/services/unit-tests/` — isolated service logic (mocks)
+     */
     include: ["src/**/*.test.ts"],
   },
 });
