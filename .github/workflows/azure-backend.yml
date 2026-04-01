@@ -12,8 +12,9 @@ on:
 
 jobs:
   build-and-deploy:
-    # Skip when using Container Apps only (no App Service publish profile in repo secrets).
-    if: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE != '' && vars.AZURE_WEBAPP_NAME != '' }}
+    # GitHub does not allow `secrets` in job-level `if`. Set repo variable AZURE_USE_APP_SERVICE_DEPLOY=true
+    # when you use App Service with AZURE_WEBAPP_PUBLISH_PROFILE + AZURE_WEBAPP_NAME.
+    if: ${{ vars.AZURE_USE_APP_SERVICE_DEPLOY == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

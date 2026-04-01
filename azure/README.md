@@ -81,7 +81,7 @@ Redeploys with the **same** resource group and **base name** reuse the same **st
 | `AZURE_WEBAPP_NAME` | Printed web app name |
 | `AZURE_WEBAPP_PUBLISH_PROFILE` | App Service → **Get publish profile** |
 
-The workflow [`.github/workflows/azure-backend.yml`](../.github/workflows/azure-backend.yml) deploys a **zip** to **App Service**. Its deploy job **runs only** when both **`AZURE_WEBAPP_PUBLISH_PROFILE`** (secret) and **`AZURE_WEBAPP_NAME`** (variable) are set; otherwise it is **skipped** (so Container Apps–only setups do not fail on push). For Container Apps, redeploy the API with `./azure/deploy.sh` or add a workflow that builds `backend/Dockerfile` and updates the Container App.
+The workflow [`.github/workflows/azure-backend.yml`](../.github/workflows/azure-backend.yml) deploys a **zip** to **App Service**. Its job runs only when the repository variable **`AZURE_USE_APP_SERVICE_DEPLOY`** is set to **`true`** (GitHub does not allow checking secrets in `if`). You still need secret **`AZURE_WEBAPP_PUBLISH_PROFILE`** and variable **`AZURE_WEBAPP_NAME`**. Leave the flag unset for Container Apps–only setups. For Container Apps, redeploy the API with `./azure/deploy.sh` or add your own workflow.
 
 Pushes to `main` still run [`.github/workflows/azure-static-web-app.yml`](../.github/workflows/azure-static-web-app.yml) for the frontend.
 
