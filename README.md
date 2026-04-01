@@ -205,6 +205,7 @@ cd ../frontend && npm run build
 
 - [`frontend/e2e/README.md`](frontend/e2e/README.md) – E2E příkazy, CORS, struktura testů  
 - [`backend/MockConfigs/README.md`](backend/MockConfigs/README.md) – mock platby podle e‑mailu kupujícího  
+- Playwright UI automatizace (Cursor skill): [`.cursor/skills/playwright-ui-automation/SKILL.md`](.cursor/skills/playwright-ui-automation/SKILL.md)  
 
 ---
 

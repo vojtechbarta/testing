@@ -1032,7 +1032,11 @@ function App() {
                 const canAddFromList = inCartQty + step <= p.inStock;
                 const imgSrc = getProductImageSrc(p.name);
                 return (
-                  <article key={p.id} className="product-card">
+                  <article
+                    key={p.id}
+                    className="product-card"
+                    data-testid={`shop-product-${p.id}`}
+                  >
                     <div className="product-card__image">
                       {imgSrc ? (
                         <img
@@ -1061,6 +1065,7 @@ function App() {
                     <button
                       type="button"
                       className="btn-add-cart"
+                      data-testid={`shop-add-to-cart-${p.id}`}
                       onClick={() => handleAddToCart(p.id)}
                       disabled={!canAddFromList}
                     >
@@ -1085,7 +1090,11 @@ function App() {
                         ? item.quantity + 2 > item.inStock
                         : item.quantity >= item.inStock;
                     return (
-                      <li key={item.productId} className="cart-item">
+                      <li
+                        key={item.productId}
+                        className="cart-item"
+                        data-testid={`cart-line-${item.productId}`}
+                      >
                         <button
                           type="button"
                           className="cart-item__remove"
@@ -1149,7 +1158,7 @@ function App() {
                 <hr className="cart-divider" />
                 <div className="cart-total-row">
                   <span>Estimated total</span>
-                  <strong>
+                  <strong data-testid="cart-estimated-total">
                     {cart.total.amount.toLocaleString("en-US", {
                       style: "currency",
                       currency: cart.total.currencyCode,

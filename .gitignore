@@ -6,3 +6,4 @@ npm-debug.log*
 *.log
 .vscode
 .idea
+azure/.last-deployment.json

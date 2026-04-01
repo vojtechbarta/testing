@@ -228,7 +228,7 @@ export async function sendBankTransferOrderEmail(args: {
     let previewUrl: string | undefined;
     if (resolved.isEthereal) {
       const url = nodemailer.getTestMessageUrl(info);
-      previewUrl = url ?? undefined;
+      previewUrl = typeof url === "string" ? url : undefined;
       if (previewUrl) {
         // eslint-disable-next-line no-console
         console.log("[Ethereal] Open this URL in a browser to read the message:");

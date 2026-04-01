@@ -1,11 +1,24 @@
 import { type Locator, type Page, expect } from "@playwright/test";
 
-/** Must match `productsData` in `backend/prisma/seed.ts` */
+/**
+ * Must match `productsData` order in `backend/prisma/seed.ts`.
+ * `id` is the DB `Product.id` after a fresh seed (products recreated 1..N).
+ */
 export const SEED_PRODUCTS = [
-  { name: "Test Mouse", price: 499 },
-  { name: "Test Keyboard", price: 1299 },
-  { name: "QA Monitor", price: 3999 },
+  { id: 1, name: "Test Mouse", price: 499 },
+  { id: 2, name: "Test Keyboard", price: 1299 },
+  { id: 3, name: "QA Monitor", price: 3999 },
 ] as const;
+
+function seedProductByName(name: string): { id: number; name: string; price: number } {
+  const p = SEED_PRODUCTS.find((x) => x.name === name);
+  if (!p) {
+    throw new Error(
+      `Unknown seed product "${name}" — extend SEED_PRODUCTS to match prisma/seed.ts`,
+    );
+  }
+  return p;
+}
 
 export function formatCzk(amount: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -25,9 +38,8 @@ export class ShopPage {
   }
 
   productCardByName(productName: string): Locator {
-    return this.page.locator(".product-card").filter({
-      has: this.page.getByRole("heading", { level: 3, name: productName }),
-    });
+    const { id } = seedProductByName(productName);
+    return this.page.getByTestId(`shop-product-${id}`);
   }
 
   productTitles(): Locator {
@@ -42,25 +54,24 @@ export class ShopPage {
     ).toHaveCount(count);
   }
 
-  /** Asserts the three seed product titles appear as h3 headings. */
+  /** Asserts the three seed product titles appear as h3.product-card__title. */
   async expectSeedProductsVisible(): Promise<void> {
     for (const p of SEED_PRODUCTS) {
       await expect(
-        this.page.getByRole("heading", { level: 3, name: p.name }),
-        `Missing product heading "${p.name}" — expected all seed products on the grid`,
+        this.page.locator("h3.product-card__title", { hasText: p.name }),
+        `Missing product title "${p.name}" — expected all seed products on the grid`,
       ).toBeVisible();
     }
   }
 
   async addToCart(productName: string): Promise<void> {
-    const card = this.productCardByName(productName);
-    await card.getByRole("button", { name: "Add to Cart" }).click();
+    const { id } = seedProductByName(productName);
+    await this.page.getByTestId(`shop-add-to-cart-${id}`).click();
   }
 
   cartLineForProduct(productName: string): Locator {
-    return this.page.locator(".cart-item").filter({
-      has: this.page.locator(".cart-item__name", { hasText: productName }),
-    });
+    const { id } = seedProductByName(productName);
+    return this.page.getByTestId(`cart-line-${id}`);
   }
 
   /** Quantity is shown in `.cart-qty-label`; unit price appears in `.cart-item__meta`. */
@@ -104,7 +115,7 @@ export class ShopPage {
   }
 
   async expectEstimatedTotal(formattedPrice: string): Promise<void> {
-    const total = this.page.locator(".cart-total-row strong");
+    const total = this.page.getByTestId("cart-estimated-total");
     await expect(
       total,
       `Estimated cart total should contain "${formattedPrice}"`,

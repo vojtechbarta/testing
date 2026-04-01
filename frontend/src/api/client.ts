@@ -1,6 +1,11 @@
 import { getCartSessionId } from "../lib/cartSession";
 
-const API_BASE_URL = "http://localhost:4000";
+const DEFAULT_API_BASE = "http://localhost:4000";
+
+/** Resolved API origin (no trailing slash). Set `VITE_API_BASE_URL` at build time for production. */
+export const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE
+).replace(/\/$/, "");
 
 export function cartSessionHeaders(): HeadersInit {
   return { "X-Cart-Session": getCartSessionId() };

@@ -1,0 +1,41 @@
+# Deploys to Azure App Service (zip). If your API runs on Azure Container Apps, use azure/deploy.sh
+# or a pipeline that builds backend/Dockerfile and updates the Container App instead.
+name: Deploy backend to Azure App Service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/azure-backend.yml"
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install, build, production dependencies
+        working-directory: backend
+        run: |
+          npm ci
+          npm run build
+          npx prisma generate
+          npm prune --omit=dev
+
+      - name: Create deployment package
+        run: (cd backend && zip -qr ../backend-deploy.zip .)
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: backend-deploy.zip
