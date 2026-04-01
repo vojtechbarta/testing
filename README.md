@@ -13,6 +13,7 @@ Demo e‑shop (React + Node) určený jako **tréninkové hřiště** pro testov
 | **`backend/prisma/`** | Schéma DB, migrace, `seed.ts` (uživatelé, produkty, fault konfigurace) |
 | **`backend/MockConfigs/`** | Soubory mimo DB (např. výsledky mock platby podle e‑mailu) — viz [`backend/MockConfigs/README.md`](backend/MockConfigs/README.md) |
 | **`docker-compose.yaml`** | MySQL 8.4 v Dockeru (volitelná DB pro lokální vývoj) |
+| **`azure/`** | Bicep šablony, skript [`azure/deploy.sh`](azure/deploy.sh) — MySQL, Static Web App, API (Container Apps nebo App Service). Podrobnosti: [`azure/README.md`](azure/README.md) |
 
 ### Kde je co v backendu (zjednodušeně)
 
@@ -201,8 +202,94 @@ cd ../frontend && npm run build
 
 ---
 
+## Nasazení na Azure
+
+Produkční rozložení je **rozdělené na dvě části**: frontend na **Azure Static Web Apps** (SWA) a backend na **Azure Container Apps** + **Azure Database for MySQL – Flexible Server** + **Azure Container Registry** (ACR). Výchozí cesta **nepoužívá App Service** (nevyžaduje kvótu Free/Basic VM pro plán).
+
+Volitelně lze API provozovat na **Azure App Service** (F1/B1) — viz šablonu [`azure/main-appservice.bicep`](azure/main-appservice.bicep) a proměnnou `AZURE_API_HOSTING`.
+
+### Architektura (shrnutí)
+
+| Komponenta | Účel |
+|------------|------|
+| **Static Web App** | Buildovaný Vite frontend; veřejná HTTPS URL. |
+| **Container App** (výchozí) | Docker image z [`backend/Dockerfile`](backend/Dockerfile); při startu kontejneru běží `npx prisma migrate deploy` a pak `node dist/index.js` na portu **4000**. |
+| **MySQL Flexible Server** | Databáze `ai_testing_shop`, uživatel `shopadmin` (heslo z nasazení). |
+| **ACR** | Registry pro image `shop-api:latest`. |
+
+Proměnná **`VITE_API_BASE_URL`** musí v produkčním buildu frontendu ukazovat na HTTPS URL API (bez koncového lomítka). Lokálně zůstává výchozí `http://localhost:4000`, pokud není nastavena.
+
+**CORS:** V produkci backend používá **`CORS_ORIGINS`** (nastavuje Bicep/deploy z URL Static Web App). Lokálně se k tomu přidají `localhost:5173` a `127.0.0.1:5173`.
+
+### Rychlý start (Azure CLI)
+
+Požadavky: nainstalovaný [**Azure CLI**](https://learn.microsoft.com/cli/azure/install-azure-cli), přihlášení (`az login`), vhodná subscription.
+
+Z kořene repozitáře:
+
+```bash
+chmod +x azure/deploy.sh
+./azure/deploy.sh <krátký-název>
+```
+
+`<krátký-název>` (např. `myshop`) se použije jako základ pro názvy zdrojů. Skript:
+
+1. Vytvoří nebo použije resource group (výchozí `AZURE_RG=rg-ai-testing-shop`).
+2. Nasadí Bicep ([`azure/main.bicep`](azure/main.bicep) nebo při `AZURE_API_HOSTING=appservice` soubor [`azure/main-appservice.bicep`](azure/main-appservice.bicep)).
+3. U **Container Apps**: zkusí **`az acr build`**; při chybě typu **TasksOperationsNotAllowed** přepne na **lokální Docker** (`linux/amd64` + `docker push`). Image lze předpřipravit a předat **`AZURE_PREBUILT_API_IMAGE`**.
+4. Vytvoří nebo aktualizuje Container App / App Service a vypíše **`apiUrl`** a **`staticWebAppUrl`**.
+
+Důležité **proměnné prostředí** (volitelné, viz také [`azure/README.md`](azure/README.md)):
+
+| Proměnná | Význam |
+|----------|--------|
+| `AZURE_RG` | Název resource group (výchozí `rg-ai-testing-shop`). |
+| `AZURE_LOCATION` | Region pro MySQL, ACR, Container Apps (výchozí `westus2`). |
+| `AZURE_SWA_LOCATION` | Region Static Web App — musí být z podporovaných (např. `westus2`, `westeurope`). |
+| `AZURE_API_HOSTING` | `containerapp` (výchozí) nebo `appservice`. |
+| `AZURE_APP_SERVICE_SKU` | Při App Service: `F1` nebo `B1`. |
+| `MYSQL_ADMIN_PASSWORD` / `ADMIN_JWT_SECRET` | Volitelně pevné hodnoty (heslo MySQL jen alfanumerické kvůli `DATABASE_URL`). |
+| `DEV_CLIENT_IP` | Veřejná IP pro pravidlo firewallu MySQL (vývoj z notebooku). |
+| `AZURE_EXISTING_CONTAINER_ENV_ID` | ID existujícího Container Apps Environment (limit 1 env na region v některých subscription). |
+| `AZURE_PREBUILT_API_IMAGE` | Plný název image v ACR, pokud build nechcete v skriptu. |
+
+Výstup posledního nasazení je také v `azure/.last-deployment.json` (soubor je v `.gitignore`).
+
+### GitHub Actions
+
+- **Frontend** — workflow [`.github/workflows/azure-static-web-app.yml`](.github/workflows/azure-static-web-app.yml): při pushi na `main` (změny ve `frontend/`) build a nasazení do SWA.  
+  - **Repository variable:** `VITE_API_BASE_URL` = hodnota `apiUrl` z výstupu skriptu (např. `https://….azurecontainerapps.io`).  
+  - **Secret:** `AZURE_STATIC_WEB_APPS_API_TOKEN` — token ze Static Web App v portálu (*Manage deployment token*).
+
+- **Backend na App Service** — [`.github/workflows/azure-backend.yml`](.github/workflows/azure-backend.yml) se spustí jen když je **`AZURE_USE_APP_SERVICE_DEPLOY=true`** (repository variable). Vyžaduje **`AZURE_WEBAPP_NAME`** a secret **`AZURE_WEBAPP_PUBLISH_PROFILE`**.  
+  Při **Container Apps** tento workflow **nepoužívejte** pro API — backend aktualizujte znovu spuštěním `./azure/deploy.sh` (stejný název zdrojů) nebo vlastním CI, které pushne image do ACR a zavolá `az containerapp update`.
+
+### Databáze: migrace a seed
+
+- Migrace se při **Container Apps** spouštějí automaticky při startu kontejneru (viz `CMD` v [`backend/Dockerfile`](backend/Dockerfile)).
+- **Seed** (produkty, uživatelé admin/tester, …) se **nespouští automaticky**. Jednorázově z počítače s povolenou IP v firewallu MySQL:
+
+```bash
+export DATABASE_URL='mysql://shopadmin:<HESLO>@<HOST>.mysql.database.azure.com:3306/ai_testing_shop?sslaccept=strict'
+cd backend && npx prisma migrate deploy && npm run prisma:seed
+```
+
+Formát `DATABASE_URL` pro Azure MySQL musí obsahovat **`?sslaccept=strict`** (ne syntaxi jako u CLI klienta `mysql`).
+
+### Ověření po nasazení
+
+- `GET {apiUrl}/health` → JSON s `"status":"ok"`.
+- Otevřít URL Static Web App; v síťové záložce prohlížeče ověřit volání API na `VITE_API_BASE_URL`.
+
+### Podrobnosti a řešení problémů
+
+Kompletní návod (regiony, kvóty, ACR build vs. Docker, limit prostředí Container Apps, CORS) je v **[`azure/README.md`](azure/README.md)**.
+
+---
+
 ## Další dokumentace v repu
 
+- [`azure/README.md`](azure/README.md) – Azure: Bicep, `deploy.sh`, GitHub Actions, DB, troubleshooting  
 - [`frontend/e2e/README.md`](frontend/e2e/README.md) – E2E příkazy, CORS, struktura testů  
 - [`backend/MockConfigs/README.md`](backend/MockConfigs/README.md) – mock platby podle e‑mailu kupujícího  
 - Playwright UI automatizace (Cursor skill): [`.cursor/skills/playwright-ui-automation/SKILL.md`](.cursor/skills/playwright-ui-automation/SKILL.md)  
