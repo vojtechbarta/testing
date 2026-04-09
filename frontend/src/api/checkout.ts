@@ -1,6 +1,4 @@
-import { cartSessionHeaders } from "./client";
-
-const API_BASE = "http://localhost:4000";
+import { API_BASE_URL, cartSessionHeaders } from "./client";
 
 export type BuyerFormPayload = {
   customerEmail: string;
@@ -37,7 +35,7 @@ export async function checkoutBankTransfer(
   emailError?: string;
   message: string;
 }> {
-  const res = await fetch(`${API_BASE}/checkout/bank-transfer`, {
+  const res = await fetch(`${API_BASE_URL}/checkout/bank-transfer`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...cartSessionHeaders() },
     body: JSON.stringify(buyer),
@@ -58,7 +56,7 @@ export async function checkoutBankTransfer(
 export async function checkoutGatewayInit(
   buyer: BuyerFormPayload,
 ): Promise<{ order: { id: number }; nextStep: string }> {
-  const res = await fetch(`${API_BASE}/checkout/gateway/init`, {
+  const res = await fetch(`${API_BASE_URL}/checkout/gateway/init`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...cartSessionHeaders() },
     body: JSON.stringify(buyer),
@@ -84,7 +82,7 @@ export async function checkoutMockPay(orderId: number): Promise<{
   mockRandomRollSuccess?: boolean;
 }> {
   const res = await fetch(
-    `${API_BASE}/checkout/gateway/${orderId}/mock-pay`,
+    `${API_BASE_URL}/checkout/gateway/${orderId}/mock-pay`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },

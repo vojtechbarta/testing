@@ -5,8 +5,10 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
+    "postinstall": "prisma generate",
     "start": "node dist/index.js",
+    "start:azure": "prisma migrate deploy && node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "prisma:seed": "ts-node-dev --transpile-only prisma/seed.ts"
@@ -32,6 +34,8 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/nodemailer": "^7.0.11",
     "@types/supertest": "^7.2.0",
     "supertest": "^7.2.2",
     "vitest": "^4.1.0"

@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.ts"],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/integration-tests",
+    "src/services/unit-tests"
+  ],
+  "compilerOptions": {
+    "verbatimModuleSyntax": false,
+    "noUncheckedSideEffectImports": false,
+    "exactOptionalPropertyTypes": false,
+    "types": ["node"]
+  }
+}

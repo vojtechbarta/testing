@@ -1,4 +1,4 @@
-import { apiGet, cartSessionHeaders } from "./client";
+import { API_BASE_URL, apiGet, cartSessionHeaders } from "./client";
 
 export interface CartItem {
   productId: number;
@@ -32,7 +32,7 @@ export async function updateCartItem(
   productId: number,
   quantity: number,
 ): Promise<Cart> {
-  const res = await fetch("http://localhost:4000/cart/items", {
+  const res = await fetch(`${API_BASE_URL}/cart/items`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
