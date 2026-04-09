@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./client";
+const API_BASE_URL = "http://localhost:4000";
 
 export interface AdminFault {
   key: string;

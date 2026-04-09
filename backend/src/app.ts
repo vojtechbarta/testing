@@ -16,23 +16,12 @@ const FRONTEND_DEV_ORIGINS = [
   "http://127.0.0.1:5173",
 ];
 
-function corsAllowedOrigins(): string[] {
-  const fromEnv =
-    process.env.CORS_ORIGINS?.split(",")
-      .map((s) => s.trim())
-      .filter(Boolean) ?? [];
-  if (process.env.NODE_ENV === "production") {
-    return fromEnv;
-  }
-  return [...new Set([...FRONTEND_DEV_ORIGINS, ...fromEnv])];
-}
-
 export function createApp(): express.Express {
   const app = express();
 
   app.use(
     cors({
-      origin: corsAllowedOrigins(),
+      origin: FRONTEND_DEV_ORIGINS,
       allowedHeaders: ["Content-Type", "X-Cart-Session", "Authorization"],
     }),
   );
