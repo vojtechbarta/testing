@@ -9,6 +9,7 @@ export const FAULT_KEYS = {
   uiSortPriceAscSwapLastTwo: "sort_price_asc_swap_last_two",
   uiSortNameDescSwapLastTwo: "sort_name_desc_swap_last_two",
   uiGridNonChromeBroken: "grid_non_chrome_broken",
+  uiLabelTypos: "ui_label_typos",
 } as const;
 
 type FaultRuntimeRow = {

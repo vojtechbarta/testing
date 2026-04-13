@@ -151,6 +151,28 @@ async function main() {
   });
 
   await prisma.faultConfig.upsert({
+    where: { key: "ui_label_typos" },
+    update: {
+      name: "UI: Label typos",
+      description:
+        'Introduces typos in three UI labels: "Name (A-Z)" → "Name (A-Y)", "In Stock" → "In Sock", "Address (optional)" → "Adres (optional)".',
+      level: FaultLevel.UI,
+      latencyMs: null,
+      failureRate: null,
+    },
+    create: {
+      key: "ui_label_typos",
+      name: "UI: Label typos",
+      description:
+        'Introduces typos in three UI labels: "Name (A-Z)" → "Name (A-Y)", "In Stock" → "In Sock", "Address (optional)" → "Adres (optional)".',
+      level: FaultLevel.UI,
+      enabled: false,
+      latencyMs: null,
+      failureRate: null,
+    },
+  });
+
+  await prisma.faultConfig.upsert({
     where: { key: "grid_non_chrome_broken" },
     update: {
       name: "UI: Broken product grid (non-Chrome)",

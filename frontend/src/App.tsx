@@ -143,6 +143,10 @@ function App() {
     navigator.userAgent.includes("Chrome") &&
     navigator.vendor === "Google Inc.";
 
+  const labelTyposFaultActive = activeUiFaultConfigs.some(
+    (f) => f.key === "ui_label_typos",
+  );
+
   const gridBrokenFaultActive = activeUiFaultConfigs.some(
     (f) => f.key === "grid_non_chrome_broken",
   );
@@ -1147,7 +1151,7 @@ function App() {
                       })}
                     </div>
                     <p className="product-card__stock">
-                      In Stock · {p.inStock} left
+                      {labelTyposFaultActive ? "In Sock" : "In Stock"} · {p.inStock} left
                     </p>
                     <button
                       type="button"
@@ -1181,7 +1185,7 @@ function App() {
                     )
                   }
                 >
-                  <option value="name-asc">Name (A-Z)</option>
+                  <option value="name-asc">{labelTyposFaultActive ? "Name (A-Y)" : "Name (A-Z)"}</option>
                   <option value="name-desc">Name (Z-A)</option>
                   <option value="price-asc">Price (low to high)</option>
                   <option value="price-desc">Price (high to low)</option>
@@ -1486,7 +1490,7 @@ function App() {
                   )}
                 </label>
                 <fieldset className="checkout-fieldset">
-                  <legend>Address (optional)</legend>
+                  <legend>{labelTyposFaultActive ? "Adres (optional)" : "Address (optional)"}</legend>
                   <label>
                     Street / line 1
                     <input
