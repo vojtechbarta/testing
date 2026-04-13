@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import "./App.css";
+import { getExchangeRates, type ExchangeRateDto } from "./api/exchangeRates";
 import { getProducts, type Product } from "./api/products";
 import { getCart, updateCartItem, type Cart } from "./api/cart";
 import {
@@ -29,6 +30,10 @@ import {
   type BankTransferDetails,
   type BuyerFormPayload,
 } from "./api/checkout";
+import {
+  convertPriceFilterRangeBetweenDisplayCurrencies,
+  toShopDisplayMoney,
+} from "./displayMoney";
 
 type ViewMode = "shop" | "admin" | "bugs";
 
@@ -74,6 +79,7 @@ function App() {
   const [activeUiFaultConfigs, setActiveUiFaultConfigs] = useState<
     Array<{ key: string; failureRate: number }>
   >([]);
+  const [exchangeRates, setExchangeRates] = useState<ExchangeRateDto[]>([]);
   const [productSearch, setProductSearch] = useState("");
   const [shopSort, setShopSort] = useState<
     "name-asc" | "name-desc" | "price-asc" | "price-desc"
@@ -108,6 +114,9 @@ function App() {
   } | null>(null);
   const [gatewayOrderId, setGatewayOrderId] = useState<number | null>(null);
 
+  /** Tracks `shopCatalogProducts` display currency to convert price filter on EN↔CS (or CZK↔EUR when rates load). */
+  const prevShopDisplayCurrencyRef = useRef<string | null>(null);
+
   useEffect(() => {
     // pokud je v localStorage rozbitý stav (token bez role nebo naopak), vyčisti ho
     if (!adminToken || !adminRole) {
@@ -116,12 +125,18 @@ function App() {
     }
     let cancelled = false;
     setLoading(true);
-    Promise.all([getProducts(), getCart(), getActiveUiFaultConfigs()])
-      .then(([productsData, cartData, uiFaultConfigs]) => {
+    Promise.all([
+      getProducts(),
+      getCart(),
+      getActiveUiFaultConfigs(),
+      getExchangeRates().catch((): ExchangeRateDto[] => []),
+    ])
+      .then(([productsData, cartData, uiFaultConfigs, ratesData]) => {
         if (!cancelled) {
           setProducts(productsData);
           setCart(cartData);
           setActiveUiFaultConfigs(uiFaultConfigs);
+          setExchangeRates(ratesData);
         }
       })
       .catch((err: unknown) => {
@@ -160,6 +175,39 @@ function App() {
   const showLabelTypos = labelTyposFaultActive;
 
   const priceLocale = i18n.language.startsWith("cs") ? "cs-CZ" : "en-US";
+  const langIsCs = i18n.language.startsWith("cs");
+
+  const shopMoneyCtx = useMemo(
+    () => ({ langIsCs, rates: exchangeRates }),
+    [langIsCs, exchangeRates],
+  );
+
+  const shopCatalogProducts = useMemo(
+    () =>
+      products.map((p) => {
+        const d = toShopDisplayMoney(
+          p.price.amount,
+          p.price.currencyCode,
+          shopMoneyCtx,
+        );
+        return {
+          ...p,
+          price: { amount: d.amount, currencyCode: d.currencyCode },
+        };
+      }),
+    [products, shopMoneyCtx],
+  );
+
+  const formatStorefrontMoney = useCallback(
+    (amount: number, storageCurrencyCode: string) => {
+      const d = toShopDisplayMoney(amount, storageCurrencyCode, shopMoneyCtx);
+      return d.amount.toLocaleString(priceLocale, {
+        style: "currency",
+        currency: d.currencyCode,
+      });
+    },
+    [shopMoneyCtx, priceLocale],
+  );
 
   const gridBrokenFaultActive = activeUiFaultConfigs.some(
     (f) => f.key === "grid_non_chrome_broken",
@@ -203,15 +251,53 @@ function App() {
   };
 
   useEffect(() => {
-    if (products.length === 0) {
+    if (shopCatalogProducts.length === 0) {
       setPriceFilterBounds({ min: 0, max: 0 });
       setPriceFilter({ min: 0, max: 0 });
+      prevShopDisplayCurrencyRef.current = null;
       return;
     }
 
-    const amounts = products.map((p) => p.price.amount);
+    const amounts = shopCatalogProducts.map((p) => p.price.amount);
     const nextMin = Math.min(...amounts);
     const nextMax = Math.max(...amounts);
+
+    const displayCurrency = shopCatalogProducts[0]!.price.currencyCode;
+    const prevCurrency = prevShopDisplayCurrencyRef.current;
+
+    const euroCzkFlip =
+      prevCurrency !== null &&
+      prevCurrency !== displayCurrency &&
+      ((prevCurrency === "EUR" && displayCurrency === "CZK") ||
+        (prevCurrency === "CZK" && displayCurrency === "EUR"));
+
+    const canConvertShopPrices =
+      products.length > 0 &&
+      products.every((p) => p.price.currencyCode === "CZK");
+
+    if (euroCzkFlip && canConvertShopPrices) {
+      setPriceFilterBounds({ min: nextMin, max: nextMax });
+      setPriceFilter((prev) => {
+        const converted = convertPriceFilterRangeBetweenDisplayCurrencies(
+          prev.min,
+          prev.max,
+          prevCurrency,
+          displayCurrency,
+          exchangeRates,
+        );
+        if (!converted) {
+          return { min: nextMin, max: nextMax };
+        }
+        const lo = Math.max(nextMin, Math.min(converted.min, nextMax));
+        const hi = Math.min(nextMax, Math.max(converted.max, nextMin));
+        return {
+          min: Math.min(lo, hi),
+          max: Math.max(lo, hi),
+        };
+      });
+      prevShopDisplayCurrencyRef.current = displayCurrency;
+      return;
+    }
 
     setPriceFilterBounds({ min: nextMin, max: nextMax });
     setPriceFilter((prev) => {
@@ -227,17 +313,18 @@ function App() {
         max: Math.max(clampedMin, clampedMax),
       };
     });
-  }, [products]);
+    prevShopDisplayCurrencyRef.current = displayCurrency;
+  }, [shopCatalogProducts, products, exchangeRates]);
 
   const visibleProducts = useMemo(
     () =>
       getVisibleShopProducts(
-        products,
+        shopCatalogProducts,
         priceFilter,
         shopSort,
         activeUiFaultConfigs.map((f) => f.key),
       ),
-    [activeUiFaultConfigs, priceFilter, products, shopSort],
+    [activeUiFaultConfigs, priceFilter, shopCatalogProducts, shopSort],
   );
 
   useEffect(() => {
@@ -1359,10 +1446,10 @@ function App() {
                             </div>
                             <div className="cart-item__meta">
                               {t("cart.unitPrice")}{" "}
-                              {item.price.amount.toLocaleString(priceLocale, {
-                                style: "currency",
-                                currency: item.price.currencyCode,
-                              })}
+                              {formatStorefrontMoney(
+                                item.price.amount,
+                                item.price.currencyCode,
+                              )}
                             </div>
                             <div className="cart-item__controls">
                               <button
@@ -1397,12 +1484,9 @@ function App() {
                               {t("cart.subtotal")}
                             </div>
                             <strong>
-                              {item.lineTotal.amount.toLocaleString(
-                                priceLocale,
-                                {
-                                  style: "currency",
-                                  currency: item.lineTotal.currencyCode,
-                                },
+                              {formatStorefrontMoney(
+                                item.lineTotal.amount,
+                                item.lineTotal.currencyCode,
                               )}
                             </strong>
                           </div>
@@ -1414,10 +1498,10 @@ function App() {
                   <div className="cart-total-row">
                     <span>{t("cart.estimatedTotal")}</span>
                     <strong data-testid="cart-estimated-total">
-                      {cart.total.amount.toLocaleString(priceLocale, {
-                        style: "currency",
-                        currency: cart.total.currencyCode,
-                      })}
+                      {formatStorefrontMoney(
+                        cart.total.amount,
+                        cart.total.currencyCode,
+                      )}
                     </strong>
                   </div>
                   <button
@@ -1740,12 +1824,9 @@ function App() {
                     <dd className="mono">{bankTransferInfo.specificSymbol}</dd>
                     <dt>{t("checkout.amount")}</dt>
                     <dd>
-                      {bankTransferInfo.amount.value.toLocaleString(
-                        priceLocale,
-                        {
-                          style: "currency",
-                          currency: bankTransferInfo.amount.currencyCode,
-                        },
+                      {formatStorefrontMoney(
+                        bankTransferInfo.amount.value,
+                        bankTransferInfo.amount.currencyCode,
                       )}
                     </dd>
                   </dl>

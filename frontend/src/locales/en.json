@@ -81,7 +81,7 @@
     "sortNameDesc": "Name (Z-A)",
     "sortPriceAsc": "Price (low to high)",
     "sortPriceDesc": "Price (high to low)",
-    "priceRange": "Price range (CZK)",
+    "priceRange": "Price range (EUR)",
     "min": "Min",
     "max": "Max"
   },

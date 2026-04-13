@@ -9,6 +9,7 @@ import adminProductsRouter from "./routes/adminProducts";
 import adminFaultsRouter from "./routes/adminFaults";
 import uiFaultsRouter from "./routes/uiFaults";
 import checkoutRouter from "./routes/checkout";
+import exchangeRatesRouter from "./routes/exchangeRates";
 
 /** Vite dev server may be opened as localhost or 127.0.0.1 — both must be allowed (Playwright uses 127.0.0.1 by default). */
 const FRONTEND_DEV_ORIGINS = [
@@ -30,9 +31,13 @@ function corsAllowedOrigins(): string[] {
 export function createApp(): express.Express {
   const app = express();
 
+  const isProd = process.env.NODE_ENV === "production";
+
   app.use(
     cors({
-      origin: corsAllowedOrigins(),
+      // Dev: reflect any request origin so http://localhost:* and http://127.0.0.1:* both work
+      // (browser treats them as different sites; a fixed allowlist breaks "Failed to fetch").
+      origin: isProd ? corsAllowedOrigins() : true,
       allowedHeaders: ["Content-Type", "X-Cart-Session", "Authorization"],
     }),
   );
@@ -45,6 +50,7 @@ export function createApp(): express.Express {
 
   app.use("/auth", authRouter);
   app.use("/products", productsRouter);
+  app.use("/exchange-rates", exchangeRatesRouter);
   app.use("/orders", ordersRouter);
   app.use("/checkout", checkoutRouter);
   app.use("/cart", cartRouter);

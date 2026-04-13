@@ -73,6 +73,20 @@ describe("Internal API (frontend contract)", () => {
     });
   });
 
+  it("GET /exchange-rates returns seeded EUR→CZK rate (1 EUR = 24 CZK)", async () => {
+    const res = await request(app).get("/exchange-rates").expect(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    const rows = res.body as {
+      fromCurrencyCode: string;
+      toCurrencyCode: string;
+      exchangeRate: number;
+    }[];
+    const eurCzk = rows.find(
+      (r) => r.fromCurrencyCode === "EUR" && r.toCurrencyCode === "CZK",
+    );
+    expect(eurCzk?.exchangeRate).toBe(24);
+  });
+
   // Shop search: query param `q` filters active products by name/description (e.g. seed "Wireless Mouse M200").
   it("GET /products?q=… filters catalog (search on main shop)", async () => {
     const res = await request(app).get("/products").query({ q: "Mouse" }).expect(200);

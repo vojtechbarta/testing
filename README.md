@@ -19,7 +19,7 @@ Demo e‑shop (React + Node) určený jako **tréninkové hřiště** pro testov
 
 - **`src/app.ts`** – sestavení Express aplikace (`createApp()`, bez `listen`) – pro testy i server.
 - **`src/index.ts`** – spuštění serveru na `PORT` (default 4000).
-- **`src/routes/`** – HTTP endpointy (`/products`, `/cart`, `/checkout`, `/auth`, `/admin/...`, `/faults/...`).
+- **`src/routes/`** – HTTP endpointy (`/products`, `/cart`, `/checkout`, `/auth`, `/admin/...`, `/faults/...`, `/exchange-rates`).
 - **`src/services/`** – doménová logika (košík, checkout, produkty, e‑mail, mock platby, …).
 - **`src/faults/`** – runtime injekce chyb (UI/API/Unit úrovně, cache, invalidace po změně v adminu).
 - **`src/middleware/adminAuth.ts`** – JWT pro admin/tester API.
@@ -138,7 +138,9 @@ cd backend && npm run dev
 cd frontend && npm run dev
 ```
 
-V prohlížeči otevřete **http://localhost:5173**.
+V prohlížeči otevřete **http://localhost:5173** (nebo `http://127.0.0.1:5173`).
+
+**„Failed to fetch“ v dev režimu:** API musí běžet na **:4000** před otevřením UI. Ve vývoji Vite **proxy** přeposílá `/products`, `/cart`, `/auth`, … na backend, takže prohlížeč volá stejný origin jako stránka a nespoléhá na shodu `localhost` vs `127.0.0.1`. V neprodukčním backendu je CORS nastavené na **dynamický origin** (`origin: true`).
 
 ---
 
@@ -189,7 +191,7 @@ Podrobnosti: [`frontend/e2e/README.md`](frontend/e2e/README.md).
 
 - **Košík** je vázaný na **relaci** (`X-Cart-Session` + `sessionStorage` ve frontendu), ne na jednoho globálního uživatele v DB — každý tab / kontext Playwright má vlastní košík.
 - **Fault injection** — chyby jde zapínat v DB/UI (úrovně UI / API / Unit); slouží k tréninku testů a simulaci regresí.
-- **CORS** na backendu povoluje frontend z `http://localhost:5173` a `http://127.0.0.1:5173` a hlavičky včetně `Authorization` a `X-Cart-Session`.
+- **CORS:** v produkci povolené originy z `CORS_ORIGINS`; ve vývoji je **`origin: true`** (libovolný lokální origin). Ve vývoji navíc Vite **proxy** na `127.0.0.1:4000` pro cesty API. Hlavičky: `Authorization`, `X-Cart-Session`, …
 
 ---
 

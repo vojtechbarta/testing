@@ -8,23 +8,39 @@ generator client {
 }
 
 model Currency {
-  id        Int      @id @default(autoincrement())
-  code      String   @unique
-  createdAt DateTime @default(now())
-  products  Product[]
-  orders    Order[]
-  cartItems CartItem[]
+  id         Int         @id @default(autoincrement())
+  code       String      @unique
+  createdAt  DateTime    @default(now())
+  products   Product[]
+  orders     Order[]
+  cartItems  CartItem[]
   orderItems OrderItem[]
+  exchangeRatesFrom ExchangeRate[] @relation("ExchangeRateFrom")
+  exchangeRatesTo   ExchangeRate[] @relation("ExchangeRateTo")
+}
+
+/// 1 unit of fromCurrency equals `exchangeRate` units of toCurrency (e.g. 1 EUR = 24 CZK).
+model ExchangeRate {
+  id             Int      @id @default(autoincrement())
+  fromCurrencyId Int
+  toCurrencyId   Int
+  exchangeRate   Decimal  @db.Decimal(18, 8)
+
+  fromCurrency Currency @relation("ExchangeRateFrom", fields: [fromCurrencyId], references: [id])
+  toCurrency   Currency @relation("ExchangeRateTo", fields: [toCurrencyId], references: [id])
+
+  @@unique([fromCurrencyId, toCurrencyId])
+  @@map("ExchangeRate")
 }
 
 model User {
-  id        Int       @id @default(autoincrement())
-  email     String    @unique
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
   password  String
-  role      UserRole  @default(CUSTOMER)
+  role      UserRole @default(CUSTOMER)
   orders    Order[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum UserRole {
@@ -34,16 +50,16 @@ enum UserRole {
 }
 
 model Product {
-  id          Int        @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   name        String
   description String
   price       Int
   inStock     Int
-  active      Boolean    @default(true)
+  active      Boolean     @default(true)
   currencyId  Int?
-  currency    Currency?  @relation(fields: [currencyId], references: [id])
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  currency    Currency?   @relation(fields: [currencyId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
   orderItems  OrderItem[]
   cartItems   CartItem[]
 }
@@ -85,40 +101,40 @@ enum OrderStatus {
 }
 
 model OrderItem {
-  id             Int     @id @default(autoincrement())
-  order          Order   @relation(fields: [orderId], references: [id])
-  orderId        Int
-  product        Product @relation(fields: [productId], references: [id])
-  productId      Int
-  quantity       Int
-  unitPrice      Int
-  currencyId     Int?
-  currency       Currency? @relation(fields: [currencyId], references: [id])
+  id         Int       @id @default(autoincrement())
+  order      Order     @relation(fields: [orderId], references: [id])
+  orderId    Int
+  product    Product   @relation(fields: [productId], references: [id])
+  productId  Int
+  quantity   Int
+  unitPrice  Int
+  currencyId Int?
+  currency   Currency? @relation(fields: [currencyId], references: [id])
 }
 
 model CartItem {
-  id         Int      @id @default(autoincrement())
-  cartKey    String   @db.VarChar(64)
-  product    Product  @relation(fields: [productId], references: [id])
+  id         Int       @id @default(autoincrement())
+  cartKey    String    @db.VarChar(64)
+  product    Product   @relation(fields: [productId], references: [id])
   productId  Int
   quantity   Int
   currencyId Int?
   currency   Currency? @relation(fields: [currencyId], references: [id])
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@unique([cartKey, productId], name: "cartKey_productId")
 }
 
 model FaultConfig {
-  key         String   @id
+  key         String     @id
   name        String
   description String
   level       FaultLevel
-  enabled     Boolean  @default(false)
+  enabled     Boolean    @default(false)
   latencyMs   Int?
   failureRate Float?
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime   @updatedAt
 }
 
 enum FaultLevel {

@@ -40,6 +40,34 @@ async function main() {
     },
   });
 
+  await prisma.currency.upsert({
+    where: { code: "EUR" },
+    update: {},
+    create: { code: "EUR" },
+  });
+
+  const czkRow = await prisma.currency.findUniqueOrThrow({
+    where: { code: "CZK" },
+  });
+  const eurRow = await prisma.currency.findUniqueOrThrow({
+    where: { code: "EUR" },
+  });
+
+  await prisma.exchangeRate.upsert({
+    where: {
+      fromCurrencyId_toCurrencyId: {
+        fromCurrencyId: eurRow.id,
+        toCurrencyId: czkRow.id,
+      },
+    },
+    update: { exchangeRate: 24 },
+    create: {
+      fromCurrencyId: eurRow.id,
+      toCurrencyId: czkRow.id,
+      exchangeRate: 24,
+    },
+  });
+
   await prisma.faultConfig.upsert({
     where: { key: "cart_add_ui_double_call" },
     update: {

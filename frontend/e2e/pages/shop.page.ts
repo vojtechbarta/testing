@@ -32,11 +32,16 @@ function seedProductByName(name: string): { id: number; name: string; price: num
   return p;
 }
 
-export function formatCzk(amount: number): string {
+/** Seed EUR→CZK rate must match `backend/prisma/seed.ts` (`ExchangeRate` EUR→CZK = 24). */
+const SEED_EUR_PER_CZK_UNIT = 24;
+
+/** English storefront shows cart/catalog money in EUR (converted from API CZK). */
+export function formatEnShopEurFromCzk(amountCzk: number): string {
+  const eur = Math.round((amountCzk / SEED_EUR_PER_CZK_UNIT) * 100) / 100;
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "CZK",
-  }).format(amount);
+    currency: "EUR",
+  }).format(eur);
 }
 
 /**
@@ -78,6 +83,26 @@ export class ShopPage {
     }
   }
 
+  /**
+   * Guards against Vite `/products` → API proxy accidentally serving product PNGs (broken images).
+   * Requires `getProductImageSrc` paths under `/catalog/` and files in `public/catalog/`.
+   */
+  async expectProductCardImagesDecoded(): Promise<void> {
+    const imgs = this.page.locator(".product-card__image img");
+    await expect(imgs.first(), "At least one product card should show an <img>").toBeVisible();
+    const count = await imgs.count();
+    expect(count, "Expected 15 product images for seed catalog").toBeGreaterThanOrEqual(15);
+    for (let i = 0; i < Math.min(count, 15); i += 1) {
+      const img = imgs.nth(i);
+      await expect(img).toBeVisible();
+      const w = await img.evaluate((el) => (el as HTMLImageElement).naturalWidth);
+      expect(
+        w,
+        `Product image #${i + 1} should load (naturalWidth > 0); check public/catalog/ and Vite proxy vs /products`,
+      ).toBeGreaterThan(0);
+    }
+  }
+
   async addToCart(productName: string): Promise<void> {
     const { id } = seedProductByName(productName);
     await this.page.getByTestId(`shop-add-to-cart-${id}`).click();
@@ -111,7 +136,7 @@ export class ShopPage {
     );
     await expect(
       meta,
-      `Cart line "${productName}": unit price should contain "${formattedPrice}" (en-US CZK format)`,
+      `Cart line "${productName}": unit price should contain "${formattedPrice}" (en-US EUR from CZK / ${SEED_EUR_PER_CZK_UNIT})`,
     ).toContainText(formattedPrice);
   }
 

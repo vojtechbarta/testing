@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import {
   ShopPage,
   SEED_PRODUCTS,
-  formatCzk,
+  formatEnShopEurFromCzk,
 } from "../pages/shop.page";
 
 test.describe("Shop — catalog and cart", () => {
@@ -19,11 +19,12 @@ test.describe("Shop — catalog and cart", () => {
 
     await shop.expectProductCount(15);
     await shop.expectSeedProductsVisible();
+    await shop.expectProductCardImagesDecoded();
 
     const mouse = SEED_PRODUCTS[0]!;
     await shop.addToCart(mouse.name);
 
-    const formatted = formatCzk(mouse.price);
+    const formatted = formatEnShopEurFromCzk(mouse.price);
     await shop.expectCartLineQuantity(mouse.name, 1);
     await shop.expectCartLineUnitPrice(mouse.name, formatted);
     await shop.expectCartSubtotalForProduct(mouse.name, formatted);
