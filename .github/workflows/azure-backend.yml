@@ -12,9 +12,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy-containerapp:
-    # Enable this job with repository variable AZURE_USE_CONTAINERAPP_DEPLOY=true.
-    if: ${{ vars.AZURE_USE_CONTAINERAPP_DEPLOY == 'true' }}
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +22,7 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deploy backend to Container Apps via deploy.sh
+      - name: Deploy backend to Container Apps
         env:
           AZURE_API_HOSTING: containerapp
           AZURE_RG: ${{ vars.AZURE_RG }}
@@ -38,35 +36,3 @@ jobs:
         run: |
           chmod +x azure/deploy.sh
           ./azure/deploy.sh "${{ vars.AZURE_BASE_NAME }}"
-
-  build-and-deploy:
-    # GitHub does not allow `secrets` in job-level `if`. Set repo variable AZURE_USE_APP_SERVICE_DEPLOY=true
-    # when you use App Service with AZURE_WEBAPP_PUBLISH_PROFILE + AZURE_WEBAPP_NAME.
-    if: ${{ vars.AZURE_USE_APP_SERVICE_DEPLOY == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
-
-      - name: Install, build, production dependencies
-        working-directory: backend
-        run: |
-          npm ci
-          npm run build
-          npx prisma generate
-          npm prune --omit=dev
-
-      - name: Create deployment package
-        run: (cd backend && zip -qr ../backend-deploy.zip .)
-
-      - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: backend-deploy.zip
