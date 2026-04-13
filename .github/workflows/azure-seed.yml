@@ -1,0 +1,57 @@
+name: Seed Azure MySQL database
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_reset:
+        description: "Type RESET to run seed (this rewrites product/cart/order data)"
+        required: true
+        default: ""
+
+jobs:
+  seed:
+    if: ${{ github.event.inputs.confirm_reset == 'RESET' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Resolve MySQL host
+        env:
+          AZURE_RG: ${{ vars.AZURE_RG }}
+          AZURE_MYSQL_FQDN: ${{ vars.AZURE_MYSQL_FQDN }}
+        run: |
+          if [ -n "$AZURE_MYSQL_FQDN" ]; then
+            MYSQL_HOST="$AZURE_MYSQL_FQDN"
+          else
+            MYSQL_HOST="$(az mysql flexible-server list --resource-group "$AZURE_RG" --query "[0].fullyQualifiedDomainName" -o tsv)"
+          fi
+
+          if [ -z "$MYSQL_HOST" ]; then
+            echo "Could not resolve Azure MySQL host. Set variable AZURE_MYSQL_FQDN."
+            exit 1
+          fi
+
+          echo "MYSQL_HOST=$MYSQL_HOST" >> "$GITHUB_ENV"
+
+      - name: Migrate and seed
+        working-directory: backend
+        env:
+          MYSQL_ADMIN_PASSWORD: ${{ secrets.MYSQL_ADMIN_PASSWORD }}
+          MYSQL_HOST: ${{ env.MYSQL_HOST }}
+        run: |
+          export DATABASE_URL="mysql://shopadmin:${MYSQL_ADMIN_PASSWORD}@${MYSQL_HOST}:3306/ai_testing_shop?sslaccept=strict"
+          npm ci
+          npx prisma migrate deploy
+          npm run prisma:seed
