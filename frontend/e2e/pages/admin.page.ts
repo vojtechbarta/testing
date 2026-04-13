@@ -38,16 +38,53 @@ export class AdminPage {
     return id;
   }
 
-  async clickAddNewProduct(): Promise<void> {
-    await this.page.getByRole("button", { name: "Add new product" }).click();
+  /** Row whose first `td` is exactly the numeric product id (avoids matching id 1 inside 10). */
+  productRowById(productId: number): Locator {
+    return this.page
+      .locator(".data-table tbody tr")
+      .filter({
+        has: this.page
+          .locator("td")
+          .first()
+          .getByText(String(productId), { exact: true }),
+      })
+      .first();
+  }
+
+  /** Returns the new product `id` from the POST response body (avoids DOM races vs. last row). */
+  async clickAddNewProduct(): Promise<number> {
+    const [res] = await Promise.all([
+      this.page.waitForResponse(
+        (r) =>
+          r.url().includes("/admin/products") &&
+          r.request().method() === "POST" &&
+          !/\/admin\/products\/\d+/.test(new URL(r.url()).pathname) &&
+          r.ok(),
+      ),
+      this.page.getByRole("button", { name: "Add new product" }).click(),
+    ]);
+    const body = (await res.json()) as { id: number };
+    return body.id;
   }
 
   async setNameOnRow(row: Locator, name: string): Promise<void> {
-    await row.getByRole("textbox").first().fill(name);
+    const input = row.getByRole("textbox").first();
+    await row.scrollIntoViewIfNeeded();
+    await input.click();
+    await input.fill(name);
+    await expect(input).toHaveValue(name);
   }
 
   async saveRow(row: Locator): Promise<void> {
-    await row.getByRole("button", { name: "Save" }).click();
+    await Promise.all([
+      this.page.waitForResponse(
+        (res) =>
+          res.url().includes("/admin/products/") &&
+          res.request().method() === "PUT" &&
+          res.ok(),
+      ),
+      row.getByRole("button", { name: "Save" }).click(),
+    ]);
   }
 
   async expectRowName(row: Locator, name: string): Promise<void> {

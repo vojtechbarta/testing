@@ -38,6 +38,7 @@ First-time browsers: `npx playwright install chromium` (see e2e README).
 1. **Seed sync** — Product names and prices in tests must match [`backend/prisma/seed.ts`](../../../backend/prisma/seed.ts). Export shared constants from page objects when useful (see `SEED_PRODUCTS` in [`shop.page.ts`](../../../frontend/e2e/pages/shop.page.ts)).
 2. **CORS** — `baseURL` must be allowed in backend `FRONTEND_DEV_ORIGINS` (`localhost` vs `127.0.0.1` must stay consistent).
 3. **Database** — Run migrations + seed so the catalog matches what tests expect.
+4. **UI language** — i18n defaults to English; E2E specs expect English labels and API product names. Czech copy lives in `frontend/src/locales/cs.json` (see `frontend/e2e/README.md`).
 
 ## Page Object pattern
 

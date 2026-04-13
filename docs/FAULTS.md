@@ -79,12 +79,14 @@ Each fault is **disabled by default**. Enabling/disabling takes effect within ~1
 |---|---|
 | **Level** | UI |
 | **Name** | UI: Label typos |
-| **Description** | Introduces three simultaneous typos across the UI: |
-| | • Sort dropdown: **"Name (A-Z)"** → **"Name (A-Y)"** |
-| | • Product card stock badge: **"In Stock"** → **"In Sock"** |
-| | • Checkout form fieldset: **"Address (optional)"** → **"Adres (optional)"** |
+| **Description** | Introduces three simultaneous typos across the UI (same places in every language): |
+| | • Sort dropdown — name A→Z option: EN **"Name (A-Z)"** → **"Name (A-Y)"**; CS **"Název (A–Z)"** → **"Název (A–Y)"** |
+| | • Product card stock badge: EN **"In Stock"** → **"In Sock"**; CS **"Skladem"** → **"Skadem"** (dropped **l**, analogous typo) |
+| | • Checkout address fieldset legend: EN **"Address (optional)"** → **"Adres (optional)"**; CS **"Adresa (nepovinné)"** → **"Adres (nepovinné)"** |
 | **Supports `failureRate`** | No |
 | **Affected area** | Product grid sort control, product card, checkout form |
+
+**i18n:** Typo strings come from locale keys (`shop.sortNameAscTypo`, `shop.inSockTypo`, `checkout.addressLegendTypo`) in both **English** and **Czech** so the fault behaves the same when the language switcher is EN or CS.
 
 ---
 

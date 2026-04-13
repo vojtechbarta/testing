@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import "./App.css";
 import { getProducts, type Product } from "./api/products";
 import { getCart, updateCartItem, type Cart } from "./api/cart";
@@ -16,6 +17,10 @@ import {
 } from "./api/faults";
 import { getActiveUiFaultConfigs } from "./api/uiFaults";
 import { getProductImageSrc } from "./productImages";
+import {
+  getProductDisplayDescription,
+  getProductDisplayName,
+} from "./productDisplay";
 import { getVisibleShopProducts } from "./shopCatalog";
 import {
   checkoutBankTransfer,
@@ -42,6 +47,7 @@ const emptyBuyer: BuyerFormPayload = {
 };
 
 function App() {
+  const { t, i18n } = useTranslation();
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(false);
@@ -120,7 +126,9 @@ function App() {
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Unknown error");
+          setError(
+            err instanceof Error ? err.message : t("errors.unknown"),
+          );
         }
       })
       .finally(() => {
@@ -148,6 +156,11 @@ function App() {
     (f) => f.key === "ui_label_typos",
   );
 
+  /** Fault: typo variants from locale files (en + cs), same UI spots (see docs/FAULTS.md). */
+  const showLabelTypos = labelTyposFaultActive;
+
+  const priceLocale = i18n.language.startsWith("cs") ? "cs-CZ" : "en-US";
+
   const gridBrokenFaultActive = activeUiFaultConfigs.some(
     (f) => f.key === "grid_non_chrome_broken",
   );
@@ -165,7 +178,9 @@ function App() {
       const data = await getProducts(productSearch);
       setProducts(data);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Search failed");
+      setError(
+        err instanceof Error ? err.message : t("errors.searchFailed"),
+      );
     } finally {
       setLoading(false);
     }
@@ -179,7 +194,9 @@ function App() {
       const data = await getProducts();
       setProducts(data);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Search failed");
+      setError(
+        err instanceof Error ? err.message : t("errors.searchFailed"),
+      );
     } finally {
       setLoading(false);
     }
@@ -223,6 +240,20 @@ function App() {
     [activeUiFaultConfigs, priceFilter, products, shopSort],
   );
 
+  useEffect(() => {
+    const sync = () => {
+      document.documentElement.lang = i18n.language.startsWith("cs")
+        ? "cs"
+        : "en";
+      document.title = t("meta.documentTitle");
+    };
+    sync();
+    i18n.on("languageChanged", sync);
+    return () => {
+      i18n.off("languageChanged", sync);
+    };
+  }, [i18n, t]);
+
   const handleAddToCart = async (productId: number) => {
     try {
       setCartError(null);
@@ -250,7 +281,7 @@ function App() {
       setCart(updated);
     } catch (err) {
       setCartError(
-        err instanceof Error ? err.message : "Cart update failed",
+        err instanceof Error ? err.message : t("errors.cartUpdateFailed"),
       );
     }
   };
@@ -265,7 +296,7 @@ function App() {
       setCart(updated);
     } catch (err) {
       setCartError(
-        err instanceof Error ? err.message : "Cart update failed",
+        err instanceof Error ? err.message : t("errors.cartUpdateFailed"),
       );
     }
   };
@@ -301,16 +332,16 @@ function App() {
   const validateBuyerClient = (): boolean => {
     const next: Partial<Record<string, string>> = {};
     if (!buyerForm.customerEmail.trim()) {
-      next.customerEmail = "Email is required";
+      next.customerEmail = t("validation.emailRequired");
     }
     if (!buyerForm.customerFirstName.trim()) {
-      next.customerFirstName = "First name is required";
+      next.customerFirstName = t("validation.firstNameRequired");
     }
     if (!buyerForm.customerLastName.trim()) {
-      next.customerLastName = "Last name is required";
+      next.customerLastName = t("validation.lastNameRequired");
     }
     if (!buyerForm.customerPhone.trim()) {
-      next.customerPhone = "Phone is required";
+      next.customerPhone = t("validation.phoneRequired");
     }
     setBuyerFieldErrors(next);
     return Object.keys(next).length === 0;
@@ -345,7 +376,7 @@ function App() {
       }
     } catch (err) {
       setCheckoutError(
-        err instanceof Error ? err.message : "Checkout failed",
+        err instanceof Error ? err.message : t("errors.checkoutFailed"),
       );
     } finally {
       setCheckoutBusy(false);
@@ -364,13 +395,13 @@ function App() {
       } else {
         const rule =
           res.mockPaymentBehavior != null
-            ? ` Rule: ${res.mockPaymentBehavior}${res.mockRandomRollSuccess === false ? " (random → declined)" : res.mockRandomRollSuccess === true ? " (random → approved)" : ""}.`
+            ? `${t("checkout.mockRulePrefix")}${res.mockPaymentBehavior}${res.mockRandomRollSuccess === false ? t("checkout.mockRuleRandomDeclined") : res.mockRandomRollSuccess === true ? t("checkout.mockRuleRandomApproved") : ""}.`
             : "";
         setCheckoutError(res.message + rule);
       }
     } catch (err) {
       setCheckoutError(
-        err instanceof Error ? err.message : "Mock payment failed",
+        err instanceof Error ? err.message : t("errors.mockPaymentFailed"),
       );
     } finally {
       setCheckoutBusy(false);
@@ -384,7 +415,7 @@ function App() {
       setCart(updated);
     } catch (err) {
       setCartError(
-        err instanceof Error ? err.message : "Cart update failed",
+        err instanceof Error ? err.message : t("errors.cartUpdateFailed"),
       );
     }
   };
@@ -400,7 +431,7 @@ function App() {
       setAdminProducts(productsData);
     } catch (err) {
       setAdminError(
-        err instanceof Error ? err.message : "Failed to load products",
+        err instanceof Error ? err.message : t("errors.loadProductsFailed"),
       );
     }
   };
@@ -416,7 +447,7 @@ function App() {
       setAdminFaults(faultsData);
     } catch (err) {
       setAdminError(
-        err instanceof Error ? err.message : "Failed to load faults",
+        err instanceof Error ? err.message : t("errors.loadFaultsFailed"),
       );
     }
   };
@@ -457,7 +488,7 @@ function App() {
       setAdminProducts(productsData);
     } catch (err) {
       setAdminLoginError(
-        err instanceof Error ? err.message : "Login failed",
+        err instanceof Error ? err.message : t("errors.loginFailed"),
       );
     }
   };
@@ -549,7 +580,7 @@ function App() {
       );
     } catch (err) {
       setAdminError(
-        err instanceof Error ? err.message : "Product save failed",
+        err instanceof Error ? err.message : t("errors.productSaveFailed"),
       );
     }
   };
@@ -568,7 +599,7 @@ function App() {
       setAdminProducts((prev) => [...prev, created]);
     } catch (err) {
       setAdminError(
-        err instanceof Error ? err.message : "Product creation failed",
+        err instanceof Error ? err.message : t("errors.productCreationFailed"),
       );
     }
   };
@@ -610,7 +641,7 @@ function App() {
       await reloadActiveUiFaults();
     } catch (err) {
       setAdminError(
-        err instanceof Error ? err.message : "Fault save failed",
+        err instanceof Error ? err.message : t("errors.faultSaveFailed"),
       );
     } finally {
       setFaultsSaving(false);
@@ -646,10 +677,8 @@ function App() {
       <header className="store-header">
         <div className="store-header-inner">
           <div className="store-brand">
-            <h1>AI Testing Shop</h1>
-            <p className="store-tagline">
-              A simple e-shop for AI testing experiments and fault injection.
-            </p>
+            <h1>{t("brand.title")}</h1>
+            <p className="store-tagline">{t("brand.tagline")}</p>
           </div>
           <form
             className="store-search"
@@ -660,8 +689,8 @@ function App() {
               className="store-search-input"
               value={productSearch}
               onChange={(e) => setProductSearch(e.target.value)}
-              placeholder="Search products by name or description"
-              aria-label="Search products"
+              placeholder={t("search.placeholder")}
+              aria-label={t("search.ariaLabel")}
               autoComplete="off"
               name="q"
             />
@@ -669,7 +698,7 @@ function App() {
               type="submit"
               className={`store-search-btn${productSearch.trim() !== "" ? " store-search-btn--with-clear" : ""}`}
             >
-              Go
+              {t("search.go")}
             </button>
             {productSearch.trim() !== "" && (
               <button
@@ -677,17 +706,39 @@ function App() {
                 className="store-search-clear"
                 onClick={() => void handleClearProductSearch()}
               >
-                Clear
+                {t("search.clear")}
               </button>
             )}
           </form>
+          <div
+            className="store-lang"
+            role="group"
+            aria-label={t("lang.groupAria")}
+          >
+            <button
+              type="button"
+              className={`btn btn-lang${i18n.language.startsWith("en") ? " btn-lang-active" : ""}`}
+              data-testid="lang-switch-en"
+              onClick={() => void i18n.changeLanguage("en")}
+            >
+              {t("lang.en")}
+            </button>
+            <button
+              type="button"
+              className={`btn btn-lang${i18n.language.startsWith("cs") ? " btn-lang-active" : ""}`}
+              data-testid="lang-switch-cs"
+              onClick={() => void i18n.changeLanguage("cs")}
+            >
+              {t("lang.cs")}
+            </button>
+          </div>
           <div className="store-actions">
             <button
               type="button"
               onClick={handleSwitchToShop}
               className={`btn btn-nav${viewMode === "shop" ? " btn-nav-active" : ""}`}
             >
-              Shop
+              {t("nav.shop")}
             </button>
             {!adminToken && (
               <button
@@ -695,7 +746,7 @@ function App() {
                 onClick={() => setViewMode("admin")}
                 className={`btn btn-nav${viewMode === "admin" ? " btn-nav-active" : ""}`}
               >
-                Login
+                {t("nav.login")}
               </button>
             )}
             {adminToken && adminRole === "ADMIN" && (
@@ -704,7 +755,7 @@ function App() {
                 onClick={handleSwitchToAdmin}
                 className={`btn btn-nav${viewMode === "admin" ? " btn-nav-active" : ""}`}
               >
-                Admin
+                {t("nav.admin")}
               </button>
             )}
             {adminToken && adminRole === "TESTER" && (
@@ -713,7 +764,7 @@ function App() {
                 onClick={handleSwitchToBugs}
                 className={`btn btn-nav${viewMode === "bugs" ? " btn-nav-active" : ""}`}
               >
-                Bugs
+                {t("nav.bugs")}
               </button>
             )}
             {adminToken && adminRole && (
@@ -721,10 +772,10 @@ function App() {
                 type="button"
                 onClick={handleAdminLogout}
                 className="btn btn-ghost-dark"
-                title="Logout"
+                title={t("nav.logoutTitle")}
               >
                 <span className="store-user-chip">
-                  {adminRole.toLowerCase()} · Logout
+                  {adminRole.toLowerCase()} · {t("nav.logout")}
                 </span>
               </button>
             )}
@@ -734,10 +785,12 @@ function App() {
 
       <div className="store-subnav">
         <div className="store-subnav-inner">
-          <span>Demo storefront · All categories</span>
+          <span>{t("subnav.demo")}</span>
           {cart && cart.items.length > 0 && (
             <span className="muted" style={{ marginLeft: "auto" }}>
-              Cart: {cart.items.reduce((n, i) => n + i.quantity, 0)} item(s)
+              {t("subnav.cartCount", {
+                count: cart.items.reduce((n, i) => n + i.quantity, 0),
+              })}
             </span>
           )}
         </div>
@@ -746,39 +799,43 @@ function App() {
       <main className="store-main">
         <div className="store-alerts">
           {loading && (
-            <p className="store-alert store-alert--info">Loading products…</p>
+            <p className="store-alert store-alert--info">
+              {t("alerts.loadingProducts")}
+            </p>
           )}
           {error && (
-            <p className="store-alert store-alert--error">Error: {error}</p>
+            <p className="store-alert store-alert--error">
+              {t("alerts.errorPrefix")} {error}
+            </p>
           )}
           {cartError && (
             <p className="store-alert store-alert--error">
-              Cart error: {cartError}
+              {t("alerts.cartErrorPrefix")} {cartError}
             </p>
           )}
         </div>
 
       {viewMode === "admin" ? (
         <section className="panel">
-          <h2 className="panel-title">Admin · Products</h2>
+          <h2 className="panel-title">{t("admin.title")}</h2>
           {!adminToken ? (
             <form
               onSubmit={handleAdminLoginSubmit}
               className="form-stack"
             >
               <label>
-                Username
+                {t("admin.username")}
                 <input name="username" defaultValue="admin" />
               </label>
               <label>
-                Password
+                {t("admin.password")}
                 <input name="password" type="password" defaultValue="admin" />
               </label>
               {adminLoginError && (
                 <p className="store-alert store-alert--error">{adminLoginError}</p>
               )}
               <button type="submit" className="btn btn-primary">
-                Sign in
+                {t("admin.signIn")}
               </button>
             </form>
           ) : (
@@ -789,7 +846,7 @@ function App() {
                   onClick={handleAdminAddNewProduct}
                   className="btn btn-success"
                 >
-                  Add new product
+                  {t("admin.addNewProduct")}
                 </button>
               </div>
               {adminError && (
@@ -807,7 +864,7 @@ function App() {
                           onClick={() => handleAdminSort("id")}
                           className="sort-btn"
                         >
-                          ID {getSortArrow("id")}
+                          {t("admin.sortId")} {getSortArrow("id")}
                         </button>
                       </th>
                       <th>
@@ -816,7 +873,7 @@ function App() {
                           onClick={() => handleAdminSort("name")}
                           className="sort-btn"
                         >
-                          Name {getSortArrow("name")}
+                          {t("admin.sortName")} {getSortArrow("name")}
                         </button>
                       </th>
                       <th>
@@ -825,7 +882,8 @@ function App() {
                           onClick={() => handleAdminSort("description")}
                           className="sort-btn"
                         >
-                          Description {getSortArrow("description")}
+                          {t("admin.sortDescription")}{" "}
+                          {getSortArrow("description")}
                         </button>
                       </th>
                       <th>
@@ -834,7 +892,7 @@ function App() {
                           onClick={() => handleAdminSort("price")}
                           className="sort-btn"
                         >
-                          Price (CZK) {getSortArrow("price")}
+                          {t("admin.sortPrice")} {getSortArrow("price")}
                         </button>
                       </th>
                       <th>
@@ -843,7 +901,7 @@ function App() {
                           onClick={() => handleAdminSort("inStock")}
                           className="sort-btn"
                         >
-                          Stock {getSortArrow("inStock")}
+                          {t("admin.sortStock")} {getSortArrow("inStock")}
                         </button>
                       </th>
                       <th>
@@ -852,7 +910,7 @@ function App() {
                           onClick={() => handleAdminSort("active")}
                           className="sort-btn"
                         >
-                          Active {getSortArrow("active")}
+                          {t("admin.sortActive")} {getSortArrow("active")}
                         </button>
                       </th>
                       <th />
@@ -932,7 +990,7 @@ function App() {
                             onClick={() => handleAdminSaveProduct(p)}
                             className="btn-table"
                           >
-                            Save
+                            {t("admin.save")}
                           </button>
                         </td>
                       </tr>
@@ -945,11 +1003,9 @@ function App() {
         </section>
       ) : viewMode === "bugs" ? (
         <section className="panel">
-          <h2 className="panel-title">Fault injection</h2>
+          <h2 className="panel-title">{t("faults.title")}</h2>
           {!adminToken ? (
-            <p className="muted">
-              To manage faults, please sign in as Admin or Tester first.
-            </p>
+            <p className="muted">{t("faults.signInHint")}</p>
           ) : (
             <>
               {adminError && (
@@ -968,26 +1024,26 @@ function App() {
                   }
                   onClick={() => void handleAdminSaveAllFaults()}
                 >
-                  {faultsSaving ? "Saving…" : "Save all faults"}
+                  {faultsSaving ? t("faults.saving") : t("faults.saveAll")}
                 </button>
                 <span className="muted" style={{ marginLeft: "0.75rem" }}>
-                  Edits are kept locally until you save.
+                  {t("faults.editsLocal")}
                 </span>
               </div>
               <div className="table-wrap">
                 {adminFaults.length === 0 ? (
-                  <p className="empty-state">No faults defined yet.</p>
+                  <p className="empty-state">{t("faults.empty")}</p>
                 ) : (
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Key</th>
-                        <th>Name</th>
-                        <th>Description</th>
-                        <th>Level</th>
-                        <th>Enabled</th>
-                        <th>Latency (ms)</th>
-                        <th>Failure rate (0–1)</th>
+                        <th>{t("faults.thKey")}</th>
+                        <th>{t("faults.thName")}</th>
+                        <th>{t("faults.thDescription")}</th>
+                        <th>{t("faults.thLevel")}</th>
+                        <th>{t("faults.thEnabled")}</th>
+                        <th>{t("faults.thLatency")}</th>
+                        <th>{t("faults.thFailureRate")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1087,10 +1143,10 @@ function App() {
         <section className="shop-layout">
           <div>
             {!loading && !error && products.length === 0 && (
-              <p className="empty-state">No products available yet.</p>
+              <p className="empty-state">{t("shop.emptyNoProducts")}</p>
             )}
             {!loading && !error && products.length > 0 && visibleProducts.length === 0 && (
-              <p className="empty-state">No products match the current price filter.</p>
+              <p className="empty-state">{t("shop.emptyPriceFilter")}</p>
             )}
 
             <div className={usebrokenGrid ? "product-grid product-grid--broken" : "product-grid"}>
@@ -1100,6 +1156,8 @@ function App() {
                 const step = uiDoubleAddAlways ? 2 : 1;
                 const canAddFromList = inCartQty + step <= p.inStock;
                 const imgSrc = getProductImageSrc(p.name);
+                const displayName = getProductDisplayName(t, p);
+                const displayDescription = getProductDisplayDescription(t, p);
                 return (
                   <article
                     key={p.id}
@@ -1110,26 +1168,31 @@ function App() {
                       {imgSrc ? (
                         <img
                           src={imgSrc}
-                          alt={p.name}
+                          alt={displayName}
                           width={220}
                           height={165}
                           loading="lazy"
                           decoding="async"
                         />
                       ) : (
-                        <span className="product-card__placeholder">Photo</span>
+                        <span className="product-card__placeholder">
+                          {t("shop.photoPlaceholder")}
+                        </span>
                       )}
                     </div>
-                    <h3 className="product-card__title">{p.name}</h3>
-                    <p className="product-card__desc">{p.description}</p>
+                    <h3 className="product-card__title">{displayName}</h3>
+                    <p className="product-card__desc">{displayDescription}</p>
                     <div className="product-card__price">
-                      {p.price.amount.toLocaleString("en-US", {
+                      {p.price.amount.toLocaleString(priceLocale, {
                         style: "currency",
                         currency: p.price.currencyCode,
                       })}
                     </div>
                     <p className="product-card__stock">
-                      {labelTyposFaultActive ? "In Sock" : "In Stock"} · {p.inStock} left
+                      {showLabelTypos
+                        ? t("shop.inSockTypo")
+                        : t("shop.inStock")}{" "}
+                      · {t("shop.stockLeft", { count: p.inStock })}
                     </p>
                     <button
                       type="button"
@@ -1138,7 +1201,9 @@ function App() {
                       onClick={() => handleAddToCart(p.id)}
                       disabled={!canAddFromList}
                     >
-                      {canAddFromList ? "Add to Cart" : "Max in stock"}
+                      {canAddFromList
+                        ? t("shop.addToCart")
+                        : t("shop.maxInStock")}
                     </button>
                   </article>
                 );
@@ -1148,9 +1213,9 @@ function App() {
 
           <aside className="shop-sidebar">
             <div className="shop-controls">
-              <div className="shop-controls__title">Product filtering</div>
+              <div className="shop-controls__title">{t("shop.filterTitle")}</div>
               <label className="shop-controls__field">
-                Sort by
+                {t("shop.sortBy")}
                 <select
                   value={shopSort}
                   onChange={(e) =>
@@ -1163,19 +1228,25 @@ function App() {
                     )
                   }
                 >
-                  <option value="name-asc">{labelTyposFaultActive ? "Name (A-Y)" : "Name (A-Z)"}</option>
-                  <option value="name-desc">Name (Z-A)</option>
-                  <option value="price-asc">Price (low to high)</option>
-                  <option value="price-desc">Price (high to low)</option>
+                  <option value="name-asc">
+                    {showLabelTypos
+                      ? t("shop.sortNameAscTypo")
+                      : t("shop.sortNameAsc")}
+                  </option>
+                  <option value="name-desc">{t("shop.sortNameDesc")}</option>
+                  <option value="price-asc">{t("shop.sortPriceAsc")}</option>
+                  <option value="price-desc">{t("shop.sortPriceDesc")}</option>
                 </select>
               </label>
 
               <div className="shop-controls__price">
-                <span className="shop-controls__price-label">Price range (CZK)</span>
+                <span className="shop-controls__price-label">
+                  {t("shop.priceRange")}
+                </span>
                 <div className="shop-controls__price-row">
                   <div className="shop-controls__price-field">
                     <label className="shop-controls__slider-label">
-                      Min
+                      {t("shop.min")}
                       <input
                         type="range"
                         min={priceFilterBounds.min}
@@ -1211,7 +1282,7 @@ function App() {
                   <span className="shop-controls__price-sep">–</span>
                   <div className="shop-controls__price-field">
                     <label className="shop-controls__slider-label">
-                      Max
+                      {t("shop.max")}
                       <input
                         type="range"
                         min={priceFilterBounds.min}
@@ -1249,9 +1320,9 @@ function App() {
             </div>
 
             <div className="cart-panel">
-              <div className="cart-panel__title">Shopping Cart</div>
+              <div className="cart-panel__title">{t("cart.title")}</div>
               {!cart || cart.items.length === 0 ? (
-                <p className="muted">Your cart is empty.</p>
+                <p className="muted">{t("cart.empty")}</p>
               ) : (
                 <>
                   <ul className="cart-list">
@@ -1260,6 +1331,10 @@ function App() {
                         uiDoubleAddAlways
                           ? item.quantity + 2 > item.inStock
                           : item.quantity >= item.inStock;
+                      const lineDisplayName = getProductDisplayName(t, {
+                        id: item.productId,
+                        name: item.name,
+                      });
                       return (
                         <li
                           key={item.productId}
@@ -1272,15 +1347,19 @@ function App() {
                             onClick={() =>
                               handleRemoveCartItem(item.productId)
                             }
-                            aria-label={`Remove ${item.name} from cart`}
+                            aria-label={t("cart.removeAria", {
+                              name: lineDisplayName,
+                            })}
                           >
                             ×
                           </button>
                           <div className="cart-item__body">
-                            <div className="cart-item__name">{item.name}</div>
+                            <div className="cart-item__name">
+                              {lineDisplayName}
+                            </div>
                             <div className="cart-item__meta">
-                              Unit price:{" "}
-                              {item.price.amount.toLocaleString("en-US", {
+                              {t("cart.unitPrice")}{" "}
+                              {item.price.amount.toLocaleString(priceLocale, {
                                 style: "currency",
                                 currency: item.price.currencyCode,
                               })}
@@ -1291,7 +1370,7 @@ function App() {
                                 className="cart-qty-btn"
                                 onClick={() => handleAddToCart(item.productId)}
                                 disabled={plusDisabled}
-                                aria-label="Increase quantity"
+                                aria-label={t("cart.increaseQty")}
                               >
                                 +
                               </button>
@@ -1301,7 +1380,7 @@ function App() {
                                 onClick={() =>
                                   handleDecreaseCartItem(item.productId)
                                 }
-                                aria-label="Decrease quantity"
+                                aria-label={t("cart.decreaseQty")}
                               >
                                 −
                               </button>
@@ -1309,17 +1388,22 @@ function App() {
                                 {item.quantity}
                               </span>
                               <span className="cart-qty-stock">
-                                of {item.inStock}
+                                {t("cart.ofStock", { count: item.inStock })}
                               </span>
                             </div>
                           </div>
                           <div className="cart-item__sub">
-                            <div className="cart-item__sub-label">Subtotal</div>
+                            <div className="cart-item__sub-label">
+                              {t("cart.subtotal")}
+                            </div>
                             <strong>
-                              {item.lineTotal.amount.toLocaleString("en-US", {
-                                style: "currency",
-                                currency: item.lineTotal.currencyCode,
-                              })}
+                              {item.lineTotal.amount.toLocaleString(
+                                priceLocale,
+                                {
+                                  style: "currency",
+                                  currency: item.lineTotal.currencyCode,
+                                },
+                              )}
                             </strong>
                           </div>
                         </li>
@@ -1328,9 +1412,9 @@ function App() {
                   </ul>
                   <hr className="cart-divider" />
                   <div className="cart-total-row">
-                    <span>Estimated total</span>
+                    <span>{t("cart.estimatedTotal")}</span>
                     <strong data-testid="cart-estimated-total">
-                      {cart.total.amount.toLocaleString("en-US", {
+                      {cart.total.amount.toLocaleString(priceLocale, {
                         style: "currency",
                         currency: cart.total.currencyCode,
                       })}
@@ -1341,7 +1425,7 @@ function App() {
                     className="btn-add-cart"
                     onClick={openCheckout}
                   >
-                    Proceed to checkout
+                    {t("cart.checkout")}
                   </button>
                 </>
               )}
@@ -1363,12 +1447,12 @@ function App() {
               type="button"
               className="checkout-close"
               onClick={closeCheckout}
-              aria-label="Close checkout"
+              aria-label={t("checkout.closeAria")}
             >
               ×
             </button>
             <h2 id="checkout-title" className="checkout-title">
-              Checkout
+              {t("checkout.title")}
             </h2>
 
             {checkoutError && (
@@ -1380,10 +1464,11 @@ function App() {
             {checkoutStep === "buyer" && (
               <div className="checkout-form-stack">
                 <p className="muted checkout-hint">
-                  Required fields are marked. Address fields are optional.
+                  {t("checkout.requiredHint")}
                 </p>
                 <label>
-                  Email <span className="req">*</span>
+                  {t("checkout.email")}{" "}
+                  <span className="req">{t("checkout.requiredStar")}</span>
                   <input
                     type="email"
                     autoComplete="email"
@@ -1405,7 +1490,8 @@ function App() {
                   )}
                 </label>
                 <label>
-                  First name <span className="req">*</span>
+                  {t("checkout.firstName")}{" "}
+                  <span className="req">{t("checkout.requiredStar")}</span>
                   <input
                     autoComplete="given-name"
                     value={buyerForm.customerFirstName}
@@ -1426,7 +1512,8 @@ function App() {
                   )}
                 </label>
                 <label>
-                  Last name <span className="req">*</span>
+                  {t("checkout.lastName")}{" "}
+                  <span className="req">{t("checkout.requiredStar")}</span>
                   <input
                     autoComplete="family-name"
                     value={buyerForm.customerLastName}
@@ -1447,7 +1534,8 @@ function App() {
                   )}
                 </label>
                 <label>
-                  Phone <span className="req">*</span>
+                  {t("checkout.phone")}{" "}
+                  <span className="req">{t("checkout.requiredStar")}</span>
                   <input
                     autoComplete="tel"
                     value={buyerForm.customerPhone}
@@ -1468,9 +1556,13 @@ function App() {
                   )}
                 </label>
                 <fieldset className="checkout-fieldset">
-                  <legend>{labelTyposFaultActive ? "Adres (optional)" : "Address (optional)"}</legend>
+                  <legend>
+                    {showLabelTypos
+                      ? t("checkout.addressLegendTypo")
+                      : t("checkout.addressLegend")}
+                  </legend>
                   <label>
-                    Street / line 1
+                    {t("checkout.street1")}
                     <input
                       value={buyerForm.addressLine1 ?? ""}
                       onChange={(e) =>
@@ -1482,7 +1574,7 @@ function App() {
                     />
                   </label>
                   <label>
-                    Street / line 2
+                    {t("checkout.street2")}
                     <input
                       value={buyerForm.addressLine2 ?? ""}
                       onChange={(e) =>
@@ -1494,7 +1586,7 @@ function App() {
                     />
                   </label>
                   <label>
-                    City
+                    {t("checkout.city")}
                     <input
                       value={buyerForm.city ?? ""}
                       onChange={(e) =>
@@ -1506,7 +1598,7 @@ function App() {
                     />
                   </label>
                   <label>
-                    Postal code
+                    {t("checkout.postalCode")}
                     <input
                       value={buyerForm.postalCode ?? ""}
                       onChange={(e) =>
@@ -1518,7 +1610,7 @@ function App() {
                     />
                   </label>
                   <label>
-                    Country
+                    {t("checkout.country")}
                     <input
                       value={buyerForm.country ?? ""}
                       onChange={(e) =>
@@ -1536,14 +1628,14 @@ function App() {
                     className="btn btn-ghost-dark"
                     onClick={closeCheckout}
                   >
-                    Cancel
+                    {t("checkout.cancel")}
                   </button>
                   <button
                     type="button"
                     className="btn btn-primary"
                     onClick={handleCheckoutContinueFromBuyer}
                   >
-                    Continue to payment
+                    {t("checkout.continuePayment")}
                   </button>
                 </div>
               </div>
@@ -1551,11 +1643,7 @@ function App() {
 
             {checkoutStep === "payment" && (
               <div className="checkout-form-stack">
-                <p className="muted">
-                  Choose how you want to pay. Stock is updated after bank
-                  transfer confirmation or after a successful mock gateway
-                  payment.
-                </p>
+                <p className="muted">{t("checkout.paymentHint")}</p>
                 <label className="checkout-radio">
                   <input
                     type="radio"
@@ -1564,8 +1652,8 @@ function App() {
                     onChange={() => setPaymentChoice("bank")}
                   />
                   <span>
-                    <strong>Bank transfer</strong> — mock email with order PDF +
-                    dummy payment details (no real email sent).
+                    <strong>{t("checkout.payBank")}</strong>{" "}
+                    {t("checkout.payBankDesc")}
                   </span>
                 </label>
                 <label className="checkout-radio">
@@ -1576,10 +1664,12 @@ function App() {
                     onChange={() => setPaymentChoice("gateway")}
                   />
                   <span>
-                    <strong>Payment gateway</strong> — mock result is driven by
-                    buyer email in{" "}
-                    <code className="inline-code">MockConfigs/PaymentConfigs.json</code>{" "}
-                    on the server (emails not listed → success).
+                    <strong>{t("checkout.payGateway")}</strong>{" "}
+                    {t("checkout.payGatewayDesc")}{" "}
+                    <code className="inline-code">
+                      MockConfigs/PaymentConfigs.json
+                    </code>{" "}
+                    {t("checkout.payGatewayDescSuffix")}
                   </span>
                 </label>
                 <div className="checkout-actions">
@@ -1589,7 +1679,7 @@ function App() {
                     onClick={() => setCheckoutStep("buyer")}
                     disabled={checkoutBusy}
                   >
-                    Back
+                    {t("checkout.back")}
                   </button>
                   <button
                     type="button"
@@ -1597,7 +1687,9 @@ function App() {
                     onClick={() => void handleCheckoutPaymentSubmit()}
                     disabled={checkoutBusy}
                   >
-                    {checkoutBusy ? "Processing…" : "Continue"}
+                    {checkoutBusy
+                      ? t("checkout.processing")
+                      : t("checkout.continue")}
                   </button>
                 </div>
               </div>
@@ -1609,9 +1701,13 @@ function App() {
                   className={`store-alert checkout-alert ${bankEmailInfo?.emailError ? "store-alert--error" : "store-alert--info"}`}
                 >
                   {bankEmailInfo?.emailConfigured && bankEmailInfo.emailError
-                    ? `Order placed but email failed: ${bankEmailInfo.emailError}`
+                    ? t("checkout.bankEmailError", {
+                        detail: bankEmailInfo.emailError,
+                      })
                     : bankEmailInfo?.message ??
-                      `Order placed. Add SMTP_USE_ETHEREAL=true or SMTP to the backend .env to send mail to ${buyerForm.customerEmail}.`}
+                      t("checkout.bankEmailDefault", {
+                        email: buyerForm.customerEmail,
+                      })}
                 </p>
                 {bankEmailInfo?.emailPreviewUrl && (
                   <p className="checkout-ethereal-link">
@@ -1620,32 +1716,37 @@ function App() {
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      Open email in Ethereal (preview in browser)
+                      {t("checkout.etherealLink")}
                     </a>
                   </p>
                 )}
                 <div className="bank-box">
-                  <h3 className="bank-box__title">Dummy transfer details</h3>
+                  <h3 className="bank-box__title">
+                    {t("checkout.dummyTransferTitle")}
+                  </h3>
                   <p className="bank-box__note">{bankTransferInfo.note}</p>
                   <dl className="bank-dl">
-                    <dt>Beneficiary</dt>
+                    <dt>{t("checkout.beneficiary")}</dt>
                     <dd>{bankTransferInfo.beneficiary}</dd>
-                    <dt>IBAN</dt>
+                    <dt>{t("checkout.iban")}</dt>
                     <dd className="mono">{bankTransferInfo.iban}</dd>
-                    <dt>BIC</dt>
+                    <dt>{t("checkout.bic")}</dt>
                     <dd className="mono">{bankTransferInfo.bic}</dd>
-                    <dt>Bank</dt>
+                    <dt>{t("checkout.bankName")}</dt>
                     <dd>{bankTransferInfo.bankName}</dd>
-                    <dt>Variable symbol</dt>
+                    <dt>{t("checkout.variableSymbol")}</dt>
                     <dd className="mono">{bankTransferInfo.variableSymbol}</dd>
-                    <dt>Specific symbol</dt>
+                    <dt>{t("checkout.specificSymbol")}</dt>
                     <dd className="mono">{bankTransferInfo.specificSymbol}</dd>
-                    <dt>Amount</dt>
+                    <dt>{t("checkout.amount")}</dt>
                     <dd>
-                      {bankTransferInfo.amount.value.toLocaleString("en-US", {
-                        style: "currency",
-                        currency: bankTransferInfo.amount.currencyCode,
-                      })}
+                      {bankTransferInfo.amount.value.toLocaleString(
+                        priceLocale,
+                        {
+                          style: "currency",
+                          currency: bankTransferInfo.amount.currencyCode,
+                        },
+                      )}
                     </dd>
                   </dl>
                 </div>
@@ -1655,7 +1756,7 @@ function App() {
                     className="btn btn-primary"
                     onClick={closeCheckout}
                   >
-                    Done
+                    {t("checkout.done")}
                   </button>
                 </div>
               </div>
@@ -1664,18 +1765,13 @@ function App() {
             {checkoutStep === "gatewayPay" && (
               <div className="checkout-form-stack">
                 <p>
-                  Order <strong>#{gatewayOrderId}</strong> is waiting for mock
-                  gateway payment. Stock is not reduced until the mock gateway
-                  succeeds. If you go back and submit again, the same pending
-                  order is reused when possible.
+                  {t("checkout.gatewayP1")}{" "}
+                  <strong>#{gatewayOrderId}</strong> {t("checkout.gatewayP2")}
                 </p>
                 <p className="muted" style={{ fontSize: "0.82rem" }}>
-                  Result for <strong>{buyerForm.customerEmail}</strong> is read
-                  from <code className="inline-code">PaymentConfigs.json</code>{" "}
-                  (<code className="inline-code">byBuyerEmail</code>). Example
-                  test emails: <code className="inline-code">pay-fail@example.com</code>
-                  ,{" "}
-                  <code className="inline-code">pay-random@example.com</code>.
+                  {t("checkout.gatewayHelp", {
+                    email: buyerForm.customerEmail,
+                  })}
                 </p>
                 <div className="checkout-actions">
                   <button
@@ -1684,7 +1780,7 @@ function App() {
                     onClick={() => setCheckoutStep("payment")}
                     disabled={checkoutBusy}
                   >
-                    Back
+                    {t("checkout.back")}
                   </button>
                   <button
                     type="button"
@@ -1692,7 +1788,9 @@ function App() {
                     onClick={() => void handleMockGatewayPay()}
                     disabled={checkoutBusy}
                   >
-                    {checkoutBusy ? "Processing…" : "Pay with mock gateway"}
+                    {checkoutBusy
+                      ? t("checkout.processing")
+                      : t("checkout.payMockGateway")}
                   </button>
                 </div>
               </div>

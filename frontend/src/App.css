@@ -99,6 +99,36 @@
   background: var(--amazon-yellow-hover);
 }
 
+.store-lang {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.btn-lang {
+  min-width: 2.25rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #888;
+  border-radius: 4px;
+  background: #37475a;
+  color: #febd69;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.btn-lang:hover {
+  background: #4a5d72;
+}
+
+.btn-lang-active {
+  background: var(--amazon-yellow);
+  color: #111;
+  border-color: var(--amazon-yellow);
+}
+
 .store-actions {
   display: flex;
   flex-wrap: wrap;

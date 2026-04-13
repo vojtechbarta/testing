@@ -16,15 +16,17 @@ test.describe("Admin — products", () => {
       await admin.openAdminLogin();
       await admin.signIn();
 
-      await admin.clickAddNewProduct();
-      const row = admin.lastProductRow();
+      createdId = await admin.clickAddNewProduct();
+      const row = admin.productRowById(createdId);
       await expect(row.locator("td").first()).toBeVisible();
-      createdId = await admin.readRowProductId(row);
+      await expect(row.getByRole("textbox").first()).toHaveValue("New product", {
+        timeout: 15_000,
+      });
 
       await admin.setNameOnRow(row, uniqueName);
       await admin.saveRow(row);
 
-      await admin.expectRowName(admin.lastProductRow(), uniqueName);
+      await admin.expectRowName(admin.productRowById(createdId), uniqueName);
     } finally {
       if (createdId !== undefined) {
         const token = await loginAsAdmin(request);

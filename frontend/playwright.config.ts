@@ -23,6 +23,8 @@ export default defineConfig({
   use: {
     /* Must match an entry in backend `FRONTEND_DEV_ORIGINS` (CORS). */
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:5173",
+    /* Align with default app language (English UI + API product names in specs). */
+    locale: "en-US",
     /* Full-page screenshot + trace on failure appear under test-results/ and in HTML report. */
     screenshot: { mode: "only-on-failure", fullPage: true },
     trace: "retain-on-failure",

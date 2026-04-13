@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- MySQL running with `DATABASE_URL` in `backend/.env` (migrate + **seed** so the three default products exist).
+- MySQL running with `DATABASE_URL` in `backend/.env` (migrate + **seed** so the default catalog matches [`backend/prisma/seed.ts`](../../backend/prisma/seed.ts), e.g. 15 products).
 - Or start backend + frontend yourself and set **`SKIP_WEBSERVER=1`** when running tests.
 
 ## Commands (from `frontend/`)
@@ -34,4 +34,8 @@ The API allows `http://localhost:5173` and `http://127.0.0.1:5173`. Tests use **
 - **`e2e/pages/`** — Page objects (`shop.page.ts`).
 - **`e2e/tests/`** — Spec files (`*.spec.ts`).
 
-Product names and prices in tests must stay in sync with `backend/prisma/seed.ts`.
+Product names and prices in tests must stay in sync with `backend/prisma/seed.ts` (English `name` values as returned by the API).
+
+## UI language
+
+The app defaults to **English** (`i18n` initial language + `localStorage` key `i18nextLng`). Playwright specs assume **English** UI (nav labels, product titles from API, etc.). If you switch to Czech in the browser, assertions that match visible product titles would need the Czech strings from `frontend/src/locales/cs.json` (`products.byId.*`). Language switcher: `data-testid="lang-switch-en"` / `lang-switch-cs`.
