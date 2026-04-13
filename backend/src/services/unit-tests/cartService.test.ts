@@ -12,6 +12,9 @@ const { mockPrisma, mockShouldTriggerFault } = vi.hoisted(() => ({
     product: {
       findUnique: vi.fn(),
     },
+    exchangeRate: {
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
   },
   mockShouldTriggerFault: vi.fn(),
 }));
@@ -35,6 +38,7 @@ describe("cartService", () => {
   // Default: unit-level fault does not fire (disabled / non-triggered behaviour).
   beforeEach(() => {
     mockShouldTriggerFault.mockResolvedValue(false);
+    mockPrisma.exchangeRate.findFirst.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -48,6 +52,7 @@ describe("cartService", () => {
         productId: 10,
         quantity: 2,
         product: {
+          id: 10,
           name: "Keyboard",
           price: 500,
           inStock: 10,
@@ -58,6 +63,7 @@ describe("cartService", () => {
         productId: 11,
         quantity: 1,
         product: {
+          id: 11,
           name: "Mouse",
           price: 300,
           inStock: 5,

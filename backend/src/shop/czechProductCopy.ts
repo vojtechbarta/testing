@@ -1,0 +1,36 @@
+/** Czech storefront copy for seeded catalog ids (DB stores English). */
+export const CZECH_PRODUCT_NAME_BY_ID: Record<number, string> = {
+  1: "Bezdrátová myš M200",
+  2: "Mechanická klávesnice K87",
+  3: '27" QHD monitor',
+  4: "USB-C dokovací stanice",
+  5: "Sluchátka s aktivním potlačením hluku",
+  6: "Webkamera 1080p",
+  7: "Herní podložka pod myš XL",
+  8: "Externí SSD 1 TB",
+  9: "USB-C nabíječka 65 W",
+  10: "Hliníkový stojan na notebook",
+  11: "Mini bluetooth reproduktor",
+  12: "Chytrá LED stolní lampa",
+  13: "Ergonomická kancelářská židle",
+  14: "Full HD projektor",
+  15: "Wi-Fi router AX3000",
+};
+
+export const CZECH_PRODUCT_DESC_BY_ID: Record<number, string> = {
+  1: "Spolehlivá bezdrátová myš pro každodenní kancelářskou práci.",
+  2: "Kompaktní mechanická klávesnice s taktilními spínači.",
+  3: "Ostrý 1440p monitor vhodný pro práci i multimédia.",
+  4: "Dokovací stanice s HDMI, Ethernetem a USB porty pro notebooky.",
+  5: "Náušní sluchátka s aktivním potlačením hluku.",
+  6: "Full HD webkamera se dvěma vestavěnými mikrofony.",
+  7: "Velká podložka na stůl s hladkým povrchem pro snímání.",
+  8: "Přenosné vysoce výkonné SSD s podporou USB 3.2.",
+  9: "Rychlá GaN nabíječka kompatibilní s telefony i notebooky.",
+  10: "Ergonomický stojan zlepšující proudění vzduchu i držení těla.",
+  11: "Přenosný reproduktor se vyváženým zvukem a hutnými basy.",
+  12: "Stmívatelná stolní lampa s nastavitelnou teplotou barvy světla.",
+  13: "Pohodlná ergonomická židle s bederní opěrkou.",
+  14: "Domácí i kancelářský projektor s připojením HDMI.",
+  15: "Doupásmový router se stabilním vysokorychlostním výkonem.",
+};

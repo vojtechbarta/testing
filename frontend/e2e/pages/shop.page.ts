@@ -32,18 +32,6 @@ function seedProductByName(name: string): { id: number; name: string; price: num
   return p;
 }
 
-/** Seed EUR→CZK rate must match `backend/prisma/seed.ts` (`ExchangeRate` EUR→CZK = 24). */
-const SEED_EUR_PER_CZK_UNIT = 24;
-
-/** English storefront shows cart/catalog money in EUR (converted from API CZK). */
-export function formatEnShopEurFromCzk(amountCzk: number): string {
-  const eur = Math.round((amountCzk / SEED_EUR_PER_CZK_UNIT) * 100) / 100;
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "EUR",
-  }).format(eur);
-}
-
 /**
  * Page object for the shop view (product grid + cart aside).
  */
@@ -85,7 +73,7 @@ export class ShopPage {
 
   /**
    * Guards against Vite `/products` → API proxy accidentally serving product PNGs (broken images).
-   * Requires `getProductImageSrc` paths under `/catalog/` and files in `public/catalog/`.
+   * Requires `getProductImageSrcById` paths under `/catalog/` and files in `public/catalog/`.
    */
   async expectProductCardImagesDecoded(): Promise<void> {
     const imgs = this.page.locator(".product-card__image img");
@@ -127,37 +115,24 @@ export class ShopPage {
     ).toHaveText(String(quantity));
   }
 
-  async expectCartLineUnitPrice(
-    productName: string,
-    formattedPrice: string,
-  ): Promise<void> {
-    const meta = this.cartLineForProduct(productName).locator(
-      ".cart-item__meta",
-    );
-    await expect(
-      meta,
-      `Cart line "${productName}": unit price should contain "${formattedPrice}" (en-US EUR from CZK / ${SEED_EUR_PER_CZK_UNIT})`,
-    ).toContainText(formattedPrice);
+  /**
+   * UI-only: default EN storefront formats cart money with €.
+   * Exact amounts / CZK→EUR math are asserted in backend integration tests.
+   */
+  async expectCartLineShowsEurMoneyUi(productName: string): Promise<void> {
+    const line = this.cartLineForProduct(productName);
+    await expect(line, `Cart line for "${productName}" should appear`).toBeVisible();
+    const meta = line.locator(".cart-item__meta");
+    const sub = line.locator(".cart-item__sub");
+    await expect(meta).toBeVisible();
+    await expect(sub).toBeVisible();
+    await expect(meta).toContainText("€");
+    await expect(sub).toContainText("€");
   }
 
-  async expectCartSubtotalForProduct(
-    productName: string,
-    formattedPrice: string,
-  ): Promise<void> {
-    const sub = this.cartLineForProduct(productName).locator(
-      ".cart-item__sub",
-    );
-    await expect(
-      sub,
-      `Cart line "${productName}": subtotal should contain "${formattedPrice}"`,
-    ).toContainText(formattedPrice);
-  }
-
-  async expectEstimatedTotal(formattedPrice: string): Promise<void> {
+  async expectEstimatedTotalShowsEurUi(): Promise<void> {
     const total = this.page.getByTestId("cart-estimated-total");
-    await expect(
-      total,
-      `Estimated cart total should contain "${formattedPrice}"`,
-    ).toContainText(formattedPrice);
+    await expect(total).toBeVisible();
+    await expect(total).toContainText("€");
   }
 }

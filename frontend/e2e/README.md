@@ -34,7 +34,7 @@ The API allows `http://localhost:5173` and `http://127.0.0.1:5173`. Tests use **
 - **`e2e/pages/`** — Page objects (`shop.page.ts`).
 - **`e2e/tests/`** — Spec files (`*.spec.ts`).
 
-Product names in tests must match `backend/prisma/seed.ts` (English `name` as returned by the API). Seed prices are stored in **CZK**; the default English UI shows **EUR** using the seeded `ExchangeRate` EUR→CZK (= 24). Helpers like `formatEnShopEurFromCzk` in `shop.page.ts` mirror that conversion.
+Product names in tests must match `backend/prisma/seed.ts` (English `name` as returned by the API for `lang=en`). **Exact cart/catalog amounts and CZK→EUR math** are covered by **backend integration tests** (`GET /products`, `GET /cart`); Playwright shop tests only check **UI**: grid, images, add-to-cart, quantity, and that money labels show **€** in the default English storefront.
 
 Product card **images** must live under **`frontend/public/catalog/`** (URLs `/catalog/…`) so they are not caught by the Vite dev proxy for the **`/products`** API. `shop.spec.ts` asserts `naturalWidth > 0` on those images.
 

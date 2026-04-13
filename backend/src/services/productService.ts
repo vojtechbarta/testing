@@ -16,7 +16,7 @@ export type ProductDto = {
   price: Money;
 };
 
-function mapProductToDto(p: {
+export function mapProductToDto(p: {
   id: number;
   name: string;
   description: string;

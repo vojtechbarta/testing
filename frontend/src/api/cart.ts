@@ -24,22 +24,31 @@ export interface Cart {
   };
 }
 
-export async function getCart(): Promise<Cart> {
-  return apiGet<Cart>("/cart");
+function cartLangQuery(lang: string): string {
+  const l = lang.startsWith("cs") ? "cs" : "en";
+  return `?lang=${encodeURIComponent(l)}`;
+}
+
+export async function getCart(lang: string): Promise<Cart> {
+  return apiGet<Cart>(`/cart${cartLangQuery(lang)}`);
 }
 
 export async function updateCartItem(
   productId: number,
   quantity: number,
+  lang: string,
 ): Promise<Cart> {
-  const res = await fetch(`${API_BASE_URL}/cart/items`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...cartSessionHeaders(),
+  const res = await fetch(
+    `${API_BASE_URL}/cart/items${cartLangQuery(lang)}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...cartSessionHeaders(),
+      },
+      body: JSON.stringify({ productId, quantity }),
     },
-    body: JSON.stringify({ productId, quantity }),
-  });
+  );
 
   if (!res.ok) {
     let message = `Cart update failed with status ${res.status}`;
@@ -56,4 +65,3 @@ export async function updateCartItem(
 
   return res.json();
 }
-

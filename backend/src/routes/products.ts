@@ -1,13 +1,24 @@
 import { Router } from "express";
-import { getAllProducts } from "../services/productService";
+import {
+  getStorefrontCatalog,
+  parseStorefrontCatalogQuery,
+} from "../services/storefrontCatalogService";
 
 const router = Router();
 
 router.get("/", async (req, res, next) => {
   try {
-    const q = typeof req.query.q === "string" ? req.query.q : undefined;
-    const products = await getAllProducts(q);
-    res.json(products);
+    const { q, lang, sort, priceMin, priceMax } = parseStorefrontCatalogQuery({
+      query: req.query as Record<string, unknown>,
+    });
+    const payload = await getStorefrontCatalog({
+      searchQuery: q,
+      lang,
+      sort,
+      priceMin,
+      priceMax,
+    });
+    res.json(payload);
   } catch (err) {
     next(err);
   }

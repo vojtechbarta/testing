@@ -2,14 +2,20 @@ import { Router } from "express";
 import prisma from "../db/prisma";
 import { addOrUpdateCartItem, getCart } from "../services/cartService";
 import { FAULT_KEYS, shouldTriggerFault } from "../faults/faultRuntime";
+import type { StorefrontLang } from "../shop/storefrontMoney";
 import { requireCartSessionIdHeader } from "../utils/cartSession";
 
 const router = Router();
 
+function parseStorefrontLang(req: { query: Record<string, unknown> }): StorefrontLang {
+  return req.query.lang === "cs" ? "cs" : "en";
+}
+
 router.get("/", async (req, res, next) => {
   try {
     const cartKey = requireCartSessionIdHeader(req.get("x-cart-session"));
-    const cart = await getCart(cartKey);
+    const lang = parseStorefrontLang(req);
+    const cart = await getCart(cartKey, lang);
     res.json(cart);
   } catch (err) {
     next(err);
@@ -48,10 +54,12 @@ router.post("/items", async (req, res, next) => {
         }
       }
 
+      const lang = parseStorefrontLang(req);
       const cart = await addOrUpdateCartItem(
         cartKey,
         productId,
         quantityToSave,
+        lang,
       );
       res.status(200).json(cart);
     } catch (serviceErr) {

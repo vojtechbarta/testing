@@ -1,8 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import "./App.css";
 import { getExchangeRates, type ExchangeRateDto } from "./api/exchangeRates";
-import { getProducts, type Product } from "./api/products";
+import { getStorefrontProducts, type Product } from "./api/products";
 import { getCart, updateCartItem, type Cart } from "./api/cart";
 import {
   adminLogin,
@@ -17,12 +24,7 @@ import {
   type AdminFault,
 } from "./api/faults";
 import { getActiveUiFaultConfigs } from "./api/uiFaults";
-import { getProductImageSrc } from "./productImages";
-import {
-  getProductDisplayDescription,
-  getProductDisplayName,
-} from "./productDisplay";
-import { getVisibleShopProducts } from "./shopCatalog";
+import { getProductImageSrcById } from "./productImages";
 import {
   checkoutBankTransfer,
   checkoutGatewayInit,
@@ -30,10 +32,7 @@ import {
   type BankTransferDetails,
   type BuyerFormPayload,
 } from "./api/checkout";
-import {
-  convertPriceFilterRangeBetweenDisplayCurrencies,
-  toShopDisplayMoney,
-} from "./displayMoney";
+import { toShopDisplayMoney } from "./displayMoney";
 
 type ViewMode = "shop" | "admin" | "bugs";
 
@@ -50,6 +49,24 @@ const emptyBuyer: BuyerFormPayload = {
   postalCode: "",
   country: "",
 };
+
+/** Avoid new `{ min, max }` when values are unchanged — otherwise catalog `useEffect` + `priceFilter` dep loops forever. */
+function mergePriceFilterFromBounds(
+  prev: { min: number; max: number } | null,
+  bounds: { min: number; max: number },
+): { min: number; max: number } {
+  if (!prev) {
+    return { min: bounds.min, max: bounds.max };
+  }
+  const lo = Math.max(bounds.min, Math.min(prev.min, bounds.max));
+  const hi = Math.min(bounds.max, Math.max(prev.max, bounds.min));
+  const nextMin = Math.min(lo, hi);
+  const nextMax = Math.max(lo, hi);
+  if (prev.min === nextMin && prev.max === nextMax) {
+    return prev;
+  }
+  return { min: nextMin, max: nextMax };
+}
 
 function App() {
   const { t, i18n } = useTranslation();
@@ -81,17 +98,21 @@ function App() {
   >([]);
   const [exchangeRates, setExchangeRates] = useState<ExchangeRateDto[]>([]);
   const [productSearch, setProductSearch] = useState("");
+  /** Search query last submitted to the storefront catalog API (not live typing). */
+  const [submittedSearch, setSubmittedSearch] = useState("");
   const [shopSort, setShopSort] = useState<
     "name-asc" | "name-desc" | "price-asc" | "price-desc"
   >("name-asc");
-  const [priceFilterBounds, setPriceFilterBounds] = useState({
+  /** Global price bounds for the current catalog query (before price filter), from the server. */
+  const [catalogPriceBounds, setCatalogPriceBounds] = useState({
     min: 0,
     max: 0,
+    currencyCode: "CZK",
   });
-  const [priceFilter, setPriceFilter] = useState({
-    min: 0,
-    max: 0,
-  });
+  const [priceFilter, setPriceFilter] = useState<{
+    min: number;
+    max: number;
+  } | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>("buyer");
   const [checkoutBusy, setCheckoutBusy] = useState(false);
@@ -114,8 +135,15 @@ function App() {
   } | null>(null);
   const [gatewayOrderId, setGatewayOrderId] = useState<number | null>(null);
 
-  /** Tracks `shopCatalogProducts` display currency to convert price filter on EN↔CS (or CZK↔EUR when rates load). */
-  const prevShopDisplayCurrencyRef = useRef<string | null>(null);
+  /** After language/search reset, omit priceMin/priceMax until the next catalog response re-seeds the slider. */
+  const resetCatalogPriceFilterRef = useRef(false);
+
+  const shopLang: "en" | "cs" = i18n.language.startsWith("cs") ? "cs" : "en";
+
+  useLayoutEffect(() => {
+    resetCatalogPriceFilterRef.current = true;
+    setPriceFilter(null);
+  }, [shopLang]);
 
   useEffect(() => {
     // pokud je v localStorage rozbitý stav (token bez role nebo naopak), vyčisti ho
@@ -126,15 +154,11 @@ function App() {
     let cancelled = false;
     setLoading(true);
     Promise.all([
-      getProducts(),
-      getCart(),
       getActiveUiFaultConfigs(),
       getExchangeRates().catch((): ExchangeRateDto[] => []),
     ])
-      .then(([productsData, cartData, uiFaultConfigs, ratesData]) => {
+      .then(([uiFaultConfigs, ratesData]) => {
         if (!cancelled) {
-          setProducts(productsData);
-          setCart(cartData);
           setActiveUiFaultConfigs(uiFaultConfigs);
           setExchangeRates(ratesData);
         }
@@ -156,6 +180,72 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    void getCart(shopLang)
+      .then((cartData) => {
+        if (!cancelled) {
+          setCart(cartData);
+        }
+      })
+      .catch(() => {
+        /* keep cart as-is */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [shopLang]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const refSkip = resetCatalogPriceFilterRef.current;
+        if (refSkip) {
+          resetCatalogPriceFilterRef.current = false;
+        }
+        const skipPrice = refSkip || priceFilter === null;
+        const res = await getStorefrontProducts({
+          q: submittedSearch || undefined,
+          lang: shopLang,
+          sort: shopSort,
+          ...(!skipPrice && priceFilter !== null
+            ? { priceMin: priceFilter.min, priceMax: priceFilter.max }
+            : {}),
+        });
+        if (cancelled) {
+          return;
+        }
+        setError(null);
+        setProducts(res.products);
+        setCatalogPriceBounds(res.priceBounds);
+        if (skipPrice) {
+          setPriceFilter((prev) => {
+            const nextMin = res.priceBounds.min;
+            const nextMax = res.priceBounds.max;
+            if (prev && prev.min === nextMin && prev.max === nextMax) {
+              return prev;
+            }
+            return { min: nextMin, max: nextMax };
+          });
+        } else {
+          setPriceFilter((prev) =>
+            mergePriceFilterFromBounds(prev, res.priceBounds),
+          );
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : t("errors.unknown"),
+          );
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [shopLang, shopSort, submittedSearch, priceFilter]);
+
   const uiDoubleAddFailureRate =
     activeUiFaultConfigs.find((f) => f.key === "cart_add_ui_double_call")
       ?.failureRate ?? 0;
@@ -175,29 +265,16 @@ function App() {
   const showLabelTypos = labelTyposFaultActive;
 
   const priceLocale = i18n.language.startsWith("cs") ? "cs-CZ" : "en-US";
-  const langIsCs = i18n.language.startsWith("cs");
 
   const shopMoneyCtx = useMemo(
-    () => ({ langIsCs, rates: exchangeRates }),
-    [langIsCs, exchangeRates],
+    () => ({
+      langIsCs: shopLang === "cs",
+      rates: exchangeRates,
+    }),
+    [shopLang, exchangeRates],
   );
 
-  const shopCatalogProducts = useMemo(
-    () =>
-      products.map((p) => {
-        const d = toShopDisplayMoney(
-          p.price.amount,
-          p.price.currencyCode,
-          shopMoneyCtx,
-        );
-        return {
-          ...p,
-          price: { amount: d.amount, currencyCode: d.currencyCode },
-        };
-      }),
-    [products, shopMoneyCtx],
-  );
-
+  /** Bank transfer amounts are stored in CZK; EN storefront shows EUR when rates exist. */
   const formatStorefrontMoney = useCallback(
     (amount: number, storageCurrencyCode: string) => {
       const d = toShopDisplayMoney(amount, storageCurrencyCode, shopMoneyCtx);
@@ -209,6 +286,15 @@ function App() {
     [shopMoneyCtx, priceLocale],
   );
 
+  const formatCartMoney = useCallback(
+    (amount: number, currencyCode: string) =>
+      amount.toLocaleString(priceLocale, {
+        style: "currency",
+        currency: currencyCode,
+      }),
+    [priceLocale],
+  );
+
   const gridBrokenFaultActive = activeUiFaultConfigs.some(
     (f) => f.key === "grid_non_chrome_broken",
   );
@@ -218,114 +304,26 @@ function App() {
 
   const handleProductSearchSubmit: React.FormEventHandler<
     HTMLFormElement
-  > = async (event) => {
+  > = (event) => {
     event.preventDefault();
     setError(null);
-    setLoading(true);
-    try {
-      const data = await getProducts(productSearch);
-      setProducts(data);
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : t("errors.searchFailed"),
-      );
-    } finally {
-      setLoading(false);
-    }
+    resetCatalogPriceFilterRef.current = true;
+    setPriceFilter(null);
+    setSubmittedSearch(productSearch.trim());
   };
 
-  const handleClearProductSearch = async () => {
+  const handleClearProductSearch = () => {
     setProductSearch("");
     setError(null);
-    setLoading(true);
-    try {
-      const data = await getProducts();
-      setProducts(data);
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : t("errors.searchFailed"),
-      );
-    } finally {
-      setLoading(false);
-    }
+    resetCatalogPriceFilterRef.current = true;
+    setPriceFilter(null);
+    setSubmittedSearch("");
   };
 
-  useEffect(() => {
-    if (shopCatalogProducts.length === 0) {
-      setPriceFilterBounds({ min: 0, max: 0 });
-      setPriceFilter({ min: 0, max: 0 });
-      prevShopDisplayCurrencyRef.current = null;
-      return;
-    }
-
-    const amounts = shopCatalogProducts.map((p) => p.price.amount);
-    const nextMin = Math.min(...amounts);
-    const nextMax = Math.max(...amounts);
-
-    const displayCurrency = shopCatalogProducts[0]!.price.currencyCode;
-    const prevCurrency = prevShopDisplayCurrencyRef.current;
-
-    const euroCzkFlip =
-      prevCurrency !== null &&
-      prevCurrency !== displayCurrency &&
-      ((prevCurrency === "EUR" && displayCurrency === "CZK") ||
-        (prevCurrency === "CZK" && displayCurrency === "EUR"));
-
-    const canConvertShopPrices =
-      products.length > 0 &&
-      products.every((p) => p.price.currencyCode === "CZK");
-
-    if (euroCzkFlip && canConvertShopPrices) {
-      setPriceFilterBounds({ min: nextMin, max: nextMax });
-      setPriceFilter((prev) => {
-        const converted = convertPriceFilterRangeBetweenDisplayCurrencies(
-          prev.min,
-          prev.max,
-          prevCurrency,
-          displayCurrency,
-          exchangeRates,
-        );
-        if (!converted) {
-          return { min: nextMin, max: nextMax };
-        }
-        const lo = Math.max(nextMin, Math.min(converted.min, nextMax));
-        const hi = Math.min(nextMax, Math.max(converted.max, nextMin));
-        return {
-          min: Math.min(lo, hi),
-          max: Math.max(lo, hi),
-        };
-      });
-      prevShopDisplayCurrencyRef.current = displayCurrency;
-      return;
-    }
-
-    setPriceFilterBounds({ min: nextMin, max: nextMax });
-    setPriceFilter((prev) => {
-      const prevIsInitial = prev.min === 0 && prev.max === 0;
-      if (prevIsInitial) {
-        return { min: nextMin, max: nextMax };
-      }
-
-      const clampedMin = Math.max(nextMin, Math.min(prev.min, nextMax));
-      const clampedMax = Math.min(nextMax, Math.max(prev.max, nextMin));
-      return {
-        min: Math.min(clampedMin, clampedMax),
-        max: Math.max(clampedMin, clampedMax),
-      };
-    });
-    prevShopDisplayCurrencyRef.current = displayCurrency;
-  }, [shopCatalogProducts, products, exchangeRates]);
-
-  const visibleProducts = useMemo(
-    () =>
-      getVisibleShopProducts(
-        shopCatalogProducts,
-        priceFilter,
-        shopSort,
-        activeUiFaultConfigs.map((f) => f.key),
-      ),
-    [activeUiFaultConfigs, priceFilter, shopCatalogProducts, shopSort],
-  );
+  const priceFilterCoversFullCatalogRange =
+    priceFilter != null &&
+    priceFilter.min <= catalogPriceBounds.min &&
+    priceFilter.max >= catalogPriceBounds.max;
 
   useEffect(() => {
     const sync = () => {
@@ -354,17 +352,29 @@ function App() {
         // UI mutace: v rámci jednoho kliknutí zavoláme backend 2x,
         // pokaždé přidáme po 1 kuse. Druhý call dopočítáme z odpovědi
         // z prvního volání, aby decrement zůstalo správné.
-        const first = await updateCartItem(productId, currentQty + 1);
+        const first = await updateCartItem(
+          productId,
+          currentQty + 1,
+          shopLang,
+        );
         const firstQty =
           first.items.find((i) => i.productId === productId)?.quantity ??
           currentQty + 1;
 
-        const second = await updateCartItem(productId, firstQty + 1);
+        const second = await updateCartItem(
+          productId,
+          firstQty + 1,
+          shopLang,
+        );
         setCart(second);
         return;
       }
 
-      const updated = await updateCartItem(productId, currentQty + 1);
+      const updated = await updateCartItem(
+        productId,
+        currentQty + 1,
+        shopLang,
+      );
       setCart(updated);
     } catch (err) {
       setCartError(
@@ -379,7 +389,7 @@ function App() {
       const currentQty =
         cart?.items.find((i) => i.productId === productId)?.quantity ?? 0;
       const nextQty = currentQty - 1;
-      const updated = await updateCartItem(productId, nextQty);
+      const updated = await updateCartItem(productId, nextQty, shopLang);
       setCart(updated);
     } catch (err) {
       setCartError(
@@ -388,15 +398,25 @@ function App() {
     }
   };
 
-  const refreshShopData = async () => {
-    const q = productSearch.trim() || undefined;
-    const [productsData, cartData] = await Promise.all([
-      getProducts(q),
-      getCart(),
+  const refreshShopData = useCallback(async () => {
+    const [cartData, catalogRes] = await Promise.all([
+      getCart(shopLang),
+      getStorefrontProducts({
+        q: submittedSearch || undefined,
+        lang: shopLang,
+        sort: shopSort,
+        ...(priceFilter !== null
+          ? { priceMin: priceFilter.min, priceMax: priceFilter.max }
+          : {}),
+      }),
     ]);
-    setProducts(productsData);
     setCart(cartData);
-  };
+    setProducts(catalogRes.products);
+    setCatalogPriceBounds(catalogRes.priceBounds);
+    setPriceFilter((prev) =>
+      mergePriceFilterFromBounds(prev, catalogRes.priceBounds),
+    );
+  }, [shopLang, submittedSearch, shopSort, priceFilter]);
 
   const openCheckout = () => {
     setCheckoutOpen(true);
@@ -498,7 +518,7 @@ function App() {
   const handleRemoveCartItem = async (productId: number) => {
     try {
       setCartError(null);
-      const updated = await updateCartItem(productId, 0);
+      const updated = await updateCartItem(productId, 0, shopLang);
       setCart(updated);
     } catch (err) {
       setCartError(
@@ -1229,22 +1249,28 @@ function App() {
       ) : (
         <section className="shop-layout">
           <div>
-            {!loading && !error && products.length === 0 && (
+            {!loading &&
+              !error &&
+              priceFilter !== null &&
+              products.length === 0 &&
+              priceFilterCoversFullCatalogRange && (
               <p className="empty-state">{t("shop.emptyNoProducts")}</p>
             )}
-            {!loading && !error && products.length > 0 && visibleProducts.length === 0 && (
+            {!loading &&
+              !error &&
+              priceFilter !== null &&
+              products.length === 0 &&
+              !priceFilterCoversFullCatalogRange && (
               <p className="empty-state">{t("shop.emptyPriceFilter")}</p>
             )}
 
             <div className={usebrokenGrid ? "product-grid product-grid--broken" : "product-grid"}>
-              {visibleProducts.map((p) => {
+              {products.map((p) => {
                 const inCartQty =
                   cart?.items.find((i) => i.productId === p.id)?.quantity ?? 0;
                 const step = uiDoubleAddAlways ? 2 : 1;
                 const canAddFromList = inCartQty + step <= p.inStock;
-                const imgSrc = getProductImageSrc(p.name);
-                const displayName = getProductDisplayName(t, p);
-                const displayDescription = getProductDisplayDescription(t, p);
+                const imgSrc = getProductImageSrcById(p.id);
                 return (
                   <article
                     key={p.id}
@@ -1255,7 +1281,7 @@ function App() {
                       {imgSrc ? (
                         <img
                           src={imgSrc}
-                          alt={displayName}
+                          alt={p.name}
                           width={220}
                           height={165}
                           loading="lazy"
@@ -1267,8 +1293,8 @@ function App() {
                         </span>
                       )}
                     </div>
-                    <h3 className="product-card__title">{displayName}</h3>
-                    <p className="product-card__desc">{displayDescription}</p>
+                    <h3 className="product-card__title">{p.name}</h3>
+                    <p className="product-card__desc">{p.description}</p>
                     <div className="product-card__price">
                       {p.price.amount.toLocaleString(priceLocale, {
                         style: "currency",
@@ -1336,33 +1362,44 @@ function App() {
                       {t("shop.min")}
                       <input
                         type="range"
-                        min={priceFilterBounds.min}
-                        max={priceFilterBounds.max}
-                        value={priceFilter.min}
-                        disabled={priceFilterBounds.min === priceFilterBounds.max}
+                        min={catalogPriceBounds.min}
+                        max={catalogPriceBounds.max}
+                        value={priceFilter?.min ?? catalogPriceBounds.min}
+                        disabled={
+                          priceFilter === null ||
+                          catalogPriceBounds.min === catalogPriceBounds.max
+                        }
                         onChange={(e) => {
                           const value = Number(e.target.value);
-                          setPriceFilter((prev) => ({
-                            ...prev,
-                            min: Math.min(value, prev.max),
-                          }));
+                          setPriceFilter((prev) => {
+                            if (!prev) {
+                              return prev;
+                            }
+                            return {
+                              ...prev,
+                              min: Math.min(value, prev.max),
+                            };
+                          });
                         }}
                       />
                     </label>
                     <input
                       type="number"
                       className="shop-controls__price-input"
-                      min={priceFilterBounds.min}
-                      max={priceFilter.max}
-                      value={priceFilter.min}
+                      min={catalogPriceBounds.min}
+                      max={priceFilter?.max ?? catalogPriceBounds.max}
+                      value={priceFilter?.min ?? catalogPriceBounds.min}
+                      disabled={priceFilter === null}
                       onChange={(e) => {
                         const value = Number(e.target.value);
-                        if (isNaN(value)) return;
+                        if (isNaN(value) || !priceFilter) return;
                         const clamped = Math.max(
-                          priceFilterBounds.min,
+                          catalogPriceBounds.min,
                           Math.min(value, priceFilter.max),
                         );
-                        setPriceFilter((prev) => ({ ...prev, min: clamped }));
+                        setPriceFilter((prev) =>
+                          prev ? { ...prev, min: clamped } : prev,
+                        );
                       }}
                     />
                   </div>
@@ -1372,33 +1409,44 @@ function App() {
                       {t("shop.max")}
                       <input
                         type="range"
-                        min={priceFilterBounds.min}
-                        max={priceFilterBounds.max}
-                        value={priceFilter.max}
-                        disabled={priceFilterBounds.min === priceFilterBounds.max}
+                        min={catalogPriceBounds.min}
+                        max={catalogPriceBounds.max}
+                        value={priceFilter?.max ?? catalogPriceBounds.max}
+                        disabled={
+                          priceFilter === null ||
+                          catalogPriceBounds.min === catalogPriceBounds.max
+                        }
                         onChange={(e) => {
                           const value = Number(e.target.value);
-                          setPriceFilter((prev) => ({
-                            ...prev,
-                            max: Math.max(value, prev.min),
-                          }));
+                          setPriceFilter((prev) => {
+                            if (!prev) {
+                              return prev;
+                            }
+                            return {
+                              ...prev,
+                              max: Math.max(value, prev.min),
+                            };
+                          });
                         }}
                       />
                     </label>
                     <input
                       type="number"
                       className="shop-controls__price-input"
-                      min={priceFilter.min}
-                      max={priceFilterBounds.max}
-                      value={priceFilter.max}
+                      min={priceFilter?.min ?? catalogPriceBounds.min}
+                      max={catalogPriceBounds.max}
+                      value={priceFilter?.max ?? catalogPriceBounds.max}
+                      disabled={priceFilter === null}
                       onChange={(e) => {
                         const value = Number(e.target.value);
-                        if (isNaN(value)) return;
+                        if (isNaN(value) || !priceFilter) return;
                         const clamped = Math.min(
-                          priceFilterBounds.max,
+                          catalogPriceBounds.max,
                           Math.max(value, priceFilter.min),
                         );
-                        setPriceFilter((prev) => ({ ...prev, max: clamped }));
+                        setPriceFilter((prev) =>
+                          prev ? { ...prev, max: clamped } : prev,
+                        );
                       }}
                     />
                   </div>
@@ -1418,10 +1466,6 @@ function App() {
                         uiDoubleAddAlways
                           ? item.quantity + 2 > item.inStock
                           : item.quantity >= item.inStock;
-                      const lineDisplayName = getProductDisplayName(t, {
-                        id: item.productId,
-                        name: item.name,
-                      });
                       return (
                         <li
                           key={item.productId}
@@ -1435,18 +1479,18 @@ function App() {
                               handleRemoveCartItem(item.productId)
                             }
                             aria-label={t("cart.removeAria", {
-                              name: lineDisplayName,
+                              name: item.name,
                             })}
                           >
                             ×
                           </button>
                           <div className="cart-item__body">
                             <div className="cart-item__name">
-                              {lineDisplayName}
+                              {item.name}
                             </div>
                             <div className="cart-item__meta">
                               {t("cart.unitPrice")}{" "}
-                              {formatStorefrontMoney(
+                              {formatCartMoney(
                                 item.price.amount,
                                 item.price.currencyCode,
                               )}
@@ -1484,7 +1528,7 @@ function App() {
                               {t("cart.subtotal")}
                             </div>
                             <strong>
-                              {formatStorefrontMoney(
+                              {formatCartMoney(
                                 item.lineTotal.amount,
                                 item.lineTotal.currencyCode,
                               )}
@@ -1498,7 +1542,7 @@ function App() {
                   <div className="cart-total-row">
                     <span>{t("cart.estimatedTotal")}</span>
                     <strong data-testid="cart-estimated-total">
-                      {formatStorefrontMoney(
+                      {formatCartMoney(
                         cart.total.amount,
                         cart.total.currencyCode,
                       )}
