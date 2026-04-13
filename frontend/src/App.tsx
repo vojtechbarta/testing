@@ -136,6 +136,18 @@ function App() {
     activeUiFaultConfigs.find((f) => f.key === "cart_add_ui_double_call")
       ?.failureRate ?? 0;
 
+  // Chrome detection: userAgent contains "Chrome" and vendor is "Google Inc."
+  // This correctly identifies Chrome on Mac/Windows and excludes Edge (empty vendor),
+  // Firefox, and Safari.
+  const isChrome =
+    navigator.userAgent.includes("Chrome") &&
+    navigator.vendor === "Google Inc.";
+
+  const gridBrokenFaultActive = activeUiFaultConfigs.some(
+    (f) => f.key === "grid_non_chrome_broken",
+  );
+  const usebrokenGrid = gridBrokenFaultActive && !isChrome;
+
   const uiDoubleAddAlways = uiDoubleAddFailureRate >= 1;
 
   const handleProductSearchSubmit: React.FormEventHandler<
@@ -208,8 +220,26 @@ function App() {
       if (shopSort === "price-asc") return a.price.amount - b.price.amount;
       return b.price.amount - a.price.amount;
     });
+
+    const swapLastTwo = sorted.length >= 2;
+    const priceAscFault = activeUiFaultConfigs.some(
+      (f) => f.key === "sort_price_asc_swap_last_two",
+    );
+    const nameDescFault = activeUiFaultConfigs.some(
+      (f) => f.key === "sort_name_desc_swap_last_two",
+    );
+
+    if (
+      swapLastTwo &&
+      ((shopSort === "price-asc" && priceAscFault) ||
+        (shopSort === "name-desc" && nameDescFault))
+    ) {
+      const last = sorted.length - 1;
+      [sorted[last - 1], sorted[last]] = [sorted[last], sorted[last - 1]];
+    }
+
     return sorted;
-  }, [priceFilter.max, priceFilter.min, products, shopSort]);
+  }, [activeUiFaultConfigs, priceFilter.max, priceFilter.min, products, shopSort]);
 
   const handleAddToCart = async (productId: number) => {
     try {
@@ -1081,7 +1111,7 @@ function App() {
               <p className="empty-state">No products match the current price filter.</p>
             )}
 
-            <div className="product-grid">
+            <div className={usebrokenGrid ? "product-grid product-grid--broken" : "product-grid"}>
               {visibleProducts.map((p) => {
                 const inCartQty =
                   cart?.items.find((i) => i.productId === p.id)?.quantity ?? 0;

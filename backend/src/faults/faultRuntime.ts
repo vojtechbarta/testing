@@ -6,6 +6,9 @@ export const FAULT_KEYS = {
   uiCartAddDoubleRequest: "cart_add_ui_double_call",
   apiCartAddDoubleQuantityPayload: "cart_add_api_double_quantity_payload",
   unitCartAddDoubleQuantityPersist: "cart_add_unit_double_quantity_persist",
+  uiSortPriceAscSwapLastTwo: "sort_price_asc_swap_last_two",
+  uiSortNameDescSwapLastTwo: "sort_name_desc_swap_last_two",
+  uiGridNonChromeBroken: "grid_non_chrome_broken",
 } as const;
 
 type FaultRuntimeRow = {

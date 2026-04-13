@@ -106,6 +106,72 @@ async function main() {
     },
   });
 
+  await prisma.faultConfig.upsert({
+    where: { key: "sort_price_asc_swap_last_two" },
+    update: {
+      name: "UI: Price sort – swap last two items",
+      description:
+        "When sorting by Price (low to high) the last two products silently swap their positions.",
+      level: FaultLevel.UI,
+      latencyMs: null,
+      failureRate: null,
+    },
+    create: {
+      key: "sort_price_asc_swap_last_two",
+      name: "UI: Price sort – swap last two items",
+      description:
+        "When sorting by Price (low to high) the last two products silently swap their positions.",
+      level: FaultLevel.UI,
+      enabled: false,
+      latencyMs: null,
+      failureRate: null,
+    },
+  });
+
+  await prisma.faultConfig.upsert({
+    where: { key: "sort_name_desc_swap_last_two" },
+    update: {
+      name: "UI: Name Z-A sort – swap last two items",
+      description:
+        "When sorting by Name (Z-A) the last two products silently swap their positions.",
+      level: FaultLevel.UI,
+      latencyMs: null,
+      failureRate: null,
+    },
+    create: {
+      key: "sort_name_desc_swap_last_two",
+      name: "UI: Name Z-A sort – swap last two items",
+      description:
+        "When sorting by Name (Z-A) the last two products silently swap their positions.",
+      level: FaultLevel.UI,
+      enabled: false,
+      latencyMs: null,
+      failureRate: null,
+    },
+  });
+
+  await prisma.faultConfig.upsert({
+    where: { key: "grid_non_chrome_broken" },
+    update: {
+      name: "UI: Broken product grid (non-Chrome)",
+      description:
+        "In any browser other than Google Chrome the product grid renders misaligned and cards partially overlap, mimicking a CSS grid compatibility bug.",
+      level: FaultLevel.UI,
+      latencyMs: null,
+      failureRate: null,
+    },
+    create: {
+      key: "grid_non_chrome_broken",
+      name: "UI: Broken product grid (non-Chrome)",
+      description:
+        "In any browser other than Google Chrome the product grid renders misaligned and cards partially overlap, mimicking a CSS grid compatibility bug.",
+      level: FaultLevel.UI,
+      enabled: false,
+      latencyMs: null,
+      failureRate: null,
+    },
+  });
+
   // Stable ids 1..N so E2E `data-testid="shop-add-to-cart-${id}"` matches after every seed.
   // (MySQL AUTO_INCREMENT does not reset on `deleteMany`, so implicit ids would drift.)
   const productsData = [
