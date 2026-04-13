@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * E2E tests assume seeded DB (three products: Test Mouse, Test Keyboard, QA Monitor).
+ * E2E tests assume seeded DB (15 products — see `backend/prisma/seed.ts` `productsData`).
  * `webServer` starts backend, waits for /health, then Vite (see package.json `dev:e2e`).
  * Set SKIP_WEBSERVER=1 if you already run both servers manually.
  */

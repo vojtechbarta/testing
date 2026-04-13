@@ -2,9 +2,10 @@
 name: playwright-ui-automation
 description: >-
   Authors and maintains Playwright UI/E2E tests in this monorepo: e2e specs, page
-  objects, playwright.config, npm run test:e2e, stable locators, seed alignment.
-  Use when adding or fixing UI tests, shop flows, flaky E2E, shop.spec.ts, e2e/pages,
+  objects, playwright.config, npm run test:e2e, seed alignment, flaky tests.
+  Use when adding or fixing automated UI tests, shop flows, shop.spec.ts, e2e/pages,
   PLAYWRIGHT_BASE_URL, or when the user mentions Playwright automation at UI level.
+  For a dedicated locator audit after substantive changes, use the playwright-locator-review skill.
 ---
 
 # Playwright UI automation (this project)
@@ -37,7 +38,6 @@ First-time browsers: `npx playwright install chromium` (see e2e README).
 1. **Seed sync** — Product names and prices in tests must match [`backend/prisma/seed.ts`](../../../backend/prisma/seed.ts). Export shared constants from page objects when useful (see `SEED_PRODUCTS` in [`shop.page.ts`](../../../frontend/e2e/pages/shop.page.ts)).
 2. **CORS** — `baseURL` must be allowed in backend `FRONTEND_DEV_ORIGINS` (`localhost` vs `127.0.0.1` must stay consistent).
 3. **Database** — Run migrations + seed so the catalog matches what tests expect.
-4. **Exploratory vs automated** — Headed manual capture + session reports live under the **exploratory-tester** skill / `exploratory:capture`. This skill covers **automated** `test()` specs in `e2e/tests/`.
 
 ## Page Object pattern
 
@@ -49,13 +49,8 @@ Follow [`shop.page.ts`](../../../frontend/e2e/pages/shop.page.ts):
 
 ## Authoring new UI tests
 
-- Review the application to identify key elements and their attributes.
-- Generate robust locators for identified elements using mainly CSS selectors, but also XPath if necessary. Avoid using Playwright native locators such as getByRole or getByText unless there are no other options.
-- Ensure that generated locators are resilient to changes in the application's UI and structure.
-- If unstable or not standard locators are generated, tag it with notes // ! Unstable locator - $Reason to indicate potential issues and the reason for instability.
-- Document your review process in a folder: agents-results in the root of the repository in a markdown file named locators-reviewer-results.md.
-- If file already exists, append new findings with a timestamp and clear separation from previous entries.
-- Fix the locators if they do not follow the guidelines in .github/copilot-instructions.md or in this agent instructions, and document the changes made in the locators-reviewer-results.md file. Comment this with // ! Fixed locator - $Reason to indicate that the locator was fixed and the reason for the fix.
+- Identify key elements in the app; prefer **stable** locators aligned with the UI (e.g. `data-testid` where the app exposes it), then Playwright’s role/text locators when they improve clarity and resilience.
+- After finishing a new spec or a non-trivial locator change, run a **locator review** using the [`playwright-locator-review`](../playwright-locator-review/SKILL.md) skill (or ask the user to trigger it).
 
 ## Waits and timing
 

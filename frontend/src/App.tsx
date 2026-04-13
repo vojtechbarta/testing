@@ -16,6 +16,7 @@ import {
 } from "./api/faults";
 import { getActiveUiFaultConfigs } from "./api/uiFaults";
 import { getProductImageSrc } from "./productImages";
+import { getVisibleShopProducts } from "./shopCatalog";
 import {
   checkoutBankTransfer,
   checkoutGatewayInit,
@@ -211,39 +212,16 @@ function App() {
     });
   }, [products]);
 
-  const visibleProducts = useMemo(() => {
-    const filtered = products.filter((p) => {
-      const amount = p.price.amount;
-      return amount >= priceFilter.min && amount <= priceFilter.max;
-    });
-
-    const sorted = [...filtered];
-    sorted.sort((a, b) => {
-      if (shopSort === "name-asc") return a.name.localeCompare(b.name, "cs");
-      if (shopSort === "name-desc") return b.name.localeCompare(a.name, "cs");
-      if (shopSort === "price-asc") return a.price.amount - b.price.amount;
-      return b.price.amount - a.price.amount;
-    });
-
-    const swapLastTwo = sorted.length >= 2;
-    const priceAscFault = activeUiFaultConfigs.some(
-      (f) => f.key === "sort_price_asc_swap_last_two",
-    );
-    const nameDescFault = activeUiFaultConfigs.some(
-      (f) => f.key === "sort_name_desc_swap_last_two",
-    );
-
-    if (
-      swapLastTwo &&
-      ((shopSort === "price-asc" && priceAscFault) ||
-        (shopSort === "name-desc" && nameDescFault))
-    ) {
-      const last = sorted.length - 1;
-      [sorted[last - 1], sorted[last]] = [sorted[last], sorted[last - 1]];
-    }
-
-    return sorted;
-  }, [activeUiFaultConfigs, priceFilter.max, priceFilter.min, products, shopSort]);
+  const visibleProducts = useMemo(
+    () =>
+      getVisibleShopProducts(
+        products,
+        priceFilter,
+        shopSort,
+        activeUiFaultConfigs.map((f) => f.key),
+      ),
+    [activeUiFaultConfigs, priceFilter, products, shopSort],
+  );
 
   const handleAddToCart = async (productId: number) => {
     try {

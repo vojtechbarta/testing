@@ -6,7 +6,7 @@ import {
 } from "../pages/shop.page";
 
 test.describe("Shop — catalog and cart", () => {
-  test("home shows three seed products; adding Test Mouse updates cart with correct totals", async ({
+  test("home shows 15 seed products; adding Wireless Mouse M200 updates cart with correct totals", async ({
     page,
   }) => {
     const shop = new ShopPage(page);
@@ -17,7 +17,7 @@ test.describe("Shop — catalog and cart", () => {
       "Browser tab title should be AI Testing Shop (see index.html <title>)",
     ).toHaveTitle(/AI Testing Shop/i);
 
-    await shop.expectProductCount(3);
+    await shop.expectProductCount(15);
     await shop.expectSeedProductsVisible();
 
     const mouse = SEED_PRODUCTS[0]!;

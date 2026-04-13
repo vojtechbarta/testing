@@ -36,13 +36,13 @@ function mapProductToDto(p: {
   };
 }
 
-export async function getAllProducts(searchQuery?: string): Promise<ProductDto[]> {
-  if (isFaultEnabled("productListing_latency")) {
-    const settings = getFaultSettings("productListing_latency");
-    const latency = settings?.latencyMs ?? 1000;
-    await new Promise((resolve) => setTimeout(resolve, latency));
-  }
-
+/**
+ * Storefront listing filter: active products only; optional `contains` on name OR description (collation is DB-defined).
+ * Exported for unit tests.
+ */
+export function productListingWhere(
+  searchQuery?: string,
+): Prisma.ProductWhereInput {
   const q = searchQuery?.trim();
   const where: Prisma.ProductWhereInput = { active: true };
   if (q) {
@@ -51,6 +51,17 @@ export async function getAllProducts(searchQuery?: string): Promise<ProductDto[]
       { description: { contains: q } },
     ];
   }
+  return where;
+}
+
+export async function getAllProducts(searchQuery?: string): Promise<ProductDto[]> {
+  if (isFaultEnabled("productListing_latency")) {
+    const settings = getFaultSettings("productListing_latency");
+    const latency = settings?.latencyMs ?? 1000;
+    await new Promise((resolve) => setTimeout(resolve, latency));
+  }
+
+  const where = productListingWhere(searchQuery);
 
   const products = await prisma.product.findMany({
     where,
@@ -126,5 +137,14 @@ export async function createProduct(data: {
     },
     include: { currency: true },
   }).then(mapProductToDto);
+}
+
+/** Removes cart/order line references so the product row can be deleted (no CASCADE on Product in schema). */
+export async function deleteProduct(id: number): Promise<void> {
+  await prisma.$transaction([
+    prisma.cartItem.deleteMany({ where: { productId: id } }),
+    prisma.orderItem.deleteMany({ where: { productId: id } }),
+    prisma.product.delete({ where: { id } }),
+  ]);
 }
 

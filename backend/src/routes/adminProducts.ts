@@ -1,9 +1,11 @@
 import { Router } from "express";
 import {
   createProduct,
+  deleteProduct,
   getAllProductsForAdmin,
   updateProduct,
 } from "../services/productService";
+import prisma from "../db/prisma";
 import { roleAuth } from "../middleware/adminAuth";
 import { UserRole } from "@prisma/client";
 
@@ -80,6 +82,27 @@ router.put("/:id", async (req, res, next) => {
     });
 
     res.json(product);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete("/:id", async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id || Number.isNaN(id)) {
+      res.status(400).json({ message: "Invalid product id" });
+      return;
+    }
+
+    const existing = await prisma.product.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ message: "Product not found" });
+      return;
+    }
+
+    await deleteProduct(id);
+    res.status(204).send();
   } catch (err) {
     next(err);
   }

@@ -73,12 +73,63 @@ describe("Internal API (frontend contract)", () => {
     });
   });
 
-  // Shop search: query param `q` filters active products by name/description (e.g. seed "Test Mouse").
+  // Shop search: query param `q` filters active products by name/description (e.g. seed "Wireless Mouse M200").
   it("GET /products?q=… filters catalog (search on main shop)", async () => {
     const res = await request(app).get("/products").query({ q: "Mouse" }).expect(200);
     expect(Array.isArray(res.body)).toBe(true);
     const names = (res.body as { name: string }[]).map((p) => p.name);
     expect(names.some((n) => n.toLowerCase().includes("mouse"))).toBe(true);
+  });
+
+  // Sorting by name/price is implemented in the React shop (`shopCatalog.ts`); API returns DB order.
+  it("GET /products returns seeded storefront size (15 active products after full seed)", async () => {
+    const res = await request(app).get("/products").expect(200);
+    expect((res.body as unknown[]).length).toBeGreaterThanOrEqual(15);
+  });
+
+  it("GET /products?q= matches description text, not only product name", async () => {
+    const res = await request(app).get("/products").query({ q: "ergonomic" }).expect(200);
+    const rows = res.body as { name: string; description: string }[];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(
+      rows.some(
+        (p) =>
+          p.description.toLowerCase().includes("ergonomic") ||
+          p.name.toLowerCase().includes("ergonomic"),
+      ),
+    ).toBe(true);
+  });
+
+  it("GET /products?q= returns empty array when no row matches", async () => {
+    const res = await request(app)
+      .get("/products")
+      .query({ q: "zzzz-no-such-product-999" })
+      .expect(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it("GET /products?q= with only whitespace behaves like no search filter", async () => {
+    const full = await request(app).get("/products").expect(200);
+    const spaced = await request(app).get("/products").query({ q: "  \t  " }).expect(200);
+    expect((spaced.body as unknown[]).length).toBe((full.body as unknown[]).length);
+  });
+
+  it("GET /products?q= trims leading and trailing spaces in the query", async () => {
+    const res = await request(app).get("/products").query({ q: "  Mouse  " }).expect(200);
+    const names = (res.body as { name: string }[]).map((p) => p.name);
+    expect(names.some((n) => n.toLowerCase().includes("mouse"))).toBe(true);
+  });
+
+  it("GET /products?q= can return multiple products (name OR description contains term)", async () => {
+    const res = await request(app).get("/products").query({ q: "USB" }).expect(200);
+    const rows = res.body as { name: string; description: string }[];
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+    for (const p of rows) {
+      const blob = `${p.name} ${p.description}`.toLowerCase();
+      expect(blob.includes("usb"), `expected "USB" in name or description: ${p.name}`).toBe(
+        true,
+      );
+    }
   });
 
   // Cart API requires a valid UUID in X-Cart-Session; missing header must fail fast with 400.
@@ -213,5 +264,40 @@ describe("Internal API (frontend contract)", () => {
       price: { amount: 42, currencyCode: "CZK" },
     });
     expect(typeof (res.body as { id: number }).id).toBe("number");
+  });
+
+  it("DELETE /admin/products/:id removes product when admin", async () => {
+    const login = await request(app)
+      .post("/auth/login")
+      .send({ username: "admin", password: "admin" })
+      .expect(200);
+
+    const token = (login.body as { token: string }).token;
+    const uniqueName = `Integration API Product delete ${Date.now()}`;
+
+    const createRes = await request(app)
+      .post("/admin/products")
+      .set("Content-Type", "application/json")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: uniqueName,
+        description: "deleted by integration test",
+        price: { amount: 1, currencyCode: "CZK" },
+        inStock: 0,
+        active: false,
+      })
+      .expect(201);
+
+    const id = (createRes.body as { id: number }).id;
+
+    await request(app)
+      .delete(`/admin/products/${id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .expect(204);
+
+    await request(app)
+      .delete(`/admin/products/${id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .expect(404);
   });
 });
