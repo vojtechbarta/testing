@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import { getProducts, type Product } from "./api/products";
 import { getCart, updateCartItem, type Cart } from "./api/cart";
@@ -68,6 +68,17 @@ function App() {
     Array<{ key: string; failureRate: number }>
   >([]);
   const [productSearch, setProductSearch] = useState("");
+  const [shopSort, setShopSort] = useState<
+    "name-asc" | "name-desc" | "price-asc" | "price-desc"
+  >("name-asc");
+  const [priceFilterBounds, setPriceFilterBounds] = useState({
+    min: 0,
+    max: 0,
+  });
+  const [priceFilter, setPriceFilter] = useState({
+    min: 0,
+    max: 0,
+  });
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>("buyer");
   const [checkoutBusy, setCheckoutBusy] = useState(false);
@@ -156,6 +167,49 @@ function App() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (products.length === 0) {
+      setPriceFilterBounds({ min: 0, max: 0 });
+      setPriceFilter({ min: 0, max: 0 });
+      return;
+    }
+
+    const amounts = products.map((p) => p.price.amount);
+    const nextMin = Math.min(...amounts);
+    const nextMax = Math.max(...amounts);
+
+    setPriceFilterBounds({ min: nextMin, max: nextMax });
+    setPriceFilter((prev) => {
+      const prevIsInitial = prev.min === 0 && prev.max === 0;
+      if (prevIsInitial) {
+        return { min: nextMin, max: nextMax };
+      }
+
+      const clampedMin = Math.max(nextMin, Math.min(prev.min, nextMax));
+      const clampedMax = Math.min(nextMax, Math.max(prev.max, nextMin));
+      return {
+        min: Math.min(clampedMin, clampedMax),
+        max: Math.max(clampedMin, clampedMax),
+      };
+    });
+  }, [products]);
+
+  const visibleProducts = useMemo(() => {
+    const filtered = products.filter((p) => {
+      const amount = p.price.amount;
+      return amount >= priceFilter.min && amount <= priceFilter.max;
+    });
+
+    const sorted = [...filtered];
+    sorted.sort((a, b) => {
+      if (shopSort === "name-asc") return a.name.localeCompare(b.name, "cs");
+      if (shopSort === "name-desc") return b.name.localeCompare(a.name, "cs");
+      if (shopSort === "price-asc") return a.price.amount - b.price.amount;
+      return b.price.amount - a.price.amount;
+    });
+    return sorted;
+  }, [priceFilter.max, priceFilter.min, products, shopSort]);
 
   const handleAddToCart = async (productId: number) => {
     try {
@@ -1023,9 +1077,12 @@ function App() {
             {!loading && !error && products.length === 0 && (
               <p className="empty-state">No products available yet.</p>
             )}
+            {!loading && !error && products.length > 0 && visibleProducts.length === 0 && (
+              <p className="empty-state">No products match the current price filter.</p>
+            )}
 
             <div className="product-grid">
-              {products.map((p) => {
+              {visibleProducts.map((p) => {
                 const inCartQty =
                   cart?.items.find((i) => i.productId === p.id)?.quantity ?? 0;
                 const step = uiDoubleAddAlways ? 2 : 1;
@@ -1077,103 +1134,206 @@ function App() {
             </div>
           </div>
 
-          <aside className="cart-panel">
-            <div className="cart-panel__title">Shopping Cart</div>
-            {!cart || cart.items.length === 0 ? (
-              <p className="muted">Your cart is empty.</p>
-            ) : (
-              <>
-                <ul className="cart-list">
-                  {cart.items.map((item) => {
-                    const plusDisabled =
-                      uiDoubleAddAlways
-                        ? item.quantity + 2 > item.inStock
-                        : item.quantity >= item.inStock;
-                    return (
-                      <li
-                        key={item.productId}
-                        className="cart-item"
-                        data-testid={`cart-line-${item.productId}`}
-                      >
-                        <button
-                          type="button"
-                          className="cart-item__remove"
-                          onClick={() =>
-                            handleRemoveCartItem(item.productId)
-                          }
-                          aria-label={`Remove ${item.name} from cart`}
-                        >
-                          ×
-                        </button>
-                        <div className="cart-item__body">
-                          <div className="cart-item__name">{item.name}</div>
-                          <div className="cart-item__meta">
-                            Unit price:{" "}
-                            {item.price.amount.toLocaleString("en-US", {
-                              style: "currency",
-                              currency: item.price.currencyCode,
-                            })}
-                          </div>
-                          <div className="cart-item__controls">
-                            <button
-                              type="button"
-                              className="cart-qty-btn"
-                              onClick={() => handleAddToCart(item.productId)}
-                              disabled={plusDisabled}
-                              aria-label="Increase quantity"
-                            >
-                              +
-                            </button>
-                            <button
-                              type="button"
-                              className="cart-qty-btn"
-                              onClick={() =>
-                                handleDecreaseCartItem(item.productId)
-                              }
-                              aria-label="Decrease quantity"
-                            >
-                              −
-                            </button>
-                            <span className="cart-qty-label">
-                              {item.quantity}
-                            </span>
-                            <span className="cart-qty-stock">
-                              of {item.inStock}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="cart-item__sub">
-                          <div className="cart-item__sub-label">Subtotal</div>
-                          <strong>
-                            {item.lineTotal.amount.toLocaleString("en-US", {
-                              style: "currency",
-                              currency: item.lineTotal.currencyCode,
-                            })}
-                          </strong>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-                <hr className="cart-divider" />
-                <div className="cart-total-row">
-                  <span>Estimated total</span>
-                  <strong data-testid="cart-estimated-total">
-                    {cart.total.amount.toLocaleString("en-US", {
-                      style: "currency",
-                      currency: cart.total.currencyCode,
-                    })}
-                  </strong>
-                </div>
-                <button
-                  type="button"
-                  className="btn-add-cart"
-                  onClick={openCheckout}
+          <aside className="shop-sidebar">
+            <div className="shop-controls">
+              <div className="shop-controls__title">Product filtering</div>
+              <label className="shop-controls__field">
+                Sort by
+                <select
+                  value={shopSort}
+                  onChange={(e) =>
+                    setShopSort(
+                      e.target.value as
+                        | "name-asc"
+                        | "name-desc"
+                        | "price-asc"
+                        | "price-desc",
+                    )
+                  }
                 >
-                  Proceed to checkout
-                </button>
-              </>
-            )}
+                  <option value="name-asc">Name (A-Z)</option>
+                  <option value="name-desc">Name (Z-A)</option>
+                  <option value="price-asc">Price (low to high)</option>
+                  <option value="price-desc">Price (high to low)</option>
+                </select>
+              </label>
+
+              <div className="shop-controls__price">
+                <span className="shop-controls__price-label">Price range (CZK)</span>
+                <div className="shop-controls__price-row">
+                  <div className="shop-controls__price-field">
+                    <label className="shop-controls__slider-label">
+                      Min
+                      <input
+                        type="range"
+                        min={priceFilterBounds.min}
+                        max={priceFilterBounds.max}
+                        value={priceFilter.min}
+                        disabled={priceFilterBounds.min === priceFilterBounds.max}
+                        onChange={(e) => {
+                          const value = Number(e.target.value);
+                          setPriceFilter((prev) => ({
+                            ...prev,
+                            min: Math.min(value, prev.max),
+                          }));
+                        }}
+                      />
+                    </label>
+                    <input
+                      type="number"
+                      className="shop-controls__price-input"
+                      min={priceFilterBounds.min}
+                      max={priceFilter.max}
+                      value={priceFilter.min}
+                      onChange={(e) => {
+                        const value = Number(e.target.value);
+                        if (isNaN(value)) return;
+                        const clamped = Math.max(
+                          priceFilterBounds.min,
+                          Math.min(value, priceFilter.max),
+                        );
+                        setPriceFilter((prev) => ({ ...prev, min: clamped }));
+                      }}
+                    />
+                  </div>
+                  <span className="shop-controls__price-sep">–</span>
+                  <div className="shop-controls__price-field">
+                    <label className="shop-controls__slider-label">
+                      Max
+                      <input
+                        type="range"
+                        min={priceFilterBounds.min}
+                        max={priceFilterBounds.max}
+                        value={priceFilter.max}
+                        disabled={priceFilterBounds.min === priceFilterBounds.max}
+                        onChange={(e) => {
+                          const value = Number(e.target.value);
+                          setPriceFilter((prev) => ({
+                            ...prev,
+                            max: Math.max(value, prev.min),
+                          }));
+                        }}
+                      />
+                    </label>
+                    <input
+                      type="number"
+                      className="shop-controls__price-input"
+                      min={priceFilter.min}
+                      max={priceFilterBounds.max}
+                      value={priceFilter.max}
+                      onChange={(e) => {
+                        const value = Number(e.target.value);
+                        if (isNaN(value)) return;
+                        const clamped = Math.min(
+                          priceFilterBounds.max,
+                          Math.max(value, priceFilter.min),
+                        );
+                        setPriceFilter((prev) => ({ ...prev, max: clamped }));
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="cart-panel">
+              <div className="cart-panel__title">Shopping Cart</div>
+              {!cart || cart.items.length === 0 ? (
+                <p className="muted">Your cart is empty.</p>
+              ) : (
+                <>
+                  <ul className="cart-list">
+                    {cart.items.map((item) => {
+                      const plusDisabled =
+                        uiDoubleAddAlways
+                          ? item.quantity + 2 > item.inStock
+                          : item.quantity >= item.inStock;
+                      return (
+                        <li
+                          key={item.productId}
+                          className="cart-item"
+                          data-testid={`cart-line-${item.productId}`}
+                        >
+                          <button
+                            type="button"
+                            className="cart-item__remove"
+                            onClick={() =>
+                              handleRemoveCartItem(item.productId)
+                            }
+                            aria-label={`Remove ${item.name} from cart`}
+                          >
+                            ×
+                          </button>
+                          <div className="cart-item__body">
+                            <div className="cart-item__name">{item.name}</div>
+                            <div className="cart-item__meta">
+                              Unit price:{" "}
+                              {item.price.amount.toLocaleString("en-US", {
+                                style: "currency",
+                                currency: item.price.currencyCode,
+                              })}
+                            </div>
+                            <div className="cart-item__controls">
+                              <button
+                                type="button"
+                                className="cart-qty-btn"
+                                onClick={() => handleAddToCart(item.productId)}
+                                disabled={plusDisabled}
+                                aria-label="Increase quantity"
+                              >
+                                +
+                              </button>
+                              <button
+                                type="button"
+                                className="cart-qty-btn"
+                                onClick={() =>
+                                  handleDecreaseCartItem(item.productId)
+                                }
+                                aria-label="Decrease quantity"
+                              >
+                                −
+                              </button>
+                              <span className="cart-qty-label">
+                                {item.quantity}
+                              </span>
+                              <span className="cart-qty-stock">
+                                of {item.inStock}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="cart-item__sub">
+                            <div className="cart-item__sub-label">Subtotal</div>
+                            <strong>
+                              {item.lineTotal.amount.toLocaleString("en-US", {
+                                style: "currency",
+                                currency: item.lineTotal.currencyCode,
+                              })}
+                            </strong>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <hr className="cart-divider" />
+                  <div className="cart-total-row">
+                    <span>Estimated total</span>
+                    <strong data-testid="cart-estimated-total">
+                      {cart.total.amount.toLocaleString("en-US", {
+                        style: "currency",
+                        currency: cart.total.currencyCode,
+                      })}
+                    </strong>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-add-cart"
+                    onClick={openCheckout}
+                  >
+                    Proceed to checkout
+                  </button>
+                </>
+              )}
+            </div>
           </aside>
         </section>
       )}

@@ -295,6 +295,7 @@ Kompletní návod (regiony, kvóty, ACR build vs. Docker, limit prostředí Cont
 ## Další dokumentace v repu
 
 - [`azure/README.md`](azure/README.md) – Azure: Bicep, `deploy.sh`, GitHub Actions, DB, troubleshooting  
+- [`azure/RUNBOOK.md`](azure/RUNBOOK.md) – praktický provozní runbook (deploy/seed incidenty)  
 - [`frontend/e2e/README.md`](frontend/e2e/README.md) – E2E příkazy, CORS, struktura testů  
 - [`backend/MockConfigs/README.md`](backend/MockConfigs/README.md) – mock platby podle e‑mailu kupujícího  
 - Playwright UI automatizace (Cursor skill): [`.cursor/skills/playwright-ui-automation/SKILL.md`](.cursor/skills/playwright-ui-automation/SKILL.md)  

@@ -136,3 +136,7 @@ Locally, `NODE_ENV` is not `production`, so the API allows `http://localhost:517
 ## Frontend API URL
 
 Production builds use **`VITE_API_BASE_URL`** (GitHub variable). Local dev defaults to `http://localhost:4000` when unset.
+
+## Operations runbook
+
+For day-2 operations (deploy/seed troubleshooting, DB auth/connectivity failures, revision/secret mismatch checks), see [`azure/RUNBOOK.md`](RUNBOOK.md).
