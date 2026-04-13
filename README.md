@@ -123,7 +123,7 @@ Seed vytvoří mimo jiné:
 
 - **Admin:** `admin` / `admin` (e‑mail `admin@example.com`)
 - **Tester:** `tester` / `tester` (e‑mail `tester@example.com`)
-- Tři produkty (např. *Test Mouse*, *Test Keyboard*, *QA Monitor*)
+- 15 realistických produktů s výchozím skladem 10 ks na položku
 - Záznamy `FaultConfig` (ve výchozím stavu typicky **vypnuté**)
 
 ### 3. Běh aplikace
@@ -261,8 +261,13 @@ Výstup posledního nasazení je také v `azure/.last-deployment.json` (soubor j
   - **Repository variable:** `VITE_API_BASE_URL` = hodnota `apiUrl` z výstupu skriptu (např. `https://….azurecontainerapps.io`).  
   - **Secret:** `AZURE_STATIC_WEB_APPS_API_TOKEN` — token ze Static Web App v portálu (*Manage deployment token*).
 
-- **Backend na App Service** — [`.github/workflows/azure-backend.yml`](.github/workflows/azure-backend.yml) se spustí jen když je **`AZURE_USE_APP_SERVICE_DEPLOY=true`** (repository variable). Vyžaduje **`AZURE_WEBAPP_NAME`** a secret **`AZURE_WEBAPP_PUBLISH_PROFILE`**.  
-  Při **Container Apps** tento workflow **nepoužívejte** pro API — backend aktualizujte znovu spuštěním `./azure/deploy.sh` (stejný název zdrojů) nebo vlastním CI, které pushne image do ACR a zavolá `az containerapp update`.
+- **Backend na Container Apps** — workflow [`.github/workflows/azure-backend.yml`](.github/workflows/azure-backend.yml) se spouští při pushi na `main` (změny v `backend/**`, `azure/**` nebo workflow souboru) a deployuje API přes `azure/deploy.sh`.
+  - **Secret:** `AZURE_CREDENTIALS` (service principal JSON pro `azure/login`)
+  - **Secret:** `MYSQL_ADMIN_PASSWORD`, `ADMIN_JWT_SECRET`
+  - **Variables:** `AZURE_BASE_NAME`, `AZURE_RG`, `AZURE_LOCATION`, `AZURE_SWA_LOCATION`
+  - Volitelné: `AZURE_EXISTING_CONTAINER_ENV_ID`, `AZURE_PREBUILT_API_IMAGE`, `DEV_CLIENT_IP`
+
+- **Ruční seed databáze** — workflow [`.github/workflows/azure-seed.yml`](.github/workflows/azure-seed.yml) se spouští ručně (`workflow_dispatch`) a vyžaduje potvrzení `RESET`. Spustí `prisma migrate deploy` + `npm run prisma:seed` proti Azure MySQL.
 
 ### Databáze: migrace a seed
 

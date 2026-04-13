@@ -69,36 +69,55 @@ Redeploys with the **same** resource group and **base name** reuse the same **st
 
 ## 2. GitHub Actions
 
+### Frontend
+
+Pushes to `main` run [`.github/workflows/azure-static-web-app.yml`](../.github/workflows/azure-static-web-app.yml).
+
 | Kind | Name | Value |
 |------|------|--------|
-| Variable | `VITE_API_BASE_URL` | Printed **`apiUrl`** (`https://….azurecontainerapps.io` or `https://….azurewebsites.net`) |
+| Variable | `VITE_API_BASE_URL` | Printed `apiUrl` from deploy output |
 | Secret | `AZURE_STATIC_WEB_APPS_API_TOKEN` | Static Web App → **Manage deployment token** |
 
-**App Service only** (when you used `AZURE_API_HOSTING=appservice`):
+### Backend (Container Apps)
 
-| Variable / secret | Value |
-|-------------------|--------|
-| `AZURE_WEBAPP_NAME` | Printed web app name |
-| `AZURE_WEBAPP_PUBLISH_PROFILE` | App Service → **Get publish profile** |
+[`.github/workflows/azure-backend.yml`](../.github/workflows/azure-backend.yml) deploys backend to Container Apps on push to `main` when files in `backend/**`, `azure/**`, or the workflow file change.
 
-The workflow [`.github/workflows/azure-backend.yml`](../.github/workflows/azure-backend.yml) deploys a **zip** to **App Service**. Its job runs only when the repository variable **`AZURE_USE_APP_SERVICE_DEPLOY`** is set to **`true`** (GitHub does not allow checking secrets in `if`). You still need secret **`AZURE_WEBAPP_PUBLISH_PROFILE`** and variable **`AZURE_WEBAPP_NAME`**. Leave the flag unset for Container Apps–only setups. For Container Apps, redeploy the API with `./azure/deploy.sh` or add your own workflow.
+Required:
 
-Pushes to `main` still run [`.github/workflows/azure-static-web-app.yml`](../.github/workflows/azure-static-web-app.yml) for the frontend.
+- Secret `AZURE_CREDENTIALS` (service principal JSON used by `azure/login`)
+- Secret `MYSQL_ADMIN_PASSWORD`
+- Secret `ADMIN_JWT_SECRET`
+- Variable `AZURE_BASE_NAME`
+- Variable `AZURE_RG`
+- Variable `AZURE_LOCATION`
+- Variable `AZURE_SWA_LOCATION`
 
-**Container Apps auto-deploy from GitHub Actions** (optional):
+Optional:
 
-- Set repository variable `AZURE_USE_CONTAINERAPP_DEPLOY=true`.
-- Set secret `AZURE_CREDENTIALS` (JSON from Azure service principal used by `azure/login`).
-- Set repository variable `AZURE_BASE_NAME` to the same base name used in `./azure/deploy.sh <base-name>`.
-- Optional variables: `AZURE_RG`, `AZURE_LOCATION`, `AZURE_SWA_LOCATION`, `AZURE_EXISTING_CONTAINER_ENV_ID`, `AZURE_PREBUILT_API_IMAGE`, `DEV_CLIENT_IP`.
-- Optional secrets for stable credentials across redeploys: `MYSQL_ADMIN_PASSWORD`, `ADMIN_JWT_SECRET`.
+- Variable `AZURE_EXISTING_CONTAINER_ENV_ID` (reuse an existing env to avoid regional env limits)
+- Variable `AZURE_PREBUILT_API_IMAGE`
+- Variable `DEV_CLIENT_IP`
+
+### Manual DB seed workflow
+
+[`.github/workflows/azure-seed.yml`](../.github/workflows/azure-seed.yml) is a manual (`workflow_dispatch`) workflow for `migrate deploy` + `prisma:seed`.
+
+Required:
+
+- Secret `AZURE_CREDENTIALS`
+- Secret `MYSQL_ADMIN_PASSWORD`
+- Variable `AZURE_RG`
+
+Optional:
+
+- Variable `AZURE_MYSQL_FQDN` (if omitted, workflow resolves host from the resource group)
 
 ## 3. Database migrate and seed
 
 - **Container Apps / Dockerfile:** `prisma migrate deploy` runs before `node dist/index.js` on each container start.
 - **App Service:** same via `npm run start:azure`.
 
-**Seed** (optional): allow your IP on MySQL (portal **Networking** or `DEV_CLIENT_IP` on deploy), then:
+**Seed** (optional): use the manual workflow [`.github/workflows/azure-seed.yml`](../.github/workflows/azure-seed.yml), or run from your laptop after allowing your IP on MySQL firewall (portal **Networking** or `DEV_CLIENT_IP` on deploy):
 
 ```bash
 export DATABASE_URL='mysql://shopadmin:PASSWORD@HOST.mysql.database.azure.com:3306/ai_testing_shop?sslaccept=strict'
