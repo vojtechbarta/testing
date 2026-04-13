@@ -85,6 +85,14 @@ The workflow [`.github/workflows/azure-backend.yml`](../.github/workflows/azure-
 
 Pushes to `main` still run [`.github/workflows/azure-static-web-app.yml`](../.github/workflows/azure-static-web-app.yml) for the frontend.
 
+**Container Apps auto-deploy from GitHub Actions** (optional):
+
+- Set repository variable `AZURE_USE_CONTAINERAPP_DEPLOY=true`.
+- Set secret `AZURE_CREDENTIALS` (JSON from Azure service principal used by `azure/login`).
+- Set repository variable `AZURE_BASE_NAME` to the same base name used in `./azure/deploy.sh <base-name>`.
+- Optional variables: `AZURE_RG`, `AZURE_LOCATION`, `AZURE_SWA_LOCATION`, `AZURE_EXISTING_CONTAINER_ENV_ID`, `AZURE_PREBUILT_API_IMAGE`, `DEV_CLIENT_IP`.
+- Optional secrets for stable credentials across redeploys: `MYSQL_ADMIN_PASSWORD`, `ADMIN_JWT_SECRET`.
+
 ## 3. Database migrate and seed
 
 - **Container Apps / Dockerfile:** `prisma migrate deploy` runs before `node dist/index.js` on each container start.

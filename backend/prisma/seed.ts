@@ -106,24 +106,113 @@ async function main() {
     },
   });
 
+  // Stable ids 1..N so E2E `data-testid="shop-add-to-cart-${id}"` matches after every seed.
+  // (MySQL AUTO_INCREMENT does not reset on `deleteMany`, so implicit ids would drift.)
   const productsData = [
     {
-      name: "Test Mouse",
-      description: "A simple mouse for testing purposes.",
+      id: 1,
+      name: "Wireless Mouse M200",
+      description: "Reliable wireless mouse for everyday office work.",
+      price: 399,
+      inStock: 10,
+    },
+    {
+      id: 2,
+      name: "Mechanical Keyboard K87",
+      description: "Compact mechanical keyboard with tactile switches.",
+      price: 1790,
+      inStock: 10,
+    },
+    {
+      id: 3,
+      name: "27in QHD Monitor",
+      description: "Crisp 1440p monitor suitable for work and media.",
+      price: 4990,
+      inStock: 10,
+    },
+    {
+      id: 4,
+      name: "USB-C Docking Station",
+      description: "Dock with HDMI, Ethernet, and USB ports for laptops.",
+      price: 1690,
+      inStock: 10,
+    },
+    {
+      id: 5,
+      name: "Noise Cancelling Headphones",
+      description: "Over-ear headphones with active noise cancellation.",
+      price: 2490,
+      inStock: 10,
+    },
+    {
+      id: 6,
+      name: "1080p Webcam",
+      description: "Full HD webcam with built-in dual microphones.",
+      price: 890,
+      inStock: 10,
+    },
+    {
+      id: 7,
+      name: "Gaming Mouse Pad XL",
+      description: "Large desk mat with smooth tracking surface.",
+      price: 349,
+      inStock: 10,
+    },
+    {
+      id: 8,
+      name: "External SSD 1TB",
+      description: "Portable high-speed SSD with USB 3.2 support.",
+      price: 1890,
+      inStock: 10,
+    },
+    {
+      id: 9,
+      name: "USB-C Charger 65W",
+      description: "Fast GaN charger compatible with phones and laptops.",
+      price: 699,
+      inStock: 10,
+    },
+    {
+      id: 10,
+      name: "Laptop Stand Aluminum",
+      description: "Ergonomic stand improving airflow and posture.",
       price: 499,
-      inStock: 15,
+      inStock: 10,
     },
     {
-      name: "Test Keyboard",
-      description: "A keyboard for writing tests and bug reports.",
-      price: 1299,
-      inStock: 8,
+      id: 11,
+      name: "Bluetooth Speaker Mini",
+      description: "Portable speaker with balanced sound and deep bass.",
+      price: 1190,
+      inStock: 10,
     },
     {
-      name: "QA Monitor",
-      description: "A monitor for tracking test reports and dashboards.",
-      price: 3999,
-      inStock: 5,
+      id: 12,
+      name: "Smart LED Desk Lamp",
+      description: "Dimmable desk lamp with adjustable color temperature.",
+      price: 699,
+      inStock: 10,
+    },
+    {
+      id: 13,
+      name: "Office Chair Ergo",
+      description: "Comfortable ergonomic chair with lumbar support.",
+      price: 4990,
+      inStock: 10,
+    },
+    {
+      id: 14,
+      name: "Full HD Projector",
+      description: "Home and office projector with HDMI connectivity.",
+      price: 11990,
+      inStock: 10,
+    },
+    {
+      id: 15,
+      name: "Wi-Fi Router AX3000",
+      description: "Dual-band router with stable high-speed performance.",
+      price: 1490,
+      inStock: 10,
     },
   ];
 
@@ -136,7 +225,7 @@ async function main() {
     const product = await prisma.product.create({
       data: { ...p, currencyId: 1 },
     });
-    console.log("Product:", product.name);
+    console.log("Product:", product.name, "id=", product.id);
   }
 }
 

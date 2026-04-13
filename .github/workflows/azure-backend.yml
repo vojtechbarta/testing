@@ -1,6 +1,6 @@
 # Deploys to Azure App Service (zip). If your API runs on Azure Container Apps, use azure/deploy.sh
 # or a pipeline that builds backend/Dockerfile and updates the Container App instead.
-name: Deploy backend to Azure App Service
+name: Deploy backend to Azure
 
 on:
   push:
@@ -11,6 +11,33 @@ on:
   workflow_dispatch:
 
 jobs:
+  deploy-containerapp:
+    # Enable this job with repository variable AZURE_USE_CONTAINERAPP_DEPLOY=true.
+    if: ${{ vars.AZURE_USE_CONTAINERAPP_DEPLOY == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (service principal)
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy backend to Container Apps via deploy.sh
+        env:
+          AZURE_API_HOSTING: containerapp
+          AZURE_RG: ${{ vars.AZURE_RG }}
+          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+          AZURE_SWA_LOCATION: ${{ vars.AZURE_SWA_LOCATION }}
+          AZURE_EXISTING_CONTAINER_ENV_ID: ${{ vars.AZURE_EXISTING_CONTAINER_ENV_ID }}
+          AZURE_PREBUILT_API_IMAGE: ${{ vars.AZURE_PREBUILT_API_IMAGE }}
+          MYSQL_ADMIN_PASSWORD: ${{ secrets.MYSQL_ADMIN_PASSWORD }}
+          ADMIN_JWT_SECRET: ${{ secrets.ADMIN_JWT_SECRET }}
+          DEV_CLIENT_IP: ${{ vars.DEV_CLIENT_IP }}
+        run: |
+          chmod +x azure/deploy.sh
+          ./azure/deploy.sh "${{ vars.AZURE_BASE_NAME }}"
+
   build-and-deploy:
     # GitHub does not allow `secrets` in job-level `if`. Set repo variable AZURE_USE_APP_SERVICE_DEPLOY=true
     # when you use App Service with AZURE_WEBAPP_PUBLISH_PROFILE + AZURE_WEBAPP_NAME.
