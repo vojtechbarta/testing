@@ -13,5 +13,12 @@ router.get("/ui", async (_req, res, next) => {
   }
 });
 
+/** Endpoint used by UI fault `networ_inject_api_fail_every minute` to create visible 400s in DevTools Network. */
+router.get("/inject-error", (req, res) => {
+  const lang = req.query.lang === "cs" ? "cs" : "en";
+  const message = lang === "cs" ? "tohle je bug" : "this is bug";
+  res.status(400).json({ message });
+});
+
 export default router;
 

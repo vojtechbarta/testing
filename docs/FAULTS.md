@@ -30,6 +30,28 @@ Each fault is **disabled by default**. Enabling/disabling takes effect within ~1
 
 ---
 
+### `console_error_every_minute`
+| | |
+|---|---|
+| **Level** | UI |
+| **Name** | UI: Console error every minute |
+| **Description** | When enabled, frontend logs a console error every 60 seconds so testers must inspect DevTools Console. Message is localized: CS **"toto je error"**, EN **"this is error"**. |
+| **Supports `failureRate`** | No |
+| **Affected area** | Browser DevTools → Console |
+
+---
+
+### `networ_inject_api_fail_every minute`
+| | |
+|---|---|
+| **Level** | UI |
+| **Name** | UI/API: Inject error network call every minute |
+| **Description** | When enabled, frontend calls `GET /faults/inject-error` every 60 seconds (with current `lang`). Endpoint always returns **400 Bad Request** with localized response message: CS **"tohle je bug"**, EN **"this is bug"**. |
+| **Supports `failureRate`** | No |
+| **Affected area** | Browser DevTools → Network |
+
+---
+
 ### `cart_add_api_double_quantity_payload`
 | | |
 |---|---|
@@ -66,22 +88,22 @@ Each fault is **disabled by default**. Enabling/disabling takes effect within ~1
 ### `sort_price_asc_swap_last_two`
 | | |
 |---|---|
-| **Level** | UI |
-| **Name** | UI: Price sort – swap last two items |
+| **Level** | API |
+| **Name** | API: Price sort – swap last two items |
 | **Description** | When the product list is sorted by **Price (low to high)** the last two products silently swap their positions. All other sort orders are unaffected. |
 | **Supports `failureRate`** | No |
-| **Affected area** | Product grid — "Price (low to high)" sort option |
+| **Affected area** | `GET /products` sort pipeline (`sort=price-asc`) |
 
 ---
 
 ### `sort_name_desc_swap_last_two`
 | | |
 |---|---|
-| **Level** | UI |
-| **Name** | UI: Name Z-A sort – swap last two items |
+| **Level** | API |
+| **Name** | API: Name Z-A sort – swap last two items |
 | **Description** | When the product list is sorted by **Name (Z-A)** the last two products silently swap their positions. All other sort orders are unaffected. |
 | **Supports `failureRate`** | No |
-| **Affected area** | Product grid — "Name (Z-A)" sort option |
+| **Affected area** | `GET /products` sort pipeline (`sort=name-desc`) |
 
 ---
 

@@ -11,3 +11,8 @@ export async function getActiveUiFaultConfigs(): Promise<
   return data.faults ?? [];
 }
 
+export async function callInjectErrorEndpoint(lang: string): Promise<void> {
+  const l = lang.startsWith("cs") ? "cs" : "en";
+  await fetch(`${API_BASE_URL}/faults/inject-error?lang=${encodeURIComponent(l)}`);
+}
+

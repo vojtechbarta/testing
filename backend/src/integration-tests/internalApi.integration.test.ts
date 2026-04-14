@@ -179,6 +179,19 @@ describe("Internal API (frontend contract)", () => {
     expect(p1?.name).toBe("Bezdrátová myš M200");
   });
 
+  it("GET /faults/inject-error returns 400 with Czech message when lang=cs", async () => {
+    const res = await request(app)
+      .get("/faults/inject-error")
+      .query({ lang: "cs" })
+      .expect(400);
+    expect(res.body).toEqual({ message: "tohle je bug" });
+  });
+
+  it("GET /faults/inject-error returns 400 with English message by default", async () => {
+    const res = await request(app).get("/faults/inject-error").expect(400);
+    expect(res.body).toEqual({ message: "this is bug" });
+  });
+
   it("GET /products default lang en returns EUR display prices when seed EUR→CZK rate exists", async () => {
     const res = await request(app).get("/products").expect(200);
     const { products } = res.body as {

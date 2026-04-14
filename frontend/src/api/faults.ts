@@ -18,7 +18,16 @@ export async function getAdminFaults(token: string): Promise<AdminFault[]> {
   });
 
   if (!res.ok) {
-    throw new Error(`Failed to load faults (${res.status})`);
+    let message = `Failed to load faults (${res.status})`;
+    try {
+      const body = (await res.json()) as { message?: string };
+      if (body?.message) {
+        message = `${body.message} (${res.status})`;
+      }
+    } catch {
+      /* ignore body parse failures */
+    }
+    throw new Error(message);
   }
 
   return res.json();

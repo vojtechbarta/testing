@@ -23,7 +23,7 @@ import {
   updateAdminFault,
   type AdminFault,
 } from "./api/faults";
-import { getActiveUiFaultConfigs } from "./api/uiFaults";
+import { callInjectErrorEndpoint, getActiveUiFaultConfigs } from "./api/uiFaults";
 import { getProductImageSrcById } from "./productImages";
 import {
   checkoutBankTransfer,
@@ -68,6 +68,15 @@ function mergePriceFilterFromBounds(
   return { min: nextMin, max: nextMax };
 }
 
+function isAuth401Error(err: unknown): boolean {
+  return (
+    err instanceof Error &&
+    (/\(401\)/.test(err.message) ||
+      /unauthorized/i.test(err.message) ||
+      /invalid or expired token/i.test(err.message))
+  );
+}
+
 function App() {
   const { t, i18n } = useTranslation();
   const [products, setProducts] = useState<Product[]>([]);
@@ -88,6 +97,10 @@ function App() {
     column: keyof AdminProduct;
     direction: "asc" | "desc";
   }>({ column: "id", direction: "asc" });
+  const [adminFaultSort, setAdminFaultSort] = useState<{
+    column: "key" | "name";
+    direction: "asc" | "desc";
+  }>({ column: "key", direction: "asc" });
   const [adminRole, setAdminRole] = useState<string | null>(() =>
     localStorage.getItem("adminRole"),
   );
@@ -299,6 +312,12 @@ function App() {
     (f) => f.key === "grid_non_chrome_broken",
   );
   const usebrokenGrid = gridBrokenFaultActive && !isChrome;
+  const consoleErrorEveryMinuteFaultActive = activeUiFaultConfigs.some(
+    (f) => f.key === "console_error_every_minute",
+  );
+  const injectErrorNetworkEveryMinuteFaultActive = activeUiFaultConfigs.some(
+    (f) => f.key === "networ_inject_api_fail_every minute",
+  );
 
   const uiDoubleAddAlways = uiDoubleAddFailureRate >= 1;
 
@@ -324,6 +343,29 @@ function App() {
     priceFilter != null &&
     priceFilter.min <= catalogPriceBounds.min &&
     priceFilter.max >= catalogPriceBounds.max;
+
+  useEffect(() => {
+    if (!consoleErrorEveryMinuteFaultActive) {
+      return;
+    }
+    const msg = shopLang === "cs" ? "toto je error" : "this is error";
+    const id = window.setInterval(() => {
+      // Fault injection intentionally writes to console.
+      // eslint-disable-next-line no-console
+      console.error(msg);
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, [consoleErrorEveryMinuteFaultActive, shopLang]);
+
+  useEffect(() => {
+    if (!injectErrorNetworkEveryMinuteFaultActive) {
+      return;
+    }
+    const id = window.setInterval(() => {
+      void callInjectErrorEndpoint(shopLang);
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, [injectErrorNetworkEveryMinuteFaultActive, shopLang]);
 
   useEffect(() => {
     const sync = () => {
@@ -553,6 +595,17 @@ function App() {
       const faultsData = await getAdminFaults(adminToken);
       setAdminFaults(faultsData);
     } catch (err) {
+      if (isAuth401Error(err)) {
+        setAdminToken(null);
+        localStorage.removeItem("adminToken");
+        setAdminRole(null);
+        localStorage.removeItem("adminRole");
+        setAdminProducts([]);
+        setAdminFaults([]);
+        setAdminError(null);
+        setAdminLoginError(t("errors.sessionExpired"));
+        return;
+      }
       setAdminError(
         err instanceof Error ? err.message : t("errors.loadFaultsFailed"),
       );
@@ -669,6 +722,27 @@ function App() {
       return "↕";
     }
     return adminSort.direction === "asc" ? "↑" : "↓";
+  };
+
+  const sortedAdminFaults = [...adminFaults].sort((a, b) => {
+    const dir = adminFaultSort.direction === "asc" ? 1 : -1;
+    const col = adminFaultSort.column;
+    return a[col].localeCompare(b[col], "cs") * dir;
+  });
+
+  const handleAdminFaultSort = (column: "key" | "name") => {
+    setAdminFaultSort((prev) =>
+      prev.column === column
+        ? { column, direction: prev.direction === "asc" ? "desc" : "asc" }
+        : { column, direction: "asc" },
+    );
+  };
+
+  const getFaultSortArrow = (column: "key" | "name") => {
+    if (adminFaultSort.column !== column) {
+      return "↕";
+    }
+    return adminFaultSort.direction === "asc" ? "↑" : "↓";
   };
 
   const handleAdminSaveProduct = async (product: AdminProduct) => {
@@ -1144,8 +1218,24 @@ function App() {
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>{t("faults.thKey")}</th>
-                        <th>{t("faults.thName")}</th>
+                        <th>
+                          <button
+                            type="button"
+                            onClick={() => handleAdminFaultSort("key")}
+                            className="sort-btn"
+                          >
+                            {t("faults.thKey")} {getFaultSortArrow("key")}
+                          </button>
+                        </th>
+                        <th>
+                          <button
+                            type="button"
+                            onClick={() => handleAdminFaultSort("name")}
+                            className="sort-btn"
+                          >
+                            {t("faults.thName")} {getFaultSortArrow("name")}
+                          </button>
+                        </th>
                         <th>{t("faults.thDescription")}</th>
                         <th>{t("faults.thLevel")}</th>
                         <th>{t("faults.thEnabled")}</th>
@@ -1154,7 +1244,7 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {adminFaults.map((f) => (
+                      {sortedAdminFaults.map((f) => (
                         <tr key={f.key}>
                           <td>{f.key}</td>
                           <td>

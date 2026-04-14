@@ -91,6 +91,50 @@ async function main() {
   });
 
   await prisma.faultConfig.upsert({
+    where: { key: "console_error_every_minute" },
+    update: {
+      name: "UI: Console error every minute",
+      description:
+        'Logs a console error every 60 seconds ("toto je error" / "this is error") to verify testers watch DevTools Console.',
+      level: FaultLevel.UI,
+      latencyMs: null,
+      failureRate: null,
+    },
+    create: {
+      key: "console_error_every_minute",
+      name: "UI: Console error every minute",
+      description:
+        'Logs a console error every 60 seconds ("toto je error" / "this is error") to verify testers watch DevTools Console.',
+      level: FaultLevel.UI,
+      enabled: false,
+      latencyMs: null,
+      failureRate: null,
+    },
+  });
+
+  await prisma.faultConfig.upsert({
+    where: { key: "networ_inject_api_fail_every minute" },
+    update: {
+      name: "UI/API: Inject error network call every minute",
+      description:
+        'Triggers GET /faults/inject-error every 60 seconds from frontend when enabled; endpoint responds 400 with localized message ("tohle je bug" / "this is bug").',
+      level: FaultLevel.UI,
+      latencyMs: null,
+      failureRate: null,
+    },
+    create: {
+      key: "networ_inject_api_fail_every minute",
+      name: "UI/API: Inject error network call every minute",
+      description:
+        'Triggers GET /faults/inject-error every 60 seconds from frontend when enabled; endpoint responds 400 with localized message ("tohle je bug" / "this is bug").',
+      level: FaultLevel.UI,
+      enabled: false,
+      latencyMs: null,
+      failureRate: null,
+    },
+  });
+
+  await prisma.faultConfig.upsert({
     where: { key: "cart_add_api_double_quantity_payload" },
     update: {
       name: "API: Doubled cart quantity delta",
@@ -159,19 +203,19 @@ async function main() {
   await prisma.faultConfig.upsert({
     where: { key: "sort_price_asc_swap_last_two" },
     update: {
-      name: "UI: Price sort – swap last two items",
+      name: "API: Price sort – swap last two items",
       description:
         "When sorting by Price (low to high) the last two products silently swap their positions.",
-      level: FaultLevel.UI,
+      level: FaultLevel.API,
       latencyMs: null,
       failureRate: null,
     },
     create: {
       key: "sort_price_asc_swap_last_two",
-      name: "UI: Price sort – swap last two items",
+      name: "API: Price sort – swap last two items",
       description:
         "When sorting by Price (low to high) the last two products silently swap their positions.",
-      level: FaultLevel.UI,
+      level: FaultLevel.API,
       enabled: false,
       latencyMs: null,
       failureRate: null,
@@ -181,19 +225,19 @@ async function main() {
   await prisma.faultConfig.upsert({
     where: { key: "sort_name_desc_swap_last_two" },
     update: {
-      name: "UI: Name Z-A sort – swap last two items",
+      name: "API: Name Z-A sort – swap last two items",
       description:
         "When sorting by Name (Z-A) the last two products silently swap their positions.",
-      level: FaultLevel.UI,
+      level: FaultLevel.API,
       latencyMs: null,
       failureRate: null,
     },
     create: {
       key: "sort_name_desc_swap_last_two",
-      name: "UI: Name Z-A sort – swap last two items",
+      name: "API: Name Z-A sort – swap last two items",
       description:
         "When sorting by Name (Z-A) the last two products silently swap their positions.",
-      level: FaultLevel.UI,
+      level: FaultLevel.API,
       enabled: false,
       latencyMs: null,
       failureRate: null,

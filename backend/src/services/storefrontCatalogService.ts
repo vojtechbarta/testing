@@ -118,10 +118,10 @@ export async function getStorefrontCatalog(params: {
   const sorted = sortStorefrontProducts(filtered, params.sort, params.lang);
 
   const faultKeys = new Set<string>();
-  if (await isFaultEnabled(FAULT_KEYS.uiSortPriceAscSwapLastTwo)) {
+  if (await isFaultEnabled(FAULT_KEYS.apiSortPriceAscSwapLastTwo)) {
     faultKeys.add("sort_price_asc_swap_last_two");
   }
-  if (await isFaultEnabled(FAULT_KEYS.uiSortNameDescSwapLastTwo)) {
+  if (await isFaultEnabled(FAULT_KEYS.apiSortNameDescSwapLastTwo)) {
     faultKeys.add("sort_name_desc_swap_last_two");
   }
 

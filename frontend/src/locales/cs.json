@@ -158,6 +158,7 @@
     "mockPaymentFailed": "Mock platba selhala",
     "loadProductsFailed": "Nepodařilo se načíst produkty",
     "loadFaultsFailed": "Nepodařilo se načíst chyby",
+    "sessionExpired": "Relace vypršela. Přihlaste se prosím znovu.",
     "loginFailed": "Přihlášení selhalo",
     "productSaveFailed": "Uložení produktu selhalo",
     "productCreationFailed": "Vytvoření produktu selhalo",

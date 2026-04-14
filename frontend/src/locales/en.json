@@ -158,6 +158,7 @@
     "mockPaymentFailed": "Mock payment failed",
     "loadProductsFailed": "Failed to load products",
     "loadFaultsFailed": "Failed to load faults",
+    "sessionExpired": "Session expired. Please sign in again.",
     "loginFailed": "Login failed",
     "productSaveFailed": "Product save failed",
     "productCreationFailed": "Product creation failed",
