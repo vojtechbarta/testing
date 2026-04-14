@@ -41,6 +41,17 @@ Each fault is **disabled by default**. Enabling/disabling takes effect within ~1
 
 ---
 
+### `checkout_email_wrong_language`
+| | |
+|---|---|
+| **Level** | API |
+| **Name** | API: Checkout email in wrong language |
+| **Description** | The bank-transfer checkout route sends confirmation email content in the opposite language than the selected storefront language (**EN↔CS**). |
+| **Supports `failureRate`** | Yes — when set, the language flip triggers probabilistically |
+| **Affected area** | `POST /checkout/bank-transfer` → confirmation email subject/body |
+
+---
+
 ### `cart_add_unit_double_quantity_persist`
 | | |
 |---|---|

@@ -17,6 +17,7 @@ const app = createApp();
 const CART_SESSION = "aaaaaaaa-bbbb-4ccc-bddd-000000000001";
 const CART_SESSION_SINGLE_ITEM = "aaaaaaaa-bbbb-4ccc-bddd-000000000002";
 const CART_SESSION_LANG_CS = "aaaaaaaa-bbbb-4ccc-bddd-000000000003";
+const CART_SESSION_CHECKOUT_CS = "aaaaaaaa-bbbb-4ccc-bddd-000000000004";
 
 describe("Internal API (frontend contract)", () => {
   let seededProductId: number;
@@ -41,7 +42,12 @@ describe("Internal API (frontend contract)", () => {
     await prisma.cartItem.deleteMany({
       where: {
         cartKey: {
-          in: [CART_SESSION, CART_SESSION_SINGLE_ITEM, CART_SESSION_LANG_CS],
+          in: [
+            CART_SESSION,
+            CART_SESSION_SINGLE_ITEM,
+            CART_SESSION_LANG_CS,
+            CART_SESSION_CHECKOUT_CS,
+          ],
         },
       },
     });
@@ -258,6 +264,38 @@ describe("Internal API (frontend contract)", () => {
       .expect(200);
 
     expect(getRes.body).toEqual(postRes.body);
+  });
+
+  it("POST /checkout/bank-transfer?lang=cs returns Czech message and Czech dummy bank note", async () => {
+    await request(app)
+      .post("/cart/items")
+      .set("Content-Type", "application/json")
+      .set("X-Cart-Session", CART_SESSION_CHECKOUT_CS)
+      .query({ lang: "cs" })
+      .send({ productId: 1, quantity: 1 })
+      .expect(200);
+
+    const res = await request(app)
+      .post("/checkout/bank-transfer")
+      .set("Content-Type", "application/json")
+      .set("X-Cart-Session", CART_SESSION_CHECKOUT_CS)
+      .query({ lang: "cs" })
+      .send({
+        customerEmail: "checkout-cs@example.test",
+        customerFirstName: "Jan",
+        customerLastName: "Novak",
+        customerPhone: "+420123456789",
+      })
+      .expect(201);
+
+    const body = res.body as {
+      message: string;
+      bankTransfer: { note: string };
+    };
+    expect(body.message).toMatch(
+      /Zpráva byla odeslána do Ethereal|Potvrzovací e-mail k objednávce byl odeslán|Objednávka byla vytvořena/,
+    );
+    expect(body.bankTransfer.note).toContain("DUMMY PLATEBNÍ ÚDAJE");
   });
 
   // Cart API requires a valid UUID in X-Cart-Session; missing header must fail fast with 400.

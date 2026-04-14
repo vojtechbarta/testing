@@ -2,6 +2,7 @@ import prisma from "../db/prisma";
 import { isFaultEnabled } from "../faults/faultService";
 import { OrderStatus, PaymentMethod, Prisma } from "@prisma/client";
 import { loadMockPaymentOutcomeForEmail } from "./mockPaymentConfigService";
+import type { StorefrontLang } from "../shop/storefrontMoney";
 
 export type { MockPayOutcome } from "./mockPaymentConfigService";
 
@@ -343,17 +344,25 @@ export function buildDummyBankTransferInfo(order: {
   id: number;
   total: number;
   currency?: { code: string } | null;
+  lang?: StorefrontLang;
 }) {
   const currencyCode = order.currency?.code ?? "CZK";
+  const lang: StorefrontLang = order.lang === "cs" ? "cs" : "en";
   return {
     beneficiary: "AI Testing Shop Demo s.r.o.",
     iban: "CZ65 0800 0000 1920 0014 5399",
     bic: "GIBACZPX",
-    bankName: "Czech Demo Bank N.A. (fictitious)",
+    bankName:
+      lang === "cs"
+        ? "Czech Demo Bank N.A. (fiktivní)"
+        : "Czech Demo Bank N.A. (fictitious)",
     variableSymbol: String(900_000_000 + order.id),
     specificSymbol: "AITEST",
     constantSymbol: "0308",
     amount: { value: order.total, currencyCode },
-    note: "DUMMY PAYMENT DETAILS — do not send real money. For demo / testing only.",
+    note:
+      lang === "cs"
+        ? "DUMMY PLATEBNÍ ÚDAJE — neposílejte skutečné peníze. Pouze pro demo / testování."
+        : "DUMMY PAYMENT DETAILS — do not send real money. For demo / testing only.",
   };
 }

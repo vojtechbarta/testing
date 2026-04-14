@@ -113,6 +113,28 @@ async function main() {
   });
 
   await prisma.faultConfig.upsert({
+    where: { key: "checkout_email_wrong_language" },
+    update: {
+      name: "API: Checkout email in wrong language",
+      description:
+        "The checkout route sends the bank-transfer confirmation email in the opposite language than the selected storefront language (EN↔CS).",
+      level: FaultLevel.API,
+      latencyMs: null,
+      failureRate: null,
+    },
+    create: {
+      key: "checkout_email_wrong_language",
+      name: "API: Checkout email in wrong language",
+      description:
+        "The checkout route sends the bank-transfer confirmation email in the opposite language than the selected storefront language (EN↔CS).",
+      level: FaultLevel.API,
+      enabled: false,
+      latencyMs: null,
+      failureRate: null,
+    },
+  });
+
+  await prisma.faultConfig.upsert({
     where: { key: "cart_add_unit_double_quantity_persist" },
     update: {
       name: "Backend/DB: Doubled cart quantity delta",

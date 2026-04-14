@@ -465,7 +465,7 @@ function App() {
     setCheckoutBusy(true);
     try {
       if (paymentChoice === "bank") {
-        const res = await checkoutBankTransfer(buyerForm);
+        const res = await checkoutBankTransfer(buyerForm, shopLang);
         setBankTransferInfo(res.bankTransfer);
         setBankEmailInfo({
           message: res.message,
@@ -477,7 +477,7 @@ function App() {
         await refreshShopData();
         setCheckoutStep("bankResult");
       } else {
-        const res = await checkoutGatewayInit(buyerForm);
+        const res = await checkoutGatewayInit(buyerForm, shopLang);
         setGatewayOrderId(res.order.id);
         setCheckoutStep("gatewayPay");
       }

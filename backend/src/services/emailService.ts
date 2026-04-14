@@ -19,6 +19,8 @@ export type BankTransferMailInfo = {
   note: string;
 };
 
+export type MailLang = "en" | "cs";
+
 export type SendBankTransferMailResult =
   | { sent: true; previewUrl?: string }
   | { sent: false; error: string };
@@ -124,9 +126,9 @@ function escapeHtml(s: string) {
     .replace(/"/g, "&quot;");
 }
 
-function formatMoney(amount: number, code: string) {
+function formatMoney(amount: number, code: string, lang: MailLang) {
   try {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat(lang === "cs" ? "cs-CZ" : "en-US", {
       style: "currency",
       currency: code,
     }).format(amount);
@@ -138,39 +140,80 @@ function formatMoney(amount: number, code: string) {
 function buildOrderSummaryHtml(
   order: OrderWithLines,
   bank: BankTransferMailInfo,
+  lang: MailLang,
 ) {
+  const i18n =
+    lang === "cs"
+      ? {
+          title: "Potvrzení objednávky · AI Testing Shop (demo)",
+          intro:
+            "Děkujeme za objednávku. Toto je testovací storefront; níže uvedené bankovní údaje jsou pouze dummy, pokud je operátor nenahradil.",
+          orderNumber: "Objednávka",
+          item: "Položka",
+          qty: "Množství",
+          unit: "Jednotka",
+          line: "Řádek",
+          total: "Celkem",
+          bankSection: "Bankovní převod (dummy)",
+          beneficiary: "Příjemce",
+          bank: "Banka",
+          variableSymbol: "Variabilní symbol",
+          amount: "Částka",
+          footer:
+            "Tato zpráva obsahuje HTML + plain text. Reálný obchod by zde mohl přiložit PDF fakturu.",
+        }
+      : {
+          title: "Order confirmation · AI Testing Shop (demo)",
+          intro:
+            "Thank you for your order. This is a test storefront; bank details below are dummy unless your operator replaced them.",
+          orderNumber: "Order",
+          item: "Item",
+          qty: "Qty",
+          unit: "Unit",
+          line: "Line",
+          total: "Total",
+          bankSection: "Bank transfer (dummy)",
+          beneficiary: "Beneficiary",
+          bank: "Bank",
+          variableSymbol: "Variable symbol",
+          amount: "Amount",
+          footer:
+            "This message is HTML + plain text only. A real shop might attach a PDF invoice here.",
+        };
   const currencyCode = order.currency?.code ?? "CZK";
   const lines = order.items
     .map(
-      (i) =>
-        `<tr><td>${escapeHtml(i.product.name)}</td><td style="text-align:right">${i.quantity}×</td><td style="text-align:right">${formatMoney(i.unitPrice, currencyCode)}</td><td style="text-align:right">${formatMoney(i.unitPrice * i.quantity, currencyCode)}</td></tr>`,
+      (i) => {
+        const lineTotal = i.unitPrice * i.quantity;
+        return `<tr><td>${escapeHtml(i.product.name)}</td><td style="text-align:right">${i.quantity}×</td><td style="text-align:right">${formatMoney(i.unitPrice, currencyCode, lang)}</td><td style="text-align:right">${formatMoney(lineTotal, currencyCode, lang)}</td></tr>`;
+      },
     )
     .join("");
 
   return `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>Order #${order.id}</title></head>
+<head><meta charset="utf-8"><title>${i18n.orderNumber} #${order.id}</title></head>
 <body style="font-family:system-ui,sans-serif;line-height:1.5;color:#111">
-  <h1>Order confirmation · AI Testing Shop (demo)</h1>
-  <p>Thank you for your order. <strong>This is a test storefront</strong>; bank details below are dummy unless your operator replaced them.</p>
-  <p><strong>Order #${order.id}</strong></p>
+  <h1>${i18n.title}</h1>
+  <p>${escapeHtml(i18n.intro)}</p>
+  <p><strong>${i18n.orderNumber} #${order.id}</strong></p>
   <table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;max-width:640px">
-    <thead><tr><th>Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit</th><th style="text-align:right">Line</th></tr></thead>
+    <thead><tr><th>${i18n.item}</th><th style="text-align:right">${i18n.qty}</th><th style="text-align:right">${i18n.unit}</th><th style="text-align:right">${i18n.line}</th></tr></thead>
     <tbody>${lines}</tbody>
-    <tfoot><tr><th colspan="3" style="text-align:right">Total</th><th style="text-align:right">${formatMoney(order.total, currencyCode)}</th></tr></tfoot>
+    <tfoot><tr><th colspan="3" style="text-align:right">${i18n.total}</th><th style="text-align:right">${formatMoney(order.total, currencyCode, lang)}</th></tr></tfoot>
   </table>
-  <h2>Bank transfer (dummy)</h2>
+  <h2>${i18n.bankSection}</h2>
   <p style="color:#b45309"><strong>${escapeHtml(bank.note)}</strong></p>
   <table style="max-width:480px">
-    <tr><td>Beneficiary</td><td>${escapeHtml(bank.beneficiary)}</td></tr>
+    <tr><td>${i18n.beneficiary}</td><td>${escapeHtml(bank.beneficiary)}</td></tr>
     <tr><td>IBAN</td><td><code>${escapeHtml(bank.iban)}</code></td></tr>
     <tr><td>BIC</td><td><code>${escapeHtml(bank.bic)}</code></td></tr>
-    <tr><td>Bank</td><td>${escapeHtml(bank.bankName)}</td></tr>
-    <tr><td>Variable symbol</td><td><code>${escapeHtml(bank.variableSymbol)}</code></td></tr>
-    <tr><td>Amount</td><td><strong>${formatMoney(bank.amount.value, bank.amount.currencyCode)}</strong></td></tr>
+    <tr><td>${i18n.bank}</td><td>${escapeHtml(bank.bankName)}</td></tr>
+    <tr><td>${i18n.variableSymbol}</td><td><code>${escapeHtml(bank.variableSymbol)}</code></td></tr>
+    <tr><td>${i18n.amount}</td><td><strong>${formatMoney(bank.amount.value, bank.amount.currencyCode, lang)}</strong></td></tr>
   </table>
-  <p style="margin-top:2rem;font-size:12px;color:#666">This message is HTML + plain text only. A real shop might attach a PDF invoice here.</p>
+  <p style="margin-top:2rem;font-size:12px;color:#666">${escapeHtml(i18n.footer)}</p>
 </body>
 </html>`.trim();
 }
@@ -178,7 +221,24 @@ function buildOrderSummaryHtml(
 function buildOrderSummaryText(
   order: OrderWithLines,
   bank: BankTransferMailInfo,
+  lang: MailLang,
 ) {
+  const i18n =
+    lang === "cs"
+      ? {
+          title: "Objednávka",
+          total: "Celkem",
+          bankTransfer: "Bankovní převod (dummy)",
+          variableSymbol: "Variabilní symbol",
+          amount: "Částka",
+        }
+      : {
+          title: "Order",
+          total: "Total",
+          bankTransfer: "Bank transfer (dummy)",
+          variableSymbol: "Variable symbol",
+          amount: "Amount",
+        };
   const currencyCode = order.currency?.code ?? "CZK";
   const lines = order.items
     .map(
@@ -187,15 +247,15 @@ function buildOrderSummaryText(
     )
     .join("\n");
   return [
-    `Order #${order.id} · AI Testing Shop (demo)`,
+    `${i18n.title} #${order.id} · AI Testing Shop (demo)`,
     ``,
     lines,
     ``,
-    `Total: ${order.total} ${currencyCode}`,
+    `${i18n.total}: ${order.total} ${currencyCode}`,
     ``,
-    `Bank transfer (dummy): ${bank.note}`,
-    `IBAN: ${bank.iban}  Variable symbol: ${bank.variableSymbol}`,
-    `Amount: ${bank.amount.value} ${bank.amount.currencyCode}`,
+    `${i18n.bankTransfer}: ${bank.note}`,
+    `IBAN: ${bank.iban}  ${i18n.variableSymbol}: ${bank.variableSymbol}`,
+    `${i18n.amount}: ${bank.amount.value} ${bank.amount.currencyCode}`,
   ].join("\n");
 }
 
@@ -203,7 +263,9 @@ export async function sendBankTransferOrderEmail(args: {
   to: string;
   order: OrderWithLines;
   bankTransfer: BankTransferMailInfo;
+  lang?: MailLang;
 }): Promise<SendBankTransferMailResult> {
+  const lang: MailLang = args.lang === "cs" ? "cs" : "en";
   const resolved = await createTransporterAndFrom();
   if (!resolved) {
     return {
@@ -213,14 +275,17 @@ export async function sendBankTransferOrderEmail(args: {
     };
   }
 
-  const html = buildOrderSummaryHtml(args.order, args.bankTransfer);
-  const text = buildOrderSummaryText(args.order, args.bankTransfer);
+  const html = buildOrderSummaryHtml(args.order, args.bankTransfer, lang);
+  const text = buildOrderSummaryText(args.order, args.bankTransfer, lang);
 
   try {
     const info = await resolved.send({
       from: resolved.from,
       to: args.to,
-      subject: `[AI Testing Shop] Order #${args.order.id} · bank transfer instructions`,
+      subject:
+        lang === "cs"
+          ? `[AI Testing Shop] Objednávka #${args.order.id} · pokyny k bankovnímu převodu`
+          : `[AI Testing Shop] Order #${args.order.id} · bank transfer instructions`,
       text,
       html,
     });

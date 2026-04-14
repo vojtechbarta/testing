@@ -26,6 +26,7 @@ export type BankTransferDetails = {
 
 export async function checkoutBankTransfer(
   buyer: BuyerFormPayload,
+  lang: string,
 ): Promise<{
   order: unknown;
   bankTransfer: BankTransferDetails;
@@ -35,11 +36,15 @@ export async function checkoutBankTransfer(
   emailError?: string;
   message: string;
 }> {
-  const res = await fetch(`${API_BASE_URL}/checkout/bank-transfer`, {
+  const checkoutLang = lang.startsWith("cs") ? "cs" : "en";
+  const res = await fetch(
+    `${API_BASE_URL}/checkout/bank-transfer?lang=${encodeURIComponent(checkoutLang)}`,
+    {
     method: "POST",
     headers: { "Content-Type": "application/json", ...cartSessionHeaders() },
     body: JSON.stringify(buyer),
-  });
+    },
+  );
   if (!res.ok) {
     let message = `Checkout failed (${res.status})`;
     try {
@@ -55,12 +60,17 @@ export async function checkoutBankTransfer(
 
 export async function checkoutGatewayInit(
   buyer: BuyerFormPayload,
+  lang: string,
 ): Promise<{ order: { id: number }; nextStep: string }> {
-  const res = await fetch(`${API_BASE_URL}/checkout/gateway/init`, {
+  const checkoutLang = lang.startsWith("cs") ? "cs" : "en";
+  const res = await fetch(
+    `${API_BASE_URL}/checkout/gateway/init?lang=${encodeURIComponent(checkoutLang)}`,
+    {
     method: "POST",
     headers: { "Content-Type": "application/json", ...cartSessionHeaders() },
     body: JSON.stringify(buyer),
-  });
+    },
+  );
   if (!res.ok) {
     let message = `Could not start payment (${res.status})`;
     try {
