@@ -44,8 +44,15 @@ export function applySortUiFaultSwap(
       (shopSort === "name-desc" && nameDescFault))
   ) {
     const out = [...sorted];
-    const last = out.length - 1;
-    [out[last - 1], out[last]] = [out[last], out[last - 1]];
+    const i = out.length - 2;
+    const j = out.length - 1;
+    const a = out[i];
+    const b = out[j];
+    if (a === undefined || b === undefined) {
+      return sorted;
+    }
+    out[i] = b;
+    out[j] = a;
     return out;
   }
 
