@@ -11,6 +11,32 @@ function parseStorefrontLang(req: { query: Record<string, unknown> }): Storefron
   return req.query.lang === "cs" ? "cs" : "en";
 }
 
+/**
+ * @openapi
+ * /cart:
+ *   get:
+ *     tags: [Cart]
+ *     summary: Get cart by session header.
+ *     parameters:
+ *       - $ref: '#/components/parameters/CartSessionHeader'
+ *       - in: query
+ *         name: lang
+ *         schema:
+ *           type: string
+ *           enum: [en, cs]
+ *         description: Storefront language used for line names and display money.
+ *     responses:
+ *       200:
+ *         description: Cart DTO.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Cart' }
+ *       400:
+ *         description: Invalid session key.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ */
 router.get("/", async (req, res, next) => {
   try {
     const cartKey = requireCartSessionIdHeader(req.get("x-cart-session"));
@@ -22,6 +48,41 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+/**
+ * @openapi
+ * /cart/items:
+ *   post:
+ *     tags: [Cart]
+ *     summary: Add/update/remove a cart line by absolute quantity.
+ *     parameters:
+ *       - $ref: '#/components/parameters/CartSessionHeader'
+ *       - in: query
+ *         name: lang
+ *         schema:
+ *           type: string
+ *           enum: [en, cs]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               productId: { type: integer }
+ *               quantity: { type: integer }
+ *             required: [productId, quantity]
+ *     responses:
+ *       200:
+ *         description: Updated cart DTO.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Cart' }
+ *       400:
+ *         description: Validation/service error.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ */
 router.post("/items", async (req, res, next) => {
   try {
     const cartKey = requireCartSessionIdHeader(req.get("x-cart-session"));

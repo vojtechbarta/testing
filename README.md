@@ -142,6 +142,22 @@ V prohlížeči otevřete **http://localhost:5173** (nebo `http://127.0.0.1:5173
 
 **„Failed to fetch“ v dev režimu:** API musí běžet na **:4000** před otevřením UI. Ve vývoji Vite **proxy** přeposílá `/products`, `/cart`, `/auth`, … na backend, takže prohlížeč volá stejný origin jako stránka a nespoléhá na shodu `localhost` vs `127.0.0.1`. V neprodukčním backendu je CORS nastavené na **dynamický origin** (`origin: true`).
 
+### API dokumentace (Swagger / OpenAPI)
+
+Po spuštění backendu jsou dostupné:
+
+- **Swagger UI:** `http://localhost:4000/docs`
+- **Raw OpenAPI JSON:** `http://localhost:4000/docs-json`
+
+Specifikace se generuje z OpenAPI anotací přímo v route souborech (`backend/src/routes/*.ts`).
+
+Volitelně lze exportovat statický soubor:
+
+```bash
+cd backend
+npm run docs:openapi   # vytvoří backend/openapi.json
+```
+
 ---
 
 ## Testy

@@ -13,6 +13,28 @@ const router = Router();
 
 router.use(roleAuth([UserRole.ADMIN]));
 
+/**
+ * @openapi
+ * /admin/products:
+ *   get:
+ *     tags: [Products]
+ *     summary: List all products for admin editing.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Product list for admin.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items: { $ref: '#/components/schemas/Product' }
+ *       401:
+ *         description: Unauthorized.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ */
 router.get("/", async (_req, res, next) => {
   try {
     const products = await getAllProductsForAdmin();
@@ -22,6 +44,44 @@ router.get("/", async (_req, res, next) => {
   }
 });
 
+/**
+ * @openapi
+ * /admin/products:
+ *   post:
+ *     tags: [Products]
+ *     summary: Create product as admin.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: { type: string }
+ *               description: { type: string }
+ *               inStock: { type: integer }
+ *               active: { type: boolean }
+ *               price:
+ *                 type: object
+ *                 properties:
+ *                   amount: { type: number }
+ *                   currencyCode: { type: string, example: CZK }
+ *                 required: [amount, currencyCode]
+ *             required: [name, description, inStock, active, price]
+ *     responses:
+ *       201:
+ *         description: Product created.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Product' }
+ *       400:
+ *         description: Invalid payload.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ */
 router.post("/", async (req, res, next) => {
   try {
     const { name, description, price, inStock, active } = req.body as {
@@ -54,6 +114,44 @@ router.post("/", async (req, res, next) => {
   }
 });
 
+/**
+ * @openapi
+ * /admin/products/{id}:
+ *   put:
+ *     tags: [Products]
+ *     summary: Update product by id as admin.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: { type: string }
+ *               description: { type: string }
+ *               inStock: { type: integer }
+ *               active: { type: boolean }
+ *               price:
+ *                 type: object
+ *                 properties:
+ *                   amount: { type: number }
+ *                   currencyCode: { type: string, example: CZK }
+ *                 required: [amount, currencyCode]
+ *             required: [name, description, inStock, active, price]
+ *     responses:
+ *       200:
+ *         description: Product updated.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Product' }
+ */
 router.put("/:id", async (req, res, next) => {
   try {
     const id = Number(req.params.id);
@@ -87,6 +185,33 @@ router.put("/:id", async (req, res, next) => {
   }
 });
 
+/**
+ * @openapi
+ * /admin/products/{id}:
+ *   delete:
+ *     tags: [Products]
+ *     summary: Delete product by id as admin.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       204:
+ *         description: Product deleted.
+ *       400:
+ *         description: Invalid id.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ *       404:
+ *         description: Product not found.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ */
 router.delete("/:id", async (req, res, next) => {
   try {
     const id = Number(req.params.id);

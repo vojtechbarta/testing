@@ -6,6 +6,56 @@ import bcrypt from "bcrypt";
 
 const router = Router();
 
+/**
+ * @openapi
+ * /auth/login:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Login as seeded admin or tester user.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 enum: [admin, tester]
+ *               password:
+ *                 type: string
+ *             required: [username, password]
+ *     responses:
+ *       200:
+ *         description: Login succeeded.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id: { type: integer }
+ *                     email: { type: string }
+ *                     role:
+ *                       type: string
+ *                       enum: [ADMIN, TESTER]
+ *                   required: [id, email, role]
+ *               required: [token, user]
+ *       400:
+ *         description: Missing credentials.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ *       401:
+ *         description: Invalid credentials.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ */
 router.post("/login", async (req, res, next) => {
   try {
     const { username, password } = req.body as {

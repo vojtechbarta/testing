@@ -46,6 +46,50 @@ function parseBuyer(body: Record<string, unknown>): BuyerPayload {
   };
 }
 
+/**
+ * @openapi
+ * /checkout/bank-transfer:
+ *   post:
+ *     tags: [Checkout]
+ *     summary: Finalize order via bank transfer flow and send confirmation email.
+ *     parameters:
+ *       - $ref: '#/components/parameters/CartSessionHeader'
+ *       - in: query
+ *         name: lang
+ *         schema:
+ *           type: string
+ *           enum: [en, cs]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               customerEmail: { type: string, format: email }
+ *               customerFirstName: { type: string }
+ *               customerLastName: { type: string }
+ *               customerPhone: { type: string }
+ *               addressLine1: { type: string }
+ *               addressLine2: { type: string }
+ *               city: { type: string }
+ *               postalCode: { type: string }
+ *               country: { type: string }
+ *             required:
+ *               [customerEmail, customerFirstName, customerLastName, customerPhone]
+ *     responses:
+ *       201:
+ *         description: Order created with bank transfer details.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       400:
+ *         description: Cart or validation error.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ */
 router.post("/bank-transfer", async (req, res, next) => {
   try {
     const cartKey = requireCartSessionIdHeader(req.get("x-cart-session"));
@@ -119,6 +163,40 @@ router.post("/bank-transfer", async (req, res, next) => {
   }
 });
 
+/**
+ * @openapi
+ * /checkout/gateway/init:
+ *   post:
+ *     tags: [Checkout]
+ *     summary: Initialize payment gateway checkout and create/reuse pending order.
+ *     parameters:
+ *       - $ref: '#/components/parameters/CartSessionHeader'
+ *       - in: query
+ *         name: lang
+ *         schema:
+ *           type: string
+ *           enum: [en, cs]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               customerEmail: { type: string, format: email }
+ *               customerFirstName: { type: string }
+ *               customerLastName: { type: string }
+ *               customerPhone: { type: string }
+ *             required:
+ *               [customerEmail, customerFirstName, customerLastName, customerPhone]
+ *     responses:
+ *       201:
+ *         description: Pending gateway order initialized.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ */
 router.post("/gateway/init", async (req, res, next) => {
   try {
     const cartKey = requireCartSessionIdHeader(req.get("x-cart-session"));
@@ -135,6 +213,25 @@ router.post("/gateway/init", async (req, res, next) => {
   }
 });
 
+/**
+ * @openapi
+ * /checkout/gateway/{orderId}/mock-pay:
+ *   post:
+ *     tags: [Checkout]
+ *     summary: Simulate gateway capture for a pending order.
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Mock gateway result.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ */
 router.post("/gateway/:orderId/mock-pay", async (req, res, next) => {
   try {
     const orderId = Number(req.params.orderId);

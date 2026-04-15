@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import swaggerUi from "swagger-ui-express";
 import productsRouter from "./routes/products";
 import ordersRouter from "./routes/orders";
 import cartRouter from "./routes/cart";
@@ -10,6 +11,7 @@ import adminFaultsRouter from "./routes/adminFaults";
 import uiFaultsRouter from "./routes/uiFaults";
 import checkoutRouter from "./routes/checkout";
 import exchangeRatesRouter from "./routes/exchangeRates";
+import { openApiSpec } from "./docs/openapi";
 
 /** Vite dev server may be opened as localhost or 127.0.0.1 — both must be allowed (Playwright uses 127.0.0.1 by default). */
 const FRONTEND_DEV_ORIGINS = [
@@ -44,9 +46,54 @@ export function createApp(): express.Express {
 
   app.use(express.json());
 
+  /**
+   * @openapi
+   * /health:
+   *   get:
+   *     tags: [System]
+   *     summary: Liveness probe endpoint.
+   *     responses:
+   *       200:
+   *         description: Service is healthy.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 status: { type: string, example: ok }
+   *               required: [status]
+   */
   app.get("/health", (_req, res) => {
     res.json({ status: "ok" });
   });
+  /**
+   * @openapi
+   * /docs-json:
+   *   get:
+   *     tags: [System]
+   *     summary: Generated OpenAPI JSON document.
+   *     responses:
+   *       200:
+   *         description: OpenAPI specification.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   */
+  app.get("/docs-json", (_req, res) => {
+    res.json(openApiSpec);
+  });
+  /**
+   * @openapi
+   * /docs:
+   *   get:
+   *     tags: [System]
+   *     summary: Interactive Swagger UI.
+   *     responses:
+   *       200:
+   *         description: HTML Swagger UI page.
+   */
+  app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiSpec));
 
   app.use("/auth", authRouter);
   app.use("/products", productsRouter);

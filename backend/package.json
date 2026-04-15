@@ -13,7 +13,8 @@
     "start:azure": "prisma migrate deploy && node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prisma:seed": "ts-node-dev --transpile-only prisma/seed.ts"
+    "prisma:seed": "ts-node-dev --transpile-only prisma/seed.ts",
+    "docs:openapi": "ts-node-dev --transpile-only src/docs/exportOpenApi.ts"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +26,8 @@
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.5.0",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
@@ -32,6 +35,8 @@
     "jsonwebtoken": "^9.0.3",
     "nodemailer": "^8.0.3",
     "prisma": "^5.19.1",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3"
   },
