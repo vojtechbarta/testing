@@ -143,12 +143,14 @@ else
 
   if az containerapp show -g "$RG" -n "$CA_NAME" &>/dev/null; then
     echo "Updating existing Container App (image + secrets + env refs)..."
+    az containerapp registry set -g "$RG" -n "$CA_NAME" \
+      --server "$ACR_LOGIN" \
+      --username "$ACR_USER" \
+      --password "$ACR_PW"
+    az containerapp secret set -g "$RG" -n "$CA_NAME" \
+      --secrets "database-url=${DATABASE_URL}" "jwt-secret=${JWT_SECRET}"
     az containerapp update -g "$RG" -n "$CA_NAME" \
       --image "$IMAGE" \
-      --registry-server "$ACR_LOGIN" \
-      --registry-username "$ACR_USER" \
-      --registry-password "$ACR_PW" \
-      --secrets "database-url=${DATABASE_URL}" "jwt-secret=${JWT_SECRET}" \
       --set-env-vars \
         "DATABASE_URL=secretref:database-url" \
         "ADMIN_JWT_SECRET=secretref:jwt-secret" \
