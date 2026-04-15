@@ -44,16 +44,37 @@ jobs:
             exit 1
           fi
 
+          retry_http_get() {
+            local url="$1"
+            local output="$2"
+            local attempts="${3:-30}"
+            local sleep_seconds="${4:-10}"
+            local i
+            for ((i=1; i<=attempts; i+=1)); do
+              if curl -fsS "$url" -o "$output"; then
+                echo "GET ok: $url (attempt $i/$attempts)"
+                return 0
+              fi
+              echo "GET not ready: $url (attempt $i/$attempts), waiting ${sleep_seconds}s..."
+              sleep "$sleep_seconds"
+            done
+            echo "GET failed after ${attempts} attempts: $url" >&2
+            return 1
+          }
+
           echo "Smoke: $API_URL/health"
-          curl -fsS "$API_URL/health" | tee /tmp/health.json
+          retry_http_get "$API_URL/health" /tmp/health.json 36 10
+          cat /tmp/health.json
           grep -q '"status":"ok"' /tmp/health.json
 
           echo "Smoke: $API_URL/exchange-rates"
-          curl -fsS "$API_URL/exchange-rates" | tee /tmp/exchange-rates.json
+          retry_http_get "$API_URL/exchange-rates" /tmp/exchange-rates.json 18 5
+          cat /tmp/exchange-rates.json
           node -e 'const fs=require("fs"); const d=JSON.parse(fs.readFileSync("/tmp/exchange-rates.json","utf8")); if(!Array.isArray(d)){throw new Error("/exchange-rates must return an array")}'
 
           echo "Smoke: $API_URL/products?lang=en&sort=name-asc"
-          curl -fsS "$API_URL/products?lang=en&sort=name-asc" | tee /tmp/products.json
+          retry_http_get "$API_URL/products?lang=en&sort=name-asc" /tmp/products.json 18 5
+          cat /tmp/products.json
           node -e 'const fs=require("fs"); const d=JSON.parse(fs.readFileSync("/tmp/products.json","utf8")); if(!d || !Array.isArray(d.products) || !d.priceBounds || typeof d.priceBounds.min!=="number" || typeof d.priceBounds.max!=="number" || typeof d.priceBounds.currencyCode!=="string"){throw new Error("/products response shape mismatch: expected {products, priceBounds}")}'
 
           if [[ -n "${STATIC_WEB_APP_URL:-}" ]]; then
