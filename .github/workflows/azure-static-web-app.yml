@@ -15,10 +15,49 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Azure login (resolve API URL)
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Resolve VITE_API_BASE_URL from Container App
+        env:
+          AZURE_RG: ${{ vars.AZURE_RG }}
+          AZURE_BASE_NAME: ${{ vars.AZURE_BASE_NAME }}
+          API_URL_FALLBACK: ${{ vars.VITE_API_BASE_URL }}
+        run: |
+          set -euo pipefail
+          NAME_PREFIX="${AZURE_BASE_NAME}-api-"
+
+          APP_NAME="$(az containerapp list -g "$AZURE_RG" --query "[?starts_with(name, '${NAME_PREFIX}')].name | [0]" -o tsv)"
+          if [[ -z "${APP_NAME:-}" ]]; then
+            echo "No container app found by prefix '$NAME_PREFIX' in '$AZURE_RG'."
+            if [[ -z "${API_URL_FALLBACK:-}" ]]; then
+              echo "Missing fallback vars.VITE_API_BASE_URL." >&2
+              exit 1
+            fi
+            echo "VITE_API_BASE_URL=${API_URL_FALLBACK}" >>"$GITHUB_ENV"
+            exit 0
+          fi
+
+          API_FQDN="$(az containerapp show -g "$AZURE_RG" -n "$APP_NAME" --query "properties.configuration.ingress.fqdn" -o tsv)"
+          if [[ -z "${API_FQDN:-}" ]]; then
+            echo "Container app '$APP_NAME' has no ingress fqdn."
+            if [[ -z "${API_URL_FALLBACK:-}" ]]; then
+              echo "Missing fallback vars.VITE_API_BASE_URL." >&2
+              exit 1
+            fi
+            echo "VITE_API_BASE_URL=${API_URL_FALLBACK}" >>"$GITHUB_ENV"
+            exit 0
+          fi
+
+          echo "VITE_API_BASE_URL=https://${API_FQDN}" >>"$GITHUB_ENV"
+          echo "Resolved VITE_API_BASE_URL=https://${API_FQDN}"
+
       - name: Build and deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         env:
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_API_BASE_URL: ${{ env.VITE_API_BASE_URL }}
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
