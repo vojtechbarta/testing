@@ -51,14 +51,14 @@ jobs:
             local sleep_seconds="${4:-10}"
             local i
             for ((i=1; i<=attempts; i+=1)); do
-              if curl -fsS "$url" -o "$output"; then
-                echo "GET ok: $url (attempt $i/$attempts)"
+              if curl -fsS --connect-timeout 5 --max-time 20 "$url" -o "$output"; then
+                echo "[$(date -u +%H:%M:%S)] GET ok: $url (attempt $i/$attempts)"
                 return 0
               fi
-              echo "GET not ready: $url (attempt $i/$attempts), waiting ${sleep_seconds}s..."
+              echo "[$(date -u +%H:%M:%S)] GET not ready: $url (attempt $i/$attempts), waiting ${sleep_seconds}s..."
               sleep "$sleep_seconds"
             done
-            echo "GET failed after ${attempts} attempts: $url" >&2
+            echo "[$(date -u +%H:%M:%S)] GET failed after ${attempts} attempts: $url" >&2
             return 1
           }
 
