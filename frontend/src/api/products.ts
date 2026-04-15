@@ -23,6 +23,53 @@ export type StorefrontCatalogResponse = {
   priceBounds: { min: number; max: number; currencyCode: string };
 };
 
+function computeFallbackPriceBounds(products: Product[]): {
+  min: number;
+  max: number;
+  currencyCode: string;
+} {
+  if (products.length === 0) {
+    return { min: 0, max: 0, currencyCode: "CZK" };
+  }
+  const amounts = products.map((p) => p.price.amount);
+  const min = Math.min(...amounts);
+  const max = Math.max(...amounts);
+  const currencyCode = products[0].price.currencyCode || "CZK";
+  return { min, max, currencyCode };
+}
+
+function normalizeCatalogResponse(raw: unknown): StorefrontCatalogResponse {
+  const asRecord =
+    raw !== null && typeof raw === "object"
+      ? (raw as Record<string, unknown>)
+      : null;
+  const products = Array.isArray(asRecord?.products)
+    ? (asRecord.products as Product[])
+    : [];
+
+  const pb =
+    asRecord?.priceBounds !== null &&
+    typeof asRecord?.priceBounds === "object"
+      ? (asRecord.priceBounds as Record<string, unknown>)
+      : null;
+  const hasValidPriceBounds =
+    pb !== null &&
+    typeof pb.min === "number" &&
+    typeof pb.max === "number" &&
+    typeof pb.currencyCode === "string";
+
+  return {
+    products,
+    priceBounds: hasValidPriceBounds
+      ? {
+          min: pb.min as number,
+          max: pb.max as number,
+          currencyCode: pb.currencyCode as string,
+        }
+      : computeFallbackPriceBounds(products),
+  };
+}
+
 /** Storefront catalog: search, locale, sort, price range, and display money are applied on the server. */
 export async function getStorefrontProducts(params: {
   q?: string;
@@ -43,5 +90,6 @@ export async function getStorefrontProducts(params: {
   if (params.priceMax !== undefined) {
     sp.set("priceMax", String(params.priceMax));
   }
-  return apiGet<StorefrontCatalogResponse>(`/products?${sp.toString()}`);
+  const raw = await apiGet<unknown>(`/products?${sp.toString()}`);
+  return normalizeCatalogResponse(raw);
 }

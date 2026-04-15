@@ -29,10 +29,40 @@ jobs:
           AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
           AZURE_SWA_LOCATION: ${{ vars.AZURE_SWA_LOCATION }}
           AZURE_EXISTING_CONTAINER_ENV_ID: ${{ vars.AZURE_EXISTING_CONTAINER_ENV_ID }}
-          AZURE_PREBUILT_API_IMAGE: ${{ vars.AZURE_PREBUILT_API_IMAGE }}
           MYSQL_ADMIN_PASSWORD: ${{ secrets.MYSQL_ADMIN_PASSWORD }}
           ADMIN_JWT_SECRET: ${{ secrets.ADMIN_JWT_SECRET }}
           DEV_CLIENT_IP: ${{ vars.DEV_CLIENT_IP }}
         run: |
           chmod +x azure/deploy.sh
           ./azure/deploy.sh "${{ vars.AZURE_BASE_NAME }}"
+
+      - name: Post-deploy smoke checks
+        run: |
+          set -euo pipefail
+          if [[ -z "${API_URL:-}" ]]; then
+            echo "API_URL is empty after deploy." >&2
+            exit 1
+          fi
+
+          echo "Smoke: $API_URL/health"
+          curl -fsS "$API_URL/health" | tee /tmp/health.json
+          grep -q '"status":"ok"' /tmp/health.json
+
+          echo "Smoke: $API_URL/exchange-rates"
+          curl -fsS "$API_URL/exchange-rates" | tee /tmp/exchange-rates.json
+          node -e 'const fs=require("fs"); const d=JSON.parse(fs.readFileSync("/tmp/exchange-rates.json","utf8")); if(!Array.isArray(d)){throw new Error("/exchange-rates must return an array")}'
+
+          echo "Smoke: $API_URL/products?lang=en&sort=name-asc"
+          curl -fsS "$API_URL/products?lang=en&sort=name-asc" | tee /tmp/products.json
+          node -e 'const fs=require("fs"); const d=JSON.parse(fs.readFileSync("/tmp/products.json","utf8")); if(!d || !Array.isArray(d.products) || !d.priceBounds || typeof d.priceBounds.min!=="number" || typeof d.priceBounds.max!=="number" || typeof d.priceBounds.currencyCode!=="string"){throw new Error("/products response shape mismatch: expected {products, priceBounds}")}'
+
+          if [[ -n "${STATIC_WEB_APP_URL:-}" ]]; then
+            ORIGIN="${STATIC_WEB_APP_URL%/}"
+            echo "Smoke: CORS preflight from $ORIGIN"
+            curl -isS -X OPTIONS "$API_URL/health" \
+              -H "Origin: $ORIGIN" \
+              -H "Access-Control-Request-Method: GET" | tee /tmp/cors.txt >/dev/null
+            grep -qi "^access-control-allow-origin: ${ORIGIN}$" /tmp/cors.txt
+          else
+            echo "Skipping CORS smoke: STATIC_WEB_APP_URL unavailable"
+          fi

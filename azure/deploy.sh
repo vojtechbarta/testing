@@ -111,37 +111,41 @@ else
     exit 1
   fi
 
-  IMAGE="${AZURE_PREBUILT_API_IMAGE:-${ACR_LOGIN}/shop-api:latest}"
-
-  if [[ -n "${AZURE_PREBUILT_API_IMAGE:-}" ]]; then
-    echo "Using existing image (AZURE_PREBUILT_API_IMAGE): $IMAGE"
+  # Use immutable image tag per deploy to avoid stale "latest" pulls on Container Apps revisions.
+  if [[ -n "${GITHUB_SHA:-}" ]]; then
+    IMAGE_TAG="${GITHUB_SHA:0:12}"
   else
-    echo "Publishing API image to $ACR_LOGIN …"
-    if (cd "$ROOT/backend" && az acr build --registry "$ACR_NAME" --resource-group "$RG" --image shop-api:latest .); then
-      :
-    else
-      echo "" >&2
-      echo "az acr build failed. Many subscriptions block ACR cloud builds (TasksOperationsNotAllowed)." >&2
-      echo "Trying local Docker: build linux/amd64 and docker push (install Docker Desktop if needed)." >&2
-      if ! command -v docker >/dev/null 2>&1; then
-        echo "ERROR: Docker is not installed. Options: install Docker Desktop and re-run; or build elsewhere and:" >&2
-        echo "  docker build --platform linux/amd64 -t ${ACR_LOGIN}/shop-api:latest $ROOT/backend" >&2
-        echo "  az acr login -n $ACR_NAME && docker push ${ACR_LOGIN}/shop-api:latest" >&2
-        echo "Then: AZURE_PREBUILT_API_IMAGE=${ACR_LOGIN}/shop-api:latest $0 $BASE_NAME" >&2
-        exit 1
-      fi
-      az acr login -n "$ACR_NAME"
-      docker build --platform linux/amd64 -t "${ACR_LOGIN}/shop-api:latest" "$ROOT/backend"
-      docker push "${ACR_LOGIN}/shop-api:latest"
+    IMAGE_TAG="$(date +%Y%m%d%H%M%S)"
+  fi
+  IMAGE="${ACR_LOGIN}/shop-api:${IMAGE_TAG}"
+  LATEST_IMAGE="${ACR_LOGIN}/shop-api:latest"
+  echo "Deploy image tag: ${IMAGE_TAG}"
+
+  echo "Publishing API image to $ACR_LOGIN …"
+  if (cd "$ROOT/backend" && az acr build --registry "$ACR_NAME" --resource-group "$RG" --image "shop-api:${IMAGE_TAG}" --image "shop-api:latest" .); then
+    :
+  else
+    echo "" >&2
+    echo "az acr build failed. Many subscriptions block ACR cloud builds (TasksOperationsNotAllowed)." >&2
+    echo "Trying local Docker: build linux/amd64 and docker push (install Docker Desktop if needed)." >&2
+    if ! command -v docker >/dev/null 2>&1; then
+      echo "ERROR: Docker is not installed. Install Docker Desktop and re-run deploy." >&2
+      exit 1
     fi
+    az acr login -n "$ACR_NAME"
+    docker build --platform linux/amd64 -t "$IMAGE" -t "$LATEST_IMAGE" "$ROOT/backend"
+    docker push "$IMAGE"
+    docker push "$LATEST_IMAGE"
   fi
 
   ACR_USER=$(az acr credential show -n "$ACR_NAME" -g "$RG" --query username -o tsv)
   ACR_PW=$(az acr credential show -n "$ACR_NAME" -g "$RG" --query 'passwords[0].value' -o tsv)
 
   if az containerapp show -g "$RG" -n "$CA_NAME" &>/dev/null; then
-    echo "Updating existing Container App (new image only)..."
-    az containerapp update -g "$RG" -n "$CA_NAME" --image "$IMAGE"
+    echo "Updating existing Container App (new immutable image tag)..."
+    az containerapp update -g "$RG" -n "$CA_NAME" \
+      --image "$IMAGE" \
+      --set-env-vars "DEPLOY_VERSION=${IMAGE_TAG}"
   else
     az containerapp create -g "$RG" -n "$CA_NAME" \
       --environment "$ENV_ID" \
@@ -162,7 +166,8 @@ else
         "ADMIN_JWT_SECRET=secretref:jwt-secret" \
         "NODE_ENV=production" \
         "PORT=4000" \
-        "CORS_ORIGINS=${CORS_VAL}"
+        "CORS_ORIGINS=${CORS_VAL}" \
+        "DEPLOY_VERSION=${IMAGE_TAG}"
   fi
 
   API_HOST=$(az containerapp show -g "$RG" -n "$CA_NAME" --query properties.configuration.ingress.fqdn -o tsv)
@@ -173,6 +178,10 @@ fi
 echo ""
 echo "apiUrl: $API_URL"
 echo "staticWebAppUrl: $STATIC_URL"
+if [[ -n "${GITHUB_ENV:-}" ]]; then
+  echo "API_URL=$API_URL" >>"$GITHUB_ENV"
+  echo "STATIC_WEB_APP_URL=$STATIC_URL" >>"$GITHUB_ENV"
+fi
 if [[ "$API_HOSTING" == "appservice" ]]; then
   echo "webAppName (set AZURE_WEBAPP_NAME): $WEBAPP_NAME"
 else

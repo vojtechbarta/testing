@@ -26,7 +26,7 @@ This uses **`AZURE_API_HOSTING=containerapp`** by default: Bicep creates MySQL, 
 
 **Image build:** The script first tries **`az acr build`** (cloud build). If your subscription returns **`TasksOperationsNotAllowed`**, cloud builds are blocked — the script then uses **local Docker** (`docker build --platform linux/amd64` + `docker push`). Install **Docker Desktop**, then re-run `./azure/deploy.sh`. On Apple Silicon, `--platform linux/amd64` is required so the image runs on Azure.
 
-If you build the image elsewhere, push it to your ACR as `…/shop-api:latest` and run with **`AZURE_PREBUILT_API_IMAGE=<full image name>`** so the script skips the build step.
+Each deploy now publishes an immutable API image tag (GitHub SHA, or timestamp locally) and also refreshes `shop-api:latest`. Container Apps is updated to that immutable tag to avoid stale image revisions.
 
 **App Service instead** (if you have Free/Basic App Service quota):
 
@@ -95,7 +95,6 @@ Required:
 Optional:
 
 - Variable `AZURE_EXISTING_CONTAINER_ENV_ID` (reuse an existing env to avoid regional env limits)
-- Variable `AZURE_PREBUILT_API_IMAGE`
 - Variable `DEV_CLIENT_IP`
 
 ### Manual DB seed workflow
