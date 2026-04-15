@@ -35,11 +35,13 @@ jobs:
           if [ -n "$AZURE_MYSQL_FQDN" ]; then
             MYSQL_HOST="$AZURE_MYSQL_FQDN"
           else
-            MYSQL_HOST="$(az mysql flexible-server list --resource-group "$AZURE_RG" --query "[0].fullyQualifiedDomainName" -o tsv)"
+            MYSQL_HOST="$(az mysql flexible-server list \
+              --resource-group "$AZURE_RG" \
+              --query "[?starts_with(name, 'myshopnamemysql')].fullyQualifiedDomainName | [0]" -o tsv)"
           fi
 
           if [ -z "$MYSQL_HOST" ]; then
-            echo "Could not resolve Azure MySQL host. Set variable AZURE_MYSQL_FQDN."
+            echo "Could not resolve Azure MySQL host for myshopname stack. Set variable AZURE_MYSQL_FQDN."
             exit 1
           fi
 
