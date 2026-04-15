@@ -101,7 +101,20 @@ jobs:
             curl -isS -X OPTIONS "$API_URL/health" \
               -H "Origin: $ORIGIN" \
               -H "Access-Control-Request-Method: GET" | tee /tmp/cors.txt >/dev/null
-            grep -qi "^access-control-allow-origin: ${ORIGIN}$" /tmp/cors.txt
+            ACO_HEADER="$(awk 'BEGIN{IGNORECASE=1} /^access-control-allow-origin:/ {sub(/\r$/, "", $0); sub(/^[^:]*:[[:space:]]*/, "", $0); print; exit}' /tmp/cors.txt || true)"
+            if [[ -z "${ACO_HEADER:-}" ]]; then
+              echo "CORS smoke failed: missing access-control-allow-origin header." >&2
+              echo "--- CORS response headers ---"
+              cat /tmp/cors.txt
+              exit 1
+            fi
+            if [[ "$ACO_HEADER" != "$ORIGIN" && "$ACO_HEADER" != "*" ]]; then
+              echo "CORS smoke failed: expected '$ORIGIN' or '*', got '$ACO_HEADER'." >&2
+              echo "--- CORS response headers ---"
+              cat /tmp/cors.txt
+              exit 1
+            fi
+            echo "CORS smoke ok: access-control-allow-origin=$ACO_HEADER"
           else
             echo "Skipping CORS smoke: STATIC_WEB_APP_URL unavailable"
           fi
