@@ -181,6 +181,10 @@ echo "staticWebAppUrl: $STATIC_URL"
 if [[ -n "${GITHUB_ENV:-}" ]]; then
   echo "API_URL=$API_URL" >>"$GITHUB_ENV"
   echo "STATIC_WEB_APP_URL=$STATIC_URL" >>"$GITHUB_ENV"
+  echo "AZURE_RESOURCE_GROUP=$RG" >>"$GITHUB_ENV"
+  if [[ "$API_HOSTING" != "appservice" ]]; then
+    echo "CONTAINER_APP_NAME=$WEBAPP_NAME" >>"$GITHUB_ENV"
+  fi
 fi
 if [[ "$API_HOSTING" == "appservice" ]]; then
   echo "webAppName (set AZURE_WEBAPP_NAME): $WEBAPP_NAME"

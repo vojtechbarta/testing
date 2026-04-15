@@ -62,8 +62,25 @@ jobs:
             return 1
           }
 
+          print_containerapp_diagnostics() {
+            if [[ -z "${AZURE_RESOURCE_GROUP:-}" || -z "${CONTAINER_APP_NAME:-}" ]]; then
+              echo "Container App diagnostics skipped (AZURE_RESOURCE_GROUP/CONTAINER_APP_NAME missing)."
+              return 0
+            fi
+            echo "=== Container App diagnostics (${AZURE_RESOURCE_GROUP}/${CONTAINER_APP_NAME}) ==="
+            az containerapp show -g "$AZURE_RESOURCE_GROUP" -n "$CONTAINER_APP_NAME" \
+              --query "{name:name,fqdn:properties.configuration.ingress.fqdn,provisioningState:properties.provisioningState,runningStatus:properties.runningStatus}" -o json || true
+            az containerapp revision list -g "$AZURE_RESOURCE_GROUP" -n "$CONTAINER_APP_NAME" \
+              --query "[].{name:name,active:properties.active,created:properties.createdTime,runningState:properties.runningState,health:properties.healthState,replicas:properties.replicas}" -o table || true
+            az containerapp logs show -g "$AZURE_RESOURCE_GROUP" -n "$CONTAINER_APP_NAME" --tail 120 || true
+          }
+
           echo "Smoke: $API_URL/health"
-          retry_http_get "$API_URL/health" /tmp/health.json 36 10
+          if ! retry_http_get "$API_URL/health" /tmp/health.json 18 10; then
+            print_containerapp_diagnostics
+            echo "Health endpoint stayed unavailable after retry window." >&2
+            exit 1
+          fi
           cat /tmp/health.json
           grep -q '"status":"ok"' /tmp/health.json
 
