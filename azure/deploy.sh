@@ -142,10 +142,20 @@ else
   ACR_PW=$(az acr credential show -n "$ACR_NAME" -g "$RG" --query 'passwords[0].value' -o tsv)
 
   if az containerapp show -g "$RG" -n "$CA_NAME" &>/dev/null; then
-    echo "Updating existing Container App (new immutable image tag)..."
+    echo "Updating existing Container App (image + secrets + env refs)..."
     az containerapp update -g "$RG" -n "$CA_NAME" \
       --image "$IMAGE" \
-      --set-env-vars "DEPLOY_VERSION=${IMAGE_TAG}"
+      --registry-server "$ACR_LOGIN" \
+      --registry-username "$ACR_USER" \
+      --registry-password "$ACR_PW" \
+      --secrets "database-url=${DATABASE_URL}" "jwt-secret=${JWT_SECRET}" \
+      --set-env-vars \
+        "DATABASE_URL=secretref:database-url" \
+        "ADMIN_JWT_SECRET=secretref:jwt-secret" \
+        "NODE_ENV=production" \
+        "PORT=4000" \
+        "CORS_ORIGINS=${CORS_VAL}" \
+        "DEPLOY_VERSION=${IMAGE_TAG}"
   else
     az containerapp create -g "$RG" -n "$CA_NAME" \
       --environment "$ENV_ID" \
