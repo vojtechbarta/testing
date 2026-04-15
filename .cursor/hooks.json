@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "hooks": {
+    "stop": [
+      {
+        "command": ".cursor/hooks/readme-cs-sync-check.sh",
+        "loop_limit": 1
+      }
+    ]
+  }
+}

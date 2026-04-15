@@ -1,325 +1,327 @@
 # AI Testing Shop
 
-Demo e‑shop (React + Node) určený jako **tréninkové hřiště** pro testování: katalog, košík podle relace prohlížeče, checkout, admin produktů, role tester pro **fault injection**, mock platební brána a konfigurace výsledků platby přes JSON.
+English | [Čeština](README.cs.md)
+
+Demo e-shop (React + Node) designed as a **training playground** for testing: catalog, browser-session cart, checkout, product admin, tester role for **fault injection**, mock payment gateway, and JSON-based payment outcome configuration.
 
 ---
 
-## Struktura repozitáře
+## Repository structure
 
-| Složka | Účel |
-|--------|------|
-| **`frontend/`** | React (Vite), shop UI, admin/tester panely, volání API |
-| **`backend/`** | Express API, Prisma + MySQL, business logika, e‑mail (volitelně) |
-| **`backend/prisma/`** | Schéma DB, migrace, `seed.ts` (uživatelé, produkty, fault konfigurace) |
-| **`backend/MockConfigs/`** | Soubory mimo DB (např. výsledky mock platby podle e‑mailu) — viz [`backend/MockConfigs/README.md`](backend/MockConfigs/README.md) |
-| **`docker-compose.yaml`** | MySQL 8.4 v Dockeru (volitelná DB pro lokální vývoj) |
-| **`azure/`** | Bicep šablony, skript [`azure/deploy.sh`](azure/deploy.sh) — MySQL, Static Web App, API (Container Apps nebo App Service). Podrobnosti: [`azure/README.md`](azure/README.md) |
+| Folder | Purpose |
+|--------|---------|
+| **`frontend/`** | React (Vite), shop UI, admin/tester panels, API calls |
+| **`backend/`** | Express API, Prisma + MySQL, business logic, e-mail (optional) |
+| **`backend/prisma/`** | DB schema, migrations, `seed.ts` (users, products, fault configs) |
+| **`backend/MockConfigs/`** | Files outside DB (e.g., mock payment outcomes by e-mail) — see [`backend/MockConfigs/README.md`](backend/MockConfigs/README.md) |
+| **`docker-compose.yaml`** | MySQL 8.4 in Docker (optional DB for local development) |
+| **`azure/`** | Bicep templates, [`azure/deploy.sh`](azure/deploy.sh) script — MySQL, Static Web App, API (Container Apps or App Service). Details: [`azure/README.md`](azure/README.md) |
 
-### Kde je co v backendu (zjednodušeně)
+### Where things are in backend (simplified)
 
-- **`src/app.ts`** – sestavení Express aplikace (`createApp()`, bez `listen`) – pro testy i server.
-- **`src/index.ts`** – spuštění serveru na `PORT` (default 4000).
-- **`src/routes/`** – HTTP endpointy (`/products`, `/cart`, `/checkout`, `/auth`, `/admin/...`, `/faults/...`, `/exchange-rates`).
-- **`src/services/`** – doménová logika (košík, checkout, produkty, e‑mail, mock platby, …).
-- **`src/faults/`** – runtime injekce chyb (UI/API/Unit úrovně, cache, invalidace po změně v adminu).
-- **`src/middleware/adminAuth.ts`** – JWT pro admin/tester API.
-- **`src/utils/cartSession.ts`** – validace hlavičky `X-Cart-Session` (UUID).
-- **`src/integration-tests/`** – integrační / **internal API** testy (Supertest + reálná DB).
-- **`src/services/unit-tests/`** – **unit** testy služeb (Vitest + mocknuté Prisma).
+- **`src/app.ts`** – builds the Express app (`createApp()`, without `listen`) — used by tests and server.
+- **`src/index.ts`** – starts server on `PORT` (default 4000).
+- **`src/routes/`** – HTTP endpoints (`/products`, `/cart`, `/checkout`, `/auth`, `/admin/...`, `/faults/...`, `/exchange-rates`).
+- **`src/services/`** – domain logic (cart, checkout, products, e-mail, mock payments, ...).
+- **`src/faults/`** – runtime fault injection (UI/API/Unit levels, cache, invalidation after admin changes).
+- **`src/middleware/adminAuth.ts`** – JWT auth for admin/tester API.
+- **`src/utils/cartSession.ts`** – validation of `X-Cart-Session` header (UUID).
+- **`src/integration-tests/`** – integration / **internal API** tests (Supertest + real DB).
+- **`src/services/unit-tests/`** – service **unit** tests (Vitest + mocked Prisma).
 
-### Kde je co ve frontendu
+### Where things are in frontend
 
-- **`src/App.tsx`** – hlavní UI (shop, košík, checkout, admin, záložka bugs).
-- **`src/api/`** – fetch klienti (`cart`, `checkout`, `products`, `admin`, `faults`, …).
-- **`src/lib/cartSession.ts`** – `sessionStorage` + UUID relace košíku (`X-Cart-Session`).
-- **`e2e/`** – Playwright: `tests/*.spec.ts`, `pages/` (page objects). Popis: [`frontend/e2e/README.md`](frontend/e2e/README.md).
+- **`src/App.tsx`** – main UI (shop, cart, checkout, admin, bugs tab).
+- **`src/api/`** – fetch clients (`cart`, `checkout`, `products`, `admin`, `faults`, ...).
+- **`src/lib/cartSession.ts`** – `sessionStorage` + cart session UUID (`X-Cart-Session`).
+- **`e2e/`** – Playwright: `tests/*.spec.ts`, `pages/` (page objects). Docs: [`frontend/e2e/README.md`](frontend/e2e/README.md).
 
 ---
 
-## Požadavky
+## Requirements
 
-- **Node.js** (verze dle vašeho prostředí; projekt používá aktuální npm skripty).
-- **MySQL** — buď lokální instance, nebo kontejner přes Docker Compose (viz níže).
-- **Docker Desktop** (nebo jiný Docker engine) — jen pokud chceš DB v kontejneru.
-- (Volitelně E2E) **Chromium** pro Playwright: `cd frontend && npx playwright install chromium`.
+- **Node.js** (version according to your environment; project uses current npm scripts).
+- **MySQL** — local instance or Docker Compose container (see below).
+- **Docker Desktop** (or another Docker engine) — only if you want DB in a container.
+- (Optional E2E) **Chromium** for Playwright: `cd frontend && npx playwright install chromium`.
 
 ---
 
 ## Docker (MySQL)
 
-V kořeni repozitáře je [`docker-compose.yaml`](docker-compose.yaml): služba **`db`** (image **MySQL 8.4**), kontejner `ai-testing-shop-db`. Aplikace (Node backend / Vite frontend) v compose **není** — ty spouštíš pořád přímo přes `npm run dev`; Docker řeší hlavně databázi bez lokální instalace MySQL.
+At repository root there is [`docker-compose.yaml`](docker-compose.yaml): service **`db`** (image **MySQL 8.4**), container `ai-testing-shop-db`. The app itself (Node backend / Vite frontend) is **not** in compose — you still run it directly via `npm run dev`; Docker mainly provides DB without local MySQL installation.
 
-### Spuštění databáze
+### Start database
 
-Z adresáře, kde leží `docker-compose.yaml` (kořen projektu **`Testing/`**):
+From the directory where `docker-compose.yaml` lives (project root **`Testing/`**):
 
 ```bash
 docker compose up -d
 ```
 
-Ověření, že běží:
+Verify it is running:
 
 ```bash
 docker compose ps
-# nebo
+# or
 docker logs ai-testing-shop-db --tail 20
 ```
 
-Výchozí přístup (musí sedět s `DATABASE_URL` v `backend/.env`):
+Default access (must match `DATABASE_URL` in `backend/.env`):
 
-| Položka | Hodnota |
-|--------|---------|
-| Host z hostitele | `localhost` |
+| Item | Value |
+|------|-------|
+| Host from host machine | `localhost` |
 | Port | `3306` |
-| Databáze | `ai_testing_shop` |
-| Uživatel | `root` |
-| Heslo | `password` |
+| Database | `ai_testing_shop` |
+| User | `root` |
+| Password | `password` |
 
-Příklad `backend/.env` při použití tohoto compose:
+Example `backend/.env` with this compose setup:
 
 ```env
 DATABASE_URL="mysql://root:password@localhost:3306/ai_testing_shop"
 ```
 
-Pak z `backend/` stejně jako obvykle: `npx prisma migrate deploy` a `npm run prisma:seed`.
+Then from `backend/` as usual: `npx prisma migrate deploy` and `npm run prisma:seed`.
 
-### Zastavení
+### Stop
 
 ```bash
-docker compose stop          # zastavit kontejnery
-docker compose down          # zastavit a odstranit kontejnery (data ve volume zůstanou)
-docker compose down -v       # navíc smazat volume → prázdná DB při příštím `up`
+docker compose stop          # stop containers
+docker compose down          # stop and remove containers (data volume remains)
+docker compose down -v       # also remove volume -> empty DB on next `up`
 ```
 
-**Kolize portu 3306:** pokud už máš na počítači MySQL, buď ho vypni, nebo v `docker-compose.yaml` změň mapování portů (např. `"3307:3306"`) a v `DATABASE_URL` použij `localhost:3307`.
+**Port 3306 conflict:** if you already run local MySQL, either stop it or change port mapping in `docker-compose.yaml` (e.g. `"3307:3306"`) and use `localhost:3307` in `DATABASE_URL`.
 
 ---
 
-## První spuštění (lokálně)
+## First run (local)
 
-### 1. Závislosti
+### 1. Dependencies
 
 ```bash
 cd backend && npm install
 cd ../frontend && npm install
 ```
 
-### 2. Databáze a seed
+### 2. Database and seed
 
-V `backend/.env` nastavte např.:
+Set in `backend/.env`, for example:
 
 ```env
 DATABASE_URL="mysql://USER:PASSWORD@localhost:3306/DB_NAME"
 ```
 
-Migrace a seed (z adresáře **`backend/`**):
+Migrate and seed (from **`backend/`**):
 
 ```bash
 npx prisma migrate deploy
 npm run prisma:seed
 ```
 
-Seed vytvoří mimo jiné:
+Seed creates, among other things:
 
-- **Admin:** `admin` / `admin` (e‑mail `admin@example.com`)
-- **Tester:** `tester` / `tester` (e‑mail `tester@example.com`)
-- 15 realistických produktů s výchozím skladem 10 ks na položku
-- Záznamy `FaultConfig` (ve výchozím stavu typicky **vypnuté**)
+- **Admin:** `admin` / `admin` (e-mail `admin@example.com`)
+- **Tester:** `tester` / `tester` (e-mail `tester@example.com`)
+- 15 realistic products with default stock of 10 each
+- `FaultConfig` records (typically **disabled** by default)
 
-### 3. Běh aplikace
+### 3. Run the app
 
-**Dva terminály** (klasický vývoj):
+**Two terminals** (standard dev flow):
 
 ```bash
-# Terminál 1 – API na http://localhost:4000
+# Terminal 1 - API on http://localhost:4000
 cd backend && npm run dev
 
-# Terminál 2 – UI na http://localhost:5173
+# Terminal 2 - UI on http://localhost:5173
 cd frontend && npm run dev
 ```
 
-V prohlížeči otevřete **http://localhost:5173** (nebo `http://127.0.0.1:5173`).
+In browser open **http://localhost:5173** (or `http://127.0.0.1:5173`).
 
-**„Failed to fetch“ v dev režimu:** API musí běžet na **:4000** před otevřením UI. Ve vývoji Vite **proxy** přeposílá `/products`, `/cart`, `/auth`, … na backend, takže prohlížeč volá stejný origin jako stránka a nespoléhá na shodu `localhost` vs `127.0.0.1`. V neprodukčním backendu je CORS nastavené na **dynamický origin** (`origin: true`).
+**"Failed to fetch" in dev mode:** API must run on **:4000** before opening UI. In development, Vite **proxy** forwards `/products`, `/cart`, `/auth`, ... to backend, so browser calls the same origin as the page and does not depend on `localhost` vs `127.0.0.1` matching. In non-production backend, CORS is configured as **dynamic origin** (`origin: true`).
 
-### API dokumentace (Swagger / OpenAPI)
+### API docs (Swagger / OpenAPI)
 
-Po spuštění backendu jsou dostupné:
+After backend starts:
 
 - **Swagger UI:** `http://localhost:4000/docs`
 - **Raw OpenAPI JSON:** `http://localhost:4000/docs-json`
 
-Specifikace se generuje z OpenAPI anotací přímo v route souborech (`backend/src/routes/*.ts`).
+The spec is generated from OpenAPI annotations directly in route files (`backend/src/routes/*.ts`).
 
-Volitelně lze exportovat statický soubor:
+Optionally export a static file:
 
 ```bash
 cd backend
-npm run docs:openapi   # vytvoří backend/openapi.json
+npm run docs:openapi   # creates backend/openapi.json
 ```
 
 ---
 
-## Testy
+## Tests
 
-### Backend – Vitest (`backend/`)
+### Backend - Vitest (`backend/`)
 
-| Typ | Adresář | Popis |
-|-----|---------|--------|
-| **Unit** | `backend/src/services/unit-tests/` | Služby s mocknutým Prisma; rychlé, bez HTTP a bez nutnosti DB u většiny testů, které mockují DB. |
-| **Internal API (integrace)** | `backend/src/integration-tests/` | Supertest proti `createApp()`, **reálná MySQL** podle `.env`; ověřuje kontrakty endpointů jako Postman. |
+| Type | Directory | Description |
+|------|-----------|-------------|
+| **Unit** | `backend/src/services/unit-tests/` | Services with mocked Prisma; fast, no HTTP and no DB required for most tests that mock DB. |
+| **Internal API (integration)** | `backend/src/integration-tests/` | Supertest against `createApp()`, **real MySQL** from `.env`; validates endpoint contracts similar to Postman. |
 
-**Spuštění:**
+**Run:**
 
 ```bash
 cd backend
-npm test              # jednorázově všechny testy
-npm run test:watch    # interaktivní režim
+npm test              # run all tests once
+npm run test:watch    # interactive mode
 ```
 
-**Jen jeden soubor (příklad):**
+**Single file only (example):**
 
 ```bash
 cd backend
 npx vitest run src/integration-tests/internalApi.integration.test.ts
 ```
 
-**Integrační API testy** potřebují připojení k DB a seednutá data (alespoň jeden aktivní produkt).  
-**Poznámka:** Pokud máš v aplikaci **zapnuté** faulty zdvojnásobující množství v košíku (API/Unit), asserce v integračních testech košíku můžou selhat — buď faulty v adminu vypni, nebo znovu `npm run prisma:seed` podle toho, jak máš seed nastavený.
+**Integration API tests** need DB connectivity and seeded data (at least one active product).  
+**Note:** If cart quantity-doubling faults (API/Unit) are **enabled**, cart assertions in integration tests can fail — disable those faults in admin or re-run `npm run prisma:seed` according to your seed setup.
 
-### Frontend – Playwright E2E (`frontend/`)
+### Frontend - Playwright E2E (`frontend/`)
 
-Testy v `frontend/e2e/tests/`; konfigurace v `frontend/playwright.config.ts` (může automaticky spustit backend + Vite přes `npm run dev:e2e`, pokud není `SKIP_WEBSERVER=1`).
+Tests are in `frontend/e2e/tests/`; config is in `frontend/playwright.config.ts` (can auto-start backend + Vite via `npm run dev:e2e` unless `SKIP_WEBSERVER=1`).
 
 ```bash
 cd frontend
 npm run test:e2e           # headless
-npm run test:e2e:headed    # viditelný prohlížeč
+npm run test:e2e:headed    # headed browser
 npm run test:e2e:ui        # Playwright UI
-npm run test:e2e:report    # poslední HTML report
+npm run test:e2e:report    # latest HTML report
 ```
 
-Podrobnosti: [`frontend/e2e/README.md`](frontend/e2e/README.md).
+Details: [`frontend/e2e/README.md`](frontend/e2e/README.md).
 
 ---
 
-## Důležité koncepty
+## Important concepts
 
-- **Košík** je vázaný na **relaci** (`X-Cart-Session` + `sessionStorage` ve frontendu), ne na jednoho globálního uživatele v DB — každý tab / kontext Playwright má vlastní košík.
-- **Fault injection** — chyby jde zapínat v DB/UI (úrovně UI / API / Unit); slouží k tréninku testů a simulaci regresí.
-- **CORS:** v produkci povolené originy z `CORS_ORIGINS`; ve vývoji je **`origin: true`** (libovolný lokální origin). Ve vývoji navíc Vite **proxy** na `127.0.0.1:4000` pro cesty API. Hlavičky: `Authorization`, `X-Cart-Session`, …
+- **Cart** is bound to a **session** (`X-Cart-Session` + `sessionStorage` in frontend), not to one global DB user — each tab / Playwright context has its own cart.
+- **Fault injection** — faults can be enabled in DB/UI (UI / API / Unit levels); intended for test training and regression simulation.
+- **CORS:** in production, allowed origins come from `CORS_ORIGINS`; in development it uses **`origin: true`** (any local origin). In development, Vite also **proxies** API paths to `127.0.0.1:4000`. Headers include `Authorization`, `X-Cart-Session`, ...
 
 ---
 
-## Build (produkční artefakty)
+## Build (production artifacts)
 
 ```bash
-cd backend && npm run build    # TypeScript → dist/
+cd backend && npm run build    # TypeScript -> dist/
 cd ../frontend && npm run build
 ```
 
 ---
 
-## Nasazení na Azure
+## Deployment to Azure
 
-Produkční rozložení je **rozdělené na dvě části**: frontend na **Azure Static Web Apps** (SWA) a backend na **Azure Container Apps** + **Azure Database for MySQL – Flexible Server** + **Azure Container Registry** (ACR). Výchozí cesta **nepoužívá App Service** (nevyžaduje kvótu Free/Basic VM pro plán).
+Production setup is **split into two parts**: frontend on **Azure Static Web Apps** (SWA) and backend on **Azure Container Apps** + **Azure Database for MySQL - Flexible Server** + **Azure Container Registry** (ACR). Default path **does not use App Service** (no Free/Basic VM plan quota needed).
 
-Volitelně lze API provozovat na **Azure App Service** (F1/B1) — viz šablonu [`azure/main-appservice.bicep`](azure/main-appservice.bicep) a proměnnou `AZURE_API_HOSTING`.
+Optionally, API can run on **Azure App Service** (F1/B1) — see [`azure/main-appservice.bicep`](azure/main-appservice.bicep) and `AZURE_API_HOSTING` variable.
 
-### Architektura (shrnutí)
+### Architecture (summary)
 
-| Komponenta | Účel |
-|------------|------|
-| **Static Web App** | Buildovaný Vite frontend; veřejná HTTPS URL. |
-| **Container App** (výchozí) | Docker image z [`backend/Dockerfile`](backend/Dockerfile); při startu kontejneru běží `npx prisma migrate deploy` a pak `node dist/index.js` na portu **4000**. |
-| **MySQL Flexible Server** | Databáze `ai_testing_shop`, uživatel `shopadmin` (heslo z nasazení). |
-| **ACR** | Registry pro image `shop-api:latest`. |
+| Component | Purpose |
+|-----------|---------|
+| **Static Web App** | Built Vite frontend; public HTTPS URL. |
+| **Container App** (default) | Docker image from [`backend/Dockerfile`](backend/Dockerfile); container startup runs `npx prisma migrate deploy` and then `node dist/index.js` on port **4000**. |
+| **MySQL Flexible Server** | Database `ai_testing_shop`, user `shopadmin` (password from deployment). |
+| **ACR** | Registry for `shop-api:latest` image. |
 
-Proměnná **`VITE_API_BASE_URL`** musí v produkčním buildu frontendu ukazovat na HTTPS URL API (bez koncového lomítka). Lokálně zůstává výchozí `http://localhost:4000`, pokud není nastavena.
+**`VITE_API_BASE_URL`** must point to HTTPS API URL in production frontend build (without trailing slash). Locally, default remains `http://localhost:4000` if not set.
 
-**CORS:** V produkci backend používá **`CORS_ORIGINS`** (nastavuje Bicep/deploy z URL Static Web App). Lokálně se k tomu přidají `localhost:5173` a `127.0.0.1:5173`.
+**CORS:** in production backend uses **`CORS_ORIGINS`** (set by Bicep/deploy from Static Web App URL). Locally it also allows `localhost:5173` and `127.0.0.1:5173`.
 
-### Rychlý start (Azure CLI)
+### Quick start (Azure CLI)
 
-Požadavky: nainstalovaný [**Azure CLI**](https://learn.microsoft.com/cli/azure/install-azure-cli), přihlášení (`az login`), vhodná subscription.
+Requirements: [**Azure CLI**](https://learn.microsoft.com/cli/azure/install-azure-cli) installed, logged in (`az login`), suitable subscription.
 
-Z kořene repozitáře:
+From repository root:
 
 ```bash
 chmod +x azure/deploy.sh
-./azure/deploy.sh <krátký-název>
+./azure/deploy.sh <short-name>
 ```
 
-`<krátký-název>` (např. `myshop`) se použije jako základ pro názvy zdrojů. Skript:
+`<short-name>` (e.g. `myshop`) is used as the base for resource names. Script:
 
-1. Vytvoří nebo použije resource group (výchozí `AZURE_RG=rg-ai-testing-shop`).
-2. Nasadí Bicep ([`azure/main.bicep`](azure/main.bicep) nebo při `AZURE_API_HOSTING=appservice` soubor [`azure/main-appservice.bicep`](azure/main-appservice.bicep)).
-3. U **Container Apps**: zkusí **`az acr build`**; při chybě typu **TasksOperationsNotAllowed** přepne na **lokální Docker** (`linux/amd64` + `docker push`). Image lze předpřipravit a předat **`AZURE_PREBUILT_API_IMAGE`**.
-4. Vytvoří nebo aktualizuje Container App / App Service a vypíše **`apiUrl`** a **`staticWebAppUrl`**.
+1. Creates or reuses resource group (default `AZURE_RG=rg-ai-testing-shop`).
+2. Deploys Bicep ([`azure/main.bicep`](azure/main.bicep), or when `AZURE_API_HOSTING=appservice`, [`azure/main-appservice.bicep`](azure/main-appservice.bicep)).
+3. For **Container Apps**: tries **`az acr build`**; on **TasksOperationsNotAllowed** it falls back to **local Docker** (`linux/amd64` + `docker push`). Image can be prebuilt and passed as **`AZURE_PREBUILT_API_IMAGE`**.
+4. Creates or updates Container App / App Service and prints **`apiUrl`** and **`staticWebAppUrl`**.
 
-Důležité **proměnné prostředí** (volitelné, viz také [`azure/README.md`](azure/README.md)):
+Important **environment variables** (optional, see also [`azure/README.md`](azure/README.md)):
 
-| Proměnná | Význam |
-|----------|--------|
-| `AZURE_RG` | Název resource group (výchozí `rg-ai-testing-shop`). |
-| `AZURE_LOCATION` | Region pro MySQL, ACR, Container Apps (výchozí `westus2`). |
-| `AZURE_SWA_LOCATION` | Region Static Web App — musí být z podporovaných (např. `westus2`, `westeurope`). |
-| `AZURE_API_HOSTING` | `containerapp` (výchozí) nebo `appservice`. |
-| `AZURE_APP_SERVICE_SKU` | Při App Service: `F1` nebo `B1`. |
-| `MYSQL_ADMIN_PASSWORD` / `ADMIN_JWT_SECRET` | Volitelně pevné hodnoty (heslo MySQL jen alfanumerické kvůli `DATABASE_URL`). |
-| `DEV_CLIENT_IP` | Veřejná IP pro pravidlo firewallu MySQL (vývoj z notebooku). |
-| `AZURE_EXISTING_CONTAINER_ENV_ID` | ID existujícího Container Apps Environment (limit 1 env na region v některých subscription). |
-| `AZURE_PREBUILT_API_IMAGE` | Plný název image v ACR, pokud build nechcete v skriptu. |
+| Variable | Meaning |
+|----------|---------|
+| `AZURE_RG` | Resource group name (default `rg-ai-testing-shop`). |
+| `AZURE_LOCATION` | Region for MySQL, ACR, Container Apps (default `westus2`). |
+| `AZURE_SWA_LOCATION` | Static Web App region - must be supported (e.g. `westus2`, `westeurope`). |
+| `AZURE_API_HOSTING` | `containerapp` (default) or `appservice`. |
+| `AZURE_APP_SERVICE_SKU` | For App Service: `F1` or `B1`. |
+| `MYSQL_ADMIN_PASSWORD` / `ADMIN_JWT_SECRET` | Optional fixed values (MySQL password should be alphanumeric due to `DATABASE_URL`). |
+| `DEV_CLIENT_IP` | Public IP for MySQL firewall rule (dev from laptop). |
+| `AZURE_EXISTING_CONTAINER_ENV_ID` | Existing Container Apps Environment ID (some subscriptions limit one env per region). |
+| `AZURE_PREBUILT_API_IMAGE` | Full image name in ACR if you do not want script build. |
 
-Výstup posledního nasazení je také v `azure/.last-deployment.json` (soubor je v `.gitignore`).
+Last deployment output is also in `azure/.last-deployment.json` (file is in `.gitignore`).
 
 ### GitHub Actions
 
-- **Frontend** — workflow [`.github/workflows/azure-static-web-app.yml`](.github/workflows/azure-static-web-app.yml): při pushi na `main` (změny ve `frontend/`) build a nasazení do SWA.  
-  - **Repository variable:** `VITE_API_BASE_URL` = hodnota `apiUrl` z výstupu skriptu (např. `https://….azurecontainerapps.io`).  
-  - **Secret:** `AZURE_STATIC_WEB_APPS_API_TOKEN` — token ze Static Web App v portálu (*Manage deployment token*).
+- **Frontend** - workflow [`.github/workflows/azure-static-web-app.yml`](.github/workflows/azure-static-web-app.yml): on push to `main` (changes in `frontend/`) it builds and deploys SWA.  
+  - **Repository variable:** `VITE_API_BASE_URL` = `apiUrl` from deploy script output (e.g. `https://....azurecontainerapps.io`).  
+  - **Secret:** `AZURE_STATIC_WEB_APPS_API_TOKEN` - token from Static Web App portal (*Manage deployment token*).
 
-- **Backend na Container Apps** — workflow [`.github/workflows/azure-backend.yml`](.github/workflows/azure-backend.yml) se spouští při pushi na `main` (změny v `backend/**`, `azure/**` nebo workflow souboru) a deployuje API přes `azure/deploy.sh`.
-  - **Secret:** `AZURE_CREDENTIALS` (service principal JSON pro `azure/login`)
+- **Backend on Container Apps** - workflow [`.github/workflows/azure-backend.yml`](.github/workflows/azure-backend.yml) runs on push to `main` (changes in `backend/**`, `azure/**`, or workflow file) and deploys API via `azure/deploy.sh`.
+  - **Secret:** `AZURE_CREDENTIALS` (service principal JSON for `azure/login`)
   - **Secret:** `MYSQL_ADMIN_PASSWORD`, `ADMIN_JWT_SECRET`
   - **Variables:** `AZURE_BASE_NAME`, `AZURE_RG`, `AZURE_LOCATION`, `AZURE_SWA_LOCATION`
-  - Volitelné: `AZURE_EXISTING_CONTAINER_ENV_ID`, `AZURE_PREBUILT_API_IMAGE`, `DEV_CLIENT_IP`
+  - Optional: `AZURE_EXISTING_CONTAINER_ENV_ID`, `AZURE_PREBUILT_API_IMAGE`, `DEV_CLIENT_IP`
 
-- **Ruční seed databáze** — workflow [`.github/workflows/azure-seed.yml`](.github/workflows/azure-seed.yml) se spouští ručně (`workflow_dispatch`) a vyžaduje potvrzení `RESET`. Spustí `prisma migrate deploy` + `npm run prisma:seed` proti Azure MySQL.
+- **Manual DB seed** - workflow [`.github/workflows/azure-seed.yml`](.github/workflows/azure-seed.yml) is run manually (`workflow_dispatch`) and requires `RESET` confirmation. It runs `prisma migrate deploy` + `npm run prisma:seed` against Azure MySQL.
 
-### Databáze: migrace a seed
+### Database: migrations and seed
 
-- Migrace se při **Container Apps** spouštějí automaticky při startu kontejneru (viz `CMD` v [`backend/Dockerfile`](backend/Dockerfile)).
-- **Seed** (produkty, uživatelé admin/tester, …) se **nespouští automaticky**. Jednorázově z počítače s povolenou IP v firewallu MySQL:
+- Migrations in **Container Apps** run automatically at container startup (see `CMD` in [`backend/Dockerfile`](backend/Dockerfile)).
+- **Seed** (products, admin/tester users, ...) is **not automatic**. Run once from a machine with allowed IP in MySQL firewall:
 
 ```bash
 export DATABASE_URL='mysql://shopadmin:<HESLO>@<HOST>.mysql.database.azure.com:3306/ai_testing_shop?sslaccept=strict'
 cd backend && npx prisma migrate deploy && npm run prisma:seed
 ```
 
-Formát `DATABASE_URL` pro Azure MySQL musí obsahovat **`?sslaccept=strict`** (ne syntaxi jako u CLI klienta `mysql`).
+`DATABASE_URL` for Azure MySQL must include **`?sslaccept=strict`** (not CLI `mysql` client syntax).
 
-### Ověření po nasazení
+### Post-deploy verification
 
-- `GET {apiUrl}/health` → JSON s `"status":"ok"`.
-- Otevřít URL Static Web App; v síťové záložce prohlížeče ověřit volání API na `VITE_API_BASE_URL`.
+- `GET {apiUrl}/health` -> JSON with `"status":"ok"`.
+- Open Static Web App URL; in browser network tab verify API calls target `VITE_API_BASE_URL`.
 
-### Podrobnosti a řešení problémů
+### Details and troubleshooting
 
-Kompletní návod (regiony, kvóty, ACR build vs. Docker, limit prostředí Container Apps, CORS) je v **[`azure/README.md`](azure/README.md)**.
-
----
-
-## Další dokumentace v repu
-
-- [`azure/README.md`](azure/README.md) – Azure: Bicep, `deploy.sh`, GitHub Actions, DB, troubleshooting  
-- [`azure/RUNBOOK.md`](azure/RUNBOOK.md) – praktický provozní runbook (deploy/seed incidenty)  
-- [`frontend/e2e/README.md`](frontend/e2e/README.md) – E2E příkazy, CORS, struktura testů  
-- [`backend/MockConfigs/README.md`](backend/MockConfigs/README.md) – mock platby podle e‑mailu kupujícího  
-- Playwright (Cursor skills): psaní E2E [`.cursor/skills/playwright-ui-automation/SKILL.md`](.cursor/skills/playwright-ui-automation/SKILL.md), review lokátorů [`.cursor/skills/playwright-locator-review/SKILL.md`](.cursor/skills/playwright-locator-review/SKILL.md)  
+Full guide (regions, quotas, ACR build vs Docker, Container Apps environment limits, CORS) is in **[`azure/README.md`](azure/README.md)**.
 
 ---
 
-## Licence / autorské práva
+## More docs in repo
 
-Dle nastavení v `package.json` jednotlivých balíčků (backend `ISC`).
+- [`azure/README.md`](azure/README.md) - Azure: Bicep, `deploy.sh`, GitHub Actions, DB, troubleshooting  
+- [`azure/RUNBOOK.md`](azure/RUNBOOK.md) - practical operations runbook (deploy/seed incidents)  
+- [`frontend/e2e/README.md`](frontend/e2e/README.md) - E2E commands, CORS, test structure  
+- [`backend/MockConfigs/README.md`](backend/MockConfigs/README.md) - mock payment outcomes by buyer e-mail  
+- Playwright (Cursor skills): E2E authoring [`.cursor/skills/playwright-ui-automation/SKILL.md`](.cursor/skills/playwright-ui-automation/SKILL.md), locator review [`.cursor/skills/playwright-locator-review/SKILL.md`](.cursor/skills/playwright-locator-review/SKILL.md)  
+
+---
+
+## License / copyright
+
+According to `package.json` settings in each package (backend `ISC`).

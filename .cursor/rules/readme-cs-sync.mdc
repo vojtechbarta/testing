@@ -1,0 +1,24 @@
+---
+description: Keep Czech README synced with English root README
+globs: README.md
+alwaysApply: false
+---
+
+# README EN->CS Sync Rule
+
+When updating the root English README, keep the Czech README aligned in the same change.
+
+## Required sync behavior
+
+- If `README.md` changes in content, structure, commands, links, or setup steps, update `README.cs.md` accordingly.
+- Preserve the same section order and headings hierarchy in both files.
+- Translate explanatory prose to Czech, but keep commands, paths, environment variable names, URLs, and code blocks unchanged unless the English source changed them.
+- Keep language switch links at the top of both files:
+  - `README.md`: `English | [Čeština](README.cs.md)`
+  - `README.cs.md`: `[English](README.md) | Čeština`
+
+## Verification before finishing
+
+- Confirm both files include equivalent key sections (setup, run, tests, deployment, related docs).
+- Confirm critical commands and env vars match exactly between the two files.
+- Treat README language drift as a documentation bug.
