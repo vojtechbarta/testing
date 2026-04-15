@@ -33,6 +33,11 @@ jobs:
           AZURE_MYSQL_FQDN: ${{ vars.AZURE_MYSQL_FQDN }}
         run: |
           if [ -n "$AZURE_MYSQL_FQDN" ]; then
+            if [[ "$AZURE_MYSQL_FQDN" != myshopnamemysql* ]]; then
+              echo "AZURE_MYSQL_FQDN mismatch: expected host starting with 'myshopnamemysql', got '$AZURE_MYSQL_FQDN'." >&2
+              echo "Update repository variable AZURE_MYSQL_FQDN to myshopnamemysqlnrpgzs.mysql.database.azure.com." >&2
+              exit 1
+            fi
             MYSQL_HOST="$AZURE_MYSQL_FQDN"
           else
             MYSQL_HOST="$(az mysql flexible-server list \
