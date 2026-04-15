@@ -34,7 +34,7 @@ jobs:
           DEV_CLIENT_IP: ${{ vars.DEV_CLIENT_IP }}
         run: |
           chmod +x azure/deploy.sh
-          ./azure/deploy.sh "${{ vars.AZURE_BASE_NAME }}"
+          ./azure/deploy.sh "myshopname"
 
       - name: Post-deploy smoke checks
         run: |

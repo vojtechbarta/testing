@@ -23,11 +23,10 @@ jobs:
       - name: Resolve VITE_API_BASE_URL from Container App
         env:
           AZURE_RG: ${{ vars.AZURE_RG }}
-          AZURE_BASE_NAME: ${{ vars.AZURE_BASE_NAME }}
           API_URL_FALLBACK: ${{ vars.VITE_API_BASE_URL }}
         run: |
           set -euo pipefail
-          NAME_PREFIX="${AZURE_BASE_NAME}-api-"
+          NAME_PREFIX="myshopname-api-"
 
           APP_NAME="$(az containerapp list -g "$AZURE_RG" --query "[?starts_with(name, '${NAME_PREFIX}')].name | [0]" -o tsv)"
           if [[ -z "${APP_NAME:-}" ]]; then
