@@ -41,7 +41,7 @@ Each fault is **disabled by default**. Enabling/disabling takes effect within ~1
 
 ---
 
-### `networ_inject_api_fail_every minute`
+### `network_inject_api_fail_every minute`
 | | |
 |---|---|
 | **Level** | UI |
@@ -131,6 +131,17 @@ Each fault is **disabled by default**. Enabling/disabling takes effect within ~1
 | **Description** | Simulates a CSS grid cross-browser compatibility bug. In **any browser other than Google Chrome** (detected via `navigator.vendor`) the product grid renders with misaligned and partially overlapping cards. Chrome (Mac & Windows) is unaffected. |
 | **Supports `failureRate`** | No |
 | **Affected area** | Product grid — visible only in Firefox, Safari, Edge (non-Chromium), etc. |
+
+---
+
+### `products_api_odd_minute_wait_to_even`
+| | |
+|---|---|
+| **Level** | API |
+| **Name** | API: Products odd-minute delay to next even minute |
+| **Description** | Controlled performance fault injection on `GET /products`. When enabled and the current minute at request time is **odd**, the API delays the response until the start of the **next even minute**, simulating intermittent latency up to almost 60 seconds. When the minute is even, the endpoint behaves normally. |
+| **Supports `failureRate`** | No (time-based behavior only) |
+| **Affected area** | `GET /products` — main storefront product catalog on the homepage |
 
 ---
 

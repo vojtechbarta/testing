@@ -68,6 +68,11 @@ async function main() {
     },
   });
 
+  // Clean up legacy/unused fault keys that should not appear in Admin → Fault injection.
+  await prisma.faultConfig.deleteMany({
+    where: { key: { in: ["inject_error_network_every_minute", "networ_inject_api_fail_every minute"] } },
+  });
+
   await prisma.faultConfig.upsert({
     where: { key: "cart_add_ui_double_call" },
     update: {
@@ -113,7 +118,7 @@ async function main() {
   });
 
   await prisma.faultConfig.upsert({
-    where: { key: "networ_inject_api_fail_every minute" },
+    where: { key: "network_inject_api_fail_every minute" },
     update: {
       name: "UI/API: Inject error network call every minute",
       description:
@@ -123,7 +128,7 @@ async function main() {
       failureRate: null,
     },
     create: {
-      key: "networ_inject_api_fail_every minute",
+      key: "network_inject_api_fail_every minute",
       name: "UI/API: Inject error network call every minute",
       description:
         'Triggers GET /faults/inject-error every 60 seconds from frontend when enabled; endpoint responds 400 with localized message ("tohle je bug" / "this is bug").',
@@ -282,6 +287,28 @@ async function main() {
       description:
         "In any browser other than Google Chrome the product grid renders misaligned and cards partially overlap, mimicking a CSS grid compatibility bug.",
       level: FaultLevel.UI,
+      enabled: false,
+      latencyMs: null,
+      failureRate: null,
+    },
+  });
+
+  await prisma.faultConfig.upsert({
+    where: { key: "products_api_odd_minute_wait_to_even" },
+    update: {
+      name: "API: Products odd-minute delay to next even minute",
+      description:
+        "On GET /products, odd-minute requests wait until next even minute.",
+      level: FaultLevel.API,
+      latencyMs: null,
+      failureRate: null,
+    },
+    create: {
+      key: "products_api_odd_minute_wait_to_even",
+      name: "API: Products odd-minute delay to next even minute",
+      description:
+        "On GET /products, odd-minute requests wait until next even minute.",
+      level: FaultLevel.API,
       enabled: false,
       latencyMs: null,
       failureRate: null,

@@ -316,7 +316,7 @@ function App() {
     (f) => f.key === "console_error_every_minute",
   );
   const injectErrorNetworkEveryMinuteFaultActive = activeUiFaultConfigs.some(
-    (f) => f.key === "networ_inject_api_fail_every minute",
+    (f) => f.key === "network_inject_api_fail_every minute",
   );
 
   const uiDoubleAddAlways = uiDoubleAddFailureRate >= 1;

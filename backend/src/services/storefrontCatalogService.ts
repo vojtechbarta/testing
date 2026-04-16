@@ -67,6 +67,22 @@ export async function getStorefrontCatalog(params: {
   priceMin?: number;
   priceMax?: number;
 }): Promise<StorefrontCatalogResponse> {
+  if (await isFaultEnabled(FAULT_KEYS.apiProductsOddMinuteDelay)) {
+    const now = new Date();
+    const currentMinute = now.getMinutes();
+    // Only delay on odd minutes; even minutes behave normally.
+    if (currentMinute % 2 === 1) {
+      const seconds = now.getSeconds();
+      const millis = now.getMilliseconds();
+      const elapsedMs = seconds * 1000 + millis;
+      const minuteMs = 60_000;
+      const remainingMs = minuteMs - elapsedMs;
+      if (remainingMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remainingMs));
+      }
+    }
+  }
+
   if (isStaticFaultEnabled("productListing_latency")) {
     const settings = getFaultSettings("productListing_latency");
     const latency = settings?.latencyMs ?? 1000;
