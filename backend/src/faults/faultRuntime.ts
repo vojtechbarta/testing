@@ -14,6 +14,9 @@ export const FAULT_KEYS = {
   apiProductsOddMinuteDelay: "products_api_odd_minute_wait_to_even",
   uiGridNonChromeBroken: "grid_non_chrome_broken",
   uiLabelTypos: "ui_label_typos",
+  uiExportProductsIgnoreSortNameAsc: "export_products_ui_ignore_sort_name_asc",
+  uiExportProductsOmitMiddleItem: "export_products_ui_omit_middle_item",
+  uiExportCartSwapCurrencyLabel: "export_cart_ui_swap_currency_label",
 } as const;
 
 type FaultRuntimeRow = {

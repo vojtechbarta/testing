@@ -52,6 +52,39 @@ Each fault is **disabled by default**. Enabling/disabling takes effect within ~1
 
 ---
 
+### `export_products_ui_ignore_sort_name_asc`
+| | |
+|---|---|
+| **Level** | UI |
+| **Name** | UI: Export products ignores active sorting |
+| **Description** | Product export (both CSV and PDF) ignores current catalog sorting and always exports products in **Name (A-Z)** order. |
+| **Supports `failureRate`** | No |
+| **Affected area** | Shop export panel — products CSV + PDF |
+
+---
+
+### `export_products_ui_omit_middle_item`
+| | |
+|---|---|
+| **Level** | UI |
+| **Name** | UI: Export products omits one middle item |
+| **Description** | Product export (both CSV and PDF) silently omits exactly one product from the **middle** of the exported list. The last item is still present. |
+| **Supports `failureRate`** | No |
+| **Affected area** | Shop export panel — products CSV + PDF |
+
+---
+
+### `export_cart_ui_swap_currency_label`
+| | |
+|---|---|
+| **Level** | UI |
+| **Name** | UI: Export cart swaps EUR/CZK labels |
+| **Description** | Cart export (both CSV and PDF) swaps currency labels **EUR↔CZK** while keeping numeric amounts unchanged. The bug affects unit price, line total, and exported estimated total label. |
+| **Supports `failureRate`** | No |
+| **Affected area** | Shop export panel — cart CSV + PDF |
+
+---
+
 ### `cart_add_api_double_quantity_payload`
 | | |
 |---|---|

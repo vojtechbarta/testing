@@ -5,6 +5,9 @@ import {
   buildCartExportRows,
   buildPdfDocument,
   buildProductsExportRows,
+  omitMiddleProductForExport,
+  sortProductsForExportNameAsc,
+  swapCurrencyLabelInMoneyString,
   toCsv,
 } from "./exportHelpers";
 
@@ -91,6 +94,92 @@ describe("exportHelpers", () => {
     expect(content).toContain("Cart export");
     expect(content).toContain("Wireless Mouse M200");
     expect(content).toContain("Estimated total: 20.00 EUR");
+  });
+
+  it("sortProductsForExportNameAsc enforces name A-Z export order", () => {
+    const products: Product[] = [
+      {
+        id: 1,
+        name: "Zebra",
+        description: "D1",
+        price: { amount: 1, currencyCode: "CZK" },
+        inStock: 1,
+        active: true,
+      },
+      {
+        id: 2,
+        name: "Alpha",
+        description: "D2",
+        price: { amount: 2, currencyCode: "CZK" },
+        inStock: 2,
+        active: true,
+      },
+      {
+        id: 3,
+        name: "Mike",
+        description: "D3",
+        price: { amount: 3, currencyCode: "CZK" },
+        inStock: 3,
+        active: true,
+      },
+    ];
+
+    const sorted = sortProductsForExportNameAsc(products);
+    expect(sorted.map((p) => p.name)).toEqual(["Alpha", "Mike", "Zebra"]);
+  });
+
+  it("omitMiddleProductForExport removes one item from middle", () => {
+    const products: Product[] = [
+      {
+        id: 1,
+        name: "A",
+        description: "",
+        price: { amount: 1, currencyCode: "CZK" },
+        inStock: 1,
+        active: true,
+      },
+      {
+        id: 2,
+        name: "B",
+        description: "",
+        price: { amount: 2, currencyCode: "CZK" },
+        inStock: 1,
+        active: true,
+      },
+      {
+        id: 3,
+        name: "C",
+        description: "",
+        price: { amount: 3, currencyCode: "CZK" },
+        inStock: 1,
+        active: true,
+      },
+      {
+        id: 4,
+        name: "D",
+        description: "",
+        price: { amount: 4, currencyCode: "CZK" },
+        inStock: 1,
+        active: true,
+      },
+      {
+        id: 5,
+        name: "E",
+        description: "",
+        price: { amount: 5, currencyCode: "CZK" },
+        inStock: 1,
+        active: true,
+      },
+    ];
+
+    const trimmed = omitMiddleProductForExport(products);
+    expect(trimmed.map((p) => p.name)).toEqual(["A", "B", "D", "E"]);
+  });
+
+  it("swapCurrencyLabelInMoneyString swaps EUR and CZK labels only", () => {
+    expect(swapCurrencyLabelInMoneyString("10.00 EUR")).toBe("10.00 CZK");
+    expect(swapCurrencyLabelInMoneyString("249.50 CZK")).toBe("249.50 EUR");
+    expect(swapCurrencyLabelInMoneyString("99.99 USD")).toBe("99.99 USD");
   });
 });
 

@@ -38,6 +38,9 @@ import {
   buildProductsExportRows,
   downloadFile,
   downloadPdfReport,
+  omitMiddleProductForExport,
+  sortProductsForExportNameAsc,
+  swapCurrencyLabelInMoneyString,
   toCsv,
 } from "./exportHelpers";
 
@@ -333,6 +336,15 @@ function App() {
   const injectErrorNetworkEveryMinuteFaultActive = activeUiFaultConfigs.some(
     (f) => f.key === "network_inject_api_fail_every minute",
   );
+  const exportProductsIgnoreSortFaultActive = activeUiFaultConfigs.some(
+    (f) => f.key === "export_products_ui_ignore_sort_name_asc",
+  );
+  const exportProductsOmitMiddleFaultActive = activeUiFaultConfigs.some(
+    (f) => f.key === "export_products_ui_omit_middle_item",
+  );
+  const exportCartSwapCurrencyLabelFaultActive = activeUiFaultConfigs.some(
+    (f) => f.key === "export_cart_ui_swap_currency_label",
+  );
 
   const uiDoubleAddAlways = uiDoubleAddFailureRate >= 1;
 
@@ -599,7 +611,14 @@ function App() {
 
   const handleExportProductsCsv = () => {
     if (products.length === 0) return;
-    const rows = buildProductsExportRows(products);
+    let productsForExport = products;
+    if (exportProductsIgnoreSortFaultActive) {
+      productsForExport = sortProductsForExportNameAsc(productsForExport);
+    }
+    if (exportProductsOmitMiddleFaultActive) {
+      productsForExport = omitMiddleProductForExport(productsForExport);
+    }
+    const rows = buildProductsExportRows(productsForExport);
     const headers = ["Name", "Description", "Price", "In stock"];
     const csvRows = rows.map((r) => [
       r.name,
@@ -617,9 +636,13 @@ function App() {
     const headers = ["Name", "Unit price", "Quantity", "Line total"];
     const csvRows = rows.map((r) => [
       r.name,
-      r.unitPrice,
+      exportCartSwapCurrencyLabelFaultActive
+        ? swapCurrencyLabelInMoneyString(r.unitPrice)
+        : r.unitPrice,
       r.quantity,
-      r.lineTotal,
+      exportCartSwapCurrencyLabelFaultActive
+        ? swapCurrencyLabelInMoneyString(r.lineTotal)
+        : r.lineTotal,
     ]);
     const csv = toCsv(headers, csvRows);
     downloadFile(`cart-export-${nowTimestamp()}.csv`, "text/csv", csv);
@@ -627,7 +650,14 @@ function App() {
 
   const handleExportProductsPdf = () => {
     if (products.length === 0) return;
-    const rows = buildProductsExportRows(products);
+    let productsForExport = products;
+    if (exportProductsIgnoreSortFaultActive) {
+      productsForExport = sortProductsForExportNameAsc(productsForExport);
+    }
+    if (exportProductsOmitMiddleFaultActive) {
+      productsForExport = omitMiddleProductForExport(productsForExport);
+    }
+    const rows = buildProductsExportRows(productsForExport);
     downloadPdfReport(`products-export-${nowTimestamp()}.pdf`, {
       title: "Product export",
       generatedAt: new Date().toLocaleString(),
@@ -649,6 +679,7 @@ function App() {
   const handleExportCartPdf = () => {
     if (!cart || cart.items.length === 0) return;
     const rows = buildCartExportRows(cart);
+    const totalMoney = `${cart.total.amount.toFixed(2)} ${cart.total.currencyCode}`;
     downloadPdfReport(`cart-export-${nowTimestamp()}.pdf`, {
       title: "Cart export",
       generatedAt: new Date().toLocaleString(),
@@ -658,12 +689,20 @@ function App() {
           headers: ["Name", "Unit price", "Quantity", "Line total"],
           rows: rows.map((row) => [
             row.name,
-            row.unitPrice,
+            exportCartSwapCurrencyLabelFaultActive
+              ? swapCurrencyLabelInMoneyString(row.unitPrice)
+              : row.unitPrice,
             row.quantity,
-            row.lineTotal,
+            exportCartSwapCurrencyLabelFaultActive
+              ? swapCurrencyLabelInMoneyString(row.lineTotal)
+              : row.lineTotal,
           ]),
           footerLines: [
-            `Estimated total: ${cart.total.amount.toFixed(2)} ${cart.total.currencyCode}`,
+            `Estimated total: ${
+              exportCartSwapCurrencyLabelFaultActive
+                ? swapCurrencyLabelInMoneyString(totalMoney)
+                : totalMoney
+            }`,
           ],
         },
       ],

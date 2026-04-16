@@ -18,6 +18,18 @@ export function buildProductsExportRows(
   }));
 }
 
+export function sortProductsForExportNameAsc(products: Product[]): Product[] {
+  return [...products].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function omitMiddleProductForExport(products: Product[]): Product[] {
+  if (products.length < 3) {
+    return products;
+  }
+  const middleIndex = Math.floor(products.length / 2);
+  return products.filter((_, index) => index !== middleIndex);
+}
+
 export function buildCartExportRows(cart: Cart | null): Array<{
   name: string;
   unitPrice: string;
@@ -34,6 +46,16 @@ export function buildCartExportRows(cart: Cart | null): Array<{
       item.lineTotal.currencyCode,
     ),
   }));
+}
+
+function swapCurrencyCodeLabel(currencyCode: string): string {
+  if (currencyCode === "EUR") return "CZK";
+  if (currencyCode === "CZK") return "EUR";
+  return currencyCode;
+}
+
+export function swapCurrencyLabelInMoneyString(value: string): string {
+  return value.replace(/\b(EUR|CZK)\b/g, (code) => swapCurrencyCodeLabel(code));
 }
 
 export function toCsv(

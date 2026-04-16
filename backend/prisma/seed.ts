@@ -294,6 +294,72 @@ async function main() {
   });
 
   await prisma.faultConfig.upsert({
+    where: { key: "export_products_ui_ignore_sort_name_asc" },
+    update: {
+      name: "UI: Export products ignores active sorting",
+      description:
+        "Product CSV/PDF export ignores current catalog sort and always exports products in Name (A-Z) order.",
+      level: FaultLevel.UI,
+      latencyMs: null,
+      failureRate: null,
+    },
+    create: {
+      key: "export_products_ui_ignore_sort_name_asc",
+      name: "UI: Export products ignores active sorting",
+      description:
+        "Product CSV/PDF export ignores current catalog sort and always exports products in Name (A-Z) order.",
+      level: FaultLevel.UI,
+      enabled: false,
+      latencyMs: null,
+      failureRate: null,
+    },
+  });
+
+  await prisma.faultConfig.upsert({
+    where: { key: "export_products_ui_omit_middle_item" },
+    update: {
+      name: "UI: Export products omits one middle item",
+      description:
+        "Product CSV/PDF export silently skips one product from the middle of the exported list.",
+      level: FaultLevel.UI,
+      latencyMs: null,
+      failureRate: null,
+    },
+    create: {
+      key: "export_products_ui_omit_middle_item",
+      name: "UI: Export products omits one middle item",
+      description:
+        "Product CSV/PDF export silently skips one product from the middle of the exported list.",
+      level: FaultLevel.UI,
+      enabled: false,
+      latencyMs: null,
+      failureRate: null,
+    },
+  });
+
+  await prisma.faultConfig.upsert({
+    where: { key: "export_cart_ui_swap_currency_label" },
+    update: {
+      name: "UI: Export cart swaps EUR/CZK labels",
+      description:
+        "Cart CSV/PDF export swaps EUR and CZK currency labels while keeping numeric amounts unchanged.",
+      level: FaultLevel.UI,
+      latencyMs: null,
+      failureRate: null,
+    },
+    create: {
+      key: "export_cart_ui_swap_currency_label",
+      name: "UI: Export cart swaps EUR/CZK labels",
+      description:
+        "Cart CSV/PDF export swaps EUR and CZK currency labels while keeping numeric amounts unchanged.",
+      level: FaultLevel.UI,
+      enabled: false,
+      latencyMs: null,
+      failureRate: null,
+    },
+  });
+
+  await prisma.faultConfig.upsert({
     where: { key: "products_api_odd_minute_wait_to_even" },
     update: {
       name: "API: Products odd-minute delay to next even minute",
