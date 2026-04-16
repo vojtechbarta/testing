@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import { ShopPage, SEED_PRODUCTS } from "../pages/shop.page";
 
 test.describe("Shop — catalog and cart", () => {
@@ -35,7 +36,9 @@ test.describe("Shop — catalog and cart", () => {
     expect(productsDownload.suggestedFilename()).toMatch(
       /products-export-.*\.csv$/,
     );
-    const productsContent = await productsDownload.text();
+    const productsPath = await productsDownload.path();
+    expect(productsPath).toBeTruthy();
+    const productsContent = await readFile(productsPath!, "utf-8");
     expect(productsContent).toContain("Wireless Mouse M200");
     expect(productsContent.split("\n")[0]).toContain(
       "Name,Description,Price,In stock",
@@ -46,7 +49,27 @@ test.describe("Shop — catalog and cart", () => {
 
     const cartDownload = await shop.exportCartCsv();
     expect(cartDownload.suggestedFilename()).toMatch(/cart-export-.*\.csv$/);
-    const cartContent = await cartDownload.text();
+    const cartPath = await cartDownload.path();
+    expect(cartPath).toBeTruthy();
+    const cartContent = await readFile(cartPath!, "utf-8");
     expect(cartContent).toContain(mouse.name);
+  });
+
+  test("can export products and cart as PDF", async ({ page }) => {
+    const shop = new ShopPage(page);
+
+    await shop.goto();
+    await shop.expectProductCount(15);
+
+    const productsDownload = await shop.exportProductsPdf();
+    expect(productsDownload.suggestedFilename()).toMatch(
+      /products-export-.*\.pdf$/,
+    );
+
+    const mouse = SEED_PRODUCTS[0]!;
+    await shop.addToCart(mouse.name);
+
+    const cartDownload = await shop.exportCartPdf();
+    expect(cartDownload.suggestedFilename()).toMatch(/cart-export-.*\.pdf$/);
   });
 });

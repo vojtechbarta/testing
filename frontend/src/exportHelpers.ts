@@ -1,3 +1,5 @@
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 import type { Product } from "./api/products";
 import type { Cart } from "./api/cart";
 
@@ -51,6 +53,88 @@ export function toCsv(
     ...rows.map((row) => row.map(escapeCell).join(",")),
   ];
   return lines.join("\n");
+}
+
+export interface PdfSection {
+  title: string;
+  headers: string[];
+  rows: (string | number)[][];
+  footerLines?: string[];
+}
+
+export interface PdfReport {
+  title: string;
+  generatedAt: string;
+  sections: PdfSection[];
+}
+
+export function buildPdfDocument(report: PdfReport): jsPDF {
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const margin = 40;
+  let y = margin;
+  const contentWidth = doc.internal.pageSize.getWidth() - margin * 2;
+
+  const addWrappedText = (
+    text: string,
+    fontSize: number,
+    fontStyle: "normal" | "bold" = "normal",
+    spacingAfter = 12,
+  ) => {
+    doc.setFont("helvetica", fontStyle);
+    doc.setFontSize(fontSize);
+    const lines = doc.splitTextToSize(text, contentWidth) as string[];
+    const lineHeight = fontSize + 4;
+    doc.text(lines, margin, y);
+    y += lines.length * lineHeight + spacingAfter;
+  };
+
+  addWrappedText(report.title, 18, "bold", 10);
+  addWrappedText(`Generated: ${report.generatedAt}`, 10, "normal", 18);
+
+  for (const section of report.sections) {
+    addWrappedText(section.title, 13, "bold", 10);
+    autoTable(doc, {
+      startY: y,
+      head: [section.headers],
+      body: section.rows.map((row) => row.map((cell) => String(cell ?? ""))),
+      margin: { left: margin, right: margin },
+      styles: {
+        font: "helvetica",
+        fontSize: 10,
+        cellPadding: 6,
+        overflow: "linebreak",
+        valign: "top",
+      },
+      headStyles: {
+        fillColor: [240, 240, 240],
+        textColor: [20, 20, 20],
+        fontStyle: "bold",
+      },
+      alternateRowStyles: {
+        fillColor: [250, 250, 250],
+      },
+      theme: "grid",
+    });
+    y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
+      ?.finalY ?? y;
+    y += 12;
+
+    for (const footerLine of section.footerLines ?? []) {
+      addWrappedText(footerLine, 10, "bold", 8);
+    }
+
+    y += 8;
+  }
+
+  return doc;
+}
+
+export function downloadPdfReport(
+  filename: string,
+  report: PdfReport,
+): void {
+  const pdf = buildPdfDocument(report);
+  downloadFile(filename, "application/pdf", pdf.output("arraybuffer"));
 }
 
 export function downloadFile(

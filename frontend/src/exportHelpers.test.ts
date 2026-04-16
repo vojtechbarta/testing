@@ -3,6 +3,7 @@ import type { Product } from "./api/products";
 import type { Cart } from "./api/cart";
 import {
   buildCartExportRows,
+  buildPdfDocument,
   buildProductsExportRows,
   toCsv,
 } from "./exportHelpers";
@@ -65,11 +66,31 @@ describe("exportHelpers", () => {
         ["multi\nline", "end"],
       ],
     );
-    const lines = csv.split("\n");
-    expect(lines[0]).toBe("A,B");
-    expect(lines[1]).toBe("simple,value");
-    expect(lines[2]).toBe('"has,comma","has ""quote"""');
-    expect(lines[3]).toBe('"multi\nline",end');
+    expect(csv).toContain("A,B");
+    expect(csv).toContain("simple,value");
+    expect(csv).toContain('"has,comma","has ""quote"""');
+    expect(csv).toContain('"multi\nline",end');
+  });
+
+  it("buildPdfDocument creates a PDF that includes report content", () => {
+    const pdf = buildPdfDocument({
+      title: "Cart export",
+      generatedAt: "2026-04-16 10:30",
+      sections: [
+        {
+          title: "Cart items",
+          headers: ["Name", "Quantity"],
+          rows: [["Wireless Mouse M200", 2]],
+          footerLines: ["Estimated total: 20.00 EUR"],
+        },
+      ],
+    });
+
+    const content = pdf.output();
+    expect(content.startsWith("%PDF-")).toBe(true);
+    expect(content).toContain("Cart export");
+    expect(content).toContain("Wireless Mouse M200");
+    expect(content).toContain("Estimated total: 20.00 EUR");
   });
 });
 

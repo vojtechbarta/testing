@@ -156,4 +156,25 @@ export class ShopPage {
     ]);
     return download;
   }
+
+  async exportProductsPdf(): Promise<import("@playwright/test").Download> {
+    const exportPanel = this.page.locator(".shop-export-panel");
+    const searchSection = exportPanel.locator(".shop-export-section").first();
+    const [download] = await Promise.all([
+      this.page.waitForEvent("download"),
+      searchSection.getByRole("button", { name: "PDF" }).click(),
+    ]);
+    return download;
+  }
+
+  async exportCartPdf(): Promise<import("@playwright/test").Download> {
+    const exportPanel = this.page.locator(".shop-export-panel");
+    const sections = exportPanel.locator(".shop-export-section");
+    const cartSection = sections.nth(1);
+    const [download] = await Promise.all([
+      this.page.waitForEvent("download"),
+      cartSection.getByRole("button", { name: "PDF" }).click(),
+    ]);
+    return download;
+  }
 }

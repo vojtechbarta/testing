@@ -37,6 +37,7 @@ import {
   buildCartExportRows,
   buildProductsExportRows,
   downloadFile,
+  downloadPdfReport,
   toCsv,
 } from "./exportHelpers";
 
@@ -622,6 +623,51 @@ function App() {
     ]);
     const csv = toCsv(headers, csvRows);
     downloadFile(`cart-export-${nowTimestamp()}.csv`, "text/csv", csv);
+  };
+
+  const handleExportProductsPdf = () => {
+    if (products.length === 0) return;
+    const rows = buildProductsExportRows(products);
+    downloadPdfReport(`products-export-${nowTimestamp()}.pdf`, {
+      title: "Product export",
+      generatedAt: new Date().toLocaleString(),
+      sections: [
+        {
+          title: "Search results",
+          headers: ["Name", "Description", "Price", "In stock"],
+          rows: rows.map((row) => [
+            row.name,
+            row.description,
+            row.price,
+            row.inStock,
+          ]),
+        },
+      ],
+    });
+  };
+
+  const handleExportCartPdf = () => {
+    if (!cart || cart.items.length === 0) return;
+    const rows = buildCartExportRows(cart);
+    downloadPdfReport(`cart-export-${nowTimestamp()}.pdf`, {
+      title: "Cart export",
+      generatedAt: new Date().toLocaleString(),
+      sections: [
+        {
+          title: "Cart items",
+          headers: ["Name", "Unit price", "Quantity", "Line total"],
+          rows: rows.map((row) => [
+            row.name,
+            row.unitPrice,
+            row.quantity,
+            row.lineTotal,
+          ]),
+          footerLines: [
+            `Estimated total: ${cart.total.amount.toFixed(2)} ${cart.total.currencyCode}`,
+          ],
+        },
+      ],
+    });
   };
 
   const handleSwitchToAdmin = async () => {
@@ -1677,6 +1723,7 @@ function App() {
                   <button
                     type="button"
                     className="btn btn-small"
+                    onClick={handleExportProductsPdf}
                     disabled={products.length === 0}
                   >
                     {t("shop.exportPdf")}
@@ -1699,6 +1746,7 @@ function App() {
                   <button
                     type="button"
                     className="btn btn-small"
+                    onClick={handleExportCartPdf}
                     disabled={!cart || cart.items.length === 0}
                   >
                     {t("cart.exportPdf")}
