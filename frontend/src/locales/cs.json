@@ -63,7 +63,12 @@
     "thLevel": "Úroveň",
     "thEnabled": "Zapnuto",
     "thLatency": "Latence (ms)",
-    "thFailureRate": "Míra selhání (0–1)"
+    "thFailureRate": "Míra selhání (0–1)",
+    "filterLevel": "Filtr podle úrovně",
+    "filterAllLevels": "Všechny úrovně",
+    "levelUi": "UI",
+    "levelApi": "API",
+    "levelUnit": "Unit"
   },
   "shop": {
     "emptyNoProducts": "Zatím nejsou k dispozici žádné produkty.",

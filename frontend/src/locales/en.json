@@ -63,7 +63,12 @@
     "thLevel": "Level",
     "thEnabled": "Enabled",
     "thLatency": "Latency (ms)",
-    "thFailureRate": "Failure rate (0–1)"
+    "thFailureRate": "Failure rate (0–1)",
+    "filterLevel": "Level filter",
+    "filterAllLevels": "All levels",
+    "levelUi": "UI",
+    "levelApi": "API",
+    "levelUnit": "Unit"
   },
   "shop": {
     "emptyNoProducts": "No products available yet.",

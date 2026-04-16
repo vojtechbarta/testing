@@ -34,6 +34,11 @@ import {
 } from "./api/checkout";
 import { toShopDisplayMoney } from "./displayMoney";
 
+const FAILURE_RATE_SUPPORTED_KEYS = new Set<string>([
+  "cart_add_ui_double_call",
+  "checkout_email_wrong_language",
+]);
+
 type ViewMode = "shop" | "admin" | "bugs";
 
 type CheckoutStep = "buyer" | "payment" | "bankResult" | "gatewayPay";
@@ -98,7 +103,7 @@ function App() {
     direction: "asc" | "desc";
   }>({ column: "id", direction: "asc" });
   const [adminFaultSort, setAdminFaultSort] = useState<{
-    column: "key" | "name";
+    column: "key" | "name" | "description" | "level";
     direction: "asc" | "desc";
   }>({ column: "key", direction: "asc" });
   const [adminRole, setAdminRole] = useState<string | null>(() =>
@@ -106,6 +111,9 @@ function App() {
   );
   const [adminFaults, setAdminFaults] = useState<AdminFault[]>([]);
   const [faultsSaving, setFaultsSaving] = useState(false);
+  const [faultLevelFilter, setFaultLevelFilter] = useState<
+    "ALL" | "UI" | "API" | "Unit"
+  >("ALL");
   const [activeUiFaultConfigs, setActiveUiFaultConfigs] = useState<
     Array<{ key: string; failureRate: number }>
   >([]);
@@ -724,13 +732,20 @@ function App() {
     return adminSort.direction === "asc" ? "↑" : "↓";
   };
 
-  const sortedAdminFaults = [...adminFaults].sort((a, b) => {
+  const filteredAdminFaults =
+    faultLevelFilter === "ALL"
+      ? adminFaults
+      : adminFaults.filter((f) => f.level === faultLevelFilter);
+
+  const sortedAdminFaults = [...filteredAdminFaults].sort((a, b) => {
     const dir = adminFaultSort.direction === "asc" ? 1 : -1;
     const col = adminFaultSort.column;
-    return a[col].localeCompare(b[col], "cs") * dir;
+    return String(a[col] ?? "").localeCompare(String(b[col] ?? ""), "cs") * dir;
   });
 
-  const handleAdminFaultSort = (column: "key" | "name") => {
+  const handleAdminFaultSort = (
+    column: "key" | "name" | "description" | "level",
+  ) => {
     setAdminFaultSort((prev) =>
       prev.column === column
         ? { column, direction: prev.direction === "asc" ? "desc" : "asc" }
@@ -738,7 +753,9 @@ function App() {
     );
   };
 
-  const getFaultSortArrow = (column: "key" | "name") => {
+  const getFaultSortArrow = (
+    column: "key" | "name" | "description" | "level",
+  ) => {
     if (adminFaultSort.column !== column) {
       return "↕";
     }
@@ -785,7 +802,7 @@ function App() {
     }
   };
 
-  /** Local-only: enabling still sets failure rate to 1 (same UX as before); nothing hits the API until Save all. */
+  /** Local-only: enabling still sets failure rate to 1 for faults that support it (same UX as before); nothing hits the API until Save all. */
   const handleAdminFaultEnabledLocalChange = (key: string) => {
     setAdminFaults((prev) =>
       prev.map((f) => {
@@ -794,7 +811,9 @@ function App() {
         return {
           ...f,
           enabled: enabling,
-          ...(enabling ? { failureRate: 1 } : {}),
+          ...(enabling && FAILURE_RATE_SUPPORTED_KEYS.has(f.key)
+            ? { failureRate: 1 }
+            : {}),
         };
       }),
     );
@@ -835,21 +854,24 @@ function App() {
     value: string,
   ) => {
     setAdminFaults((prev) =>
-      prev.map((f) =>
-        f.key === key
-          ? {
-              ...f,
-              [field]:
-                field === "name" || field === "description" || field === "level"
-                  ? value
-                  : value.trim() === ""
-                    ? null
-                    : field === "latencyMs"
-                      ? Number(value)
-                      : Number(value),
-            }
-          : f,
-      ),
+      prev.map((f) => {
+        if (f.key !== key) return f;
+
+        // Never allow editing failureRate for faults that don't support it.
+        if (field === "failureRate" && !FAILURE_RATE_SUPPORTED_KEYS.has(f.key)) {
+          return f;
+        }
+
+        return {
+          ...f,
+          [field]:
+            field === "name" || field === "description" || field === "level"
+              ? value
+              : value.trim() === ""
+                ? null
+                : Number(value),
+        };
+      }),
     );
   };
 
@@ -1210,6 +1232,22 @@ function App() {
                 <span className="muted" style={{ marginLeft: "0.75rem" }}>
                   {t("faults.editsLocal")}
                 </span>
+                <label className="faults-level-filter">
+                  <span className="muted">{t("faults.filterLevel")}</span>
+                  <select
+                    value={faultLevelFilter}
+                    onChange={(e) =>
+                      setFaultLevelFilter(
+                        e.target.value as "ALL" | "UI" | "API" | "Unit",
+                      )
+                    }
+                  >
+                    <option value="ALL">{t("faults.filterAllLevels")}</option>
+                    <option value="UI">{t("faults.levelUi")}</option>
+                    <option value="API">{t("faults.levelApi")}</option>
+                    <option value="Unit">{t("faults.levelUnit")}</option>
+                  </select>
+                </label>
               </div>
               <div className="table-wrap">
                 {adminFaults.length === 0 ? (
@@ -1218,7 +1256,7 @@ function App() {
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>
+                        <th className="faults-col-key">
                           <button
                             type="button"
                             onClick={() => handleAdminFaultSort("key")}
@@ -1236,17 +1274,38 @@ function App() {
                             {t("faults.thName")} {getFaultSortArrow("name")}
                           </button>
                         </th>
-                        <th>{t("faults.thDescription")}</th>
-                        <th>{t("faults.thLevel")}</th>
+                        <th>
+                          <button
+                            type="button"
+                            onClick={() => handleAdminFaultSort("description")}
+                            className="sort-btn"
+                          >
+                            {t("faults.thDescription")}{" "}
+                            {getFaultSortArrow("description")}
+                          </button>
+                        </th>
+                        <th>
+                          <button
+                            type="button"
+                            onClick={() => handleAdminFaultSort("level")}
+                            className="sort-btn"
+                          >
+                            {t("faults.thLevel")} {getFaultSortArrow("level")}
+                          </button>
+                        </th>
                         <th>{t("faults.thEnabled")}</th>
-                        <th>{t("faults.thLatency")}</th>
-                        <th>{t("faults.thFailureRate")}</th>
+                        <th className="faults-col-latency">
+                          {t("faults.thLatency")}
+                        </th>
+                        <th className="faults-col-failure">
+                          {t("faults.thFailureRate")}
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {sortedAdminFaults.map((f) => (
                         <tr key={f.key}>
-                          <td>{f.key}</td>
+                          <td className="faults-col-key">{f.key}</td>
                           <td>
                             <input
                               type="text"
@@ -1261,8 +1320,8 @@ function App() {
                             />
                           </td>
                           <td>
-                            <input
-                              type="text"
+                            <textarea
+                              rows={2}
                               value={f.description}
                               onChange={(e) =>
                                 handleAdminFaultChange(
@@ -1312,20 +1371,29 @@ function App() {
                             />
                           </td>
                           <td>
-                            <input
-                              type="number"
-                              step="0.1"
-                              min="0"
-                              max="1"
-                              value={f.failureRate ?? ""}
-                              onChange={(e) =>
-                                handleAdminFaultChange(
-                                  f.key,
-                                  "failureRate",
-                                  e.target.value,
-                                )
-                              }
-                            />
+                            {FAILURE_RATE_SUPPORTED_KEYS.has(f.key) ? (
+                              <input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="1"
+                                value={f.failureRate ?? ""}
+                                onChange={(e) =>
+                                  handleAdminFaultChange(
+                                    f.key,
+                                    "failureRate",
+                                    e.target.value,
+                                  )
+                                }
+                              />
+                            ) : (
+                              <input
+                                type="text"
+                                value="N/A"
+                                disabled
+                                className="faults-failure-disabled"
+                              />
+                            )}
                           </td>
                         </tr>
                       ))}
