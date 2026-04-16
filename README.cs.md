@@ -151,6 +151,10 @@ Po spuštění backendu jsou dostupné:
 - **Swagger UI:** `http://localhost:4000/docs`
 - **Raw OpenAPI JSON:** `http://localhost:4000/docs-json`
 
+Na Azure je Swagger dostupný na URL nasazeného API, například:
+
+- **Swagger UI (Azure):** `https://myshopname-api-nrpgzs.icyisland-9b0231d6.westus2.azurecontainerapps.io/docs/`
+
 Specifikace se generuje z OpenAPI anotací přímo v route souborech (`backend/src/routes/*.ts`).
 
 Volitelně lze exportovat statický soubor:

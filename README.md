@@ -151,6 +151,10 @@ After backend starts:
 - **Swagger UI:** `http://localhost:4000/docs`
 - **Raw OpenAPI JSON:** `http://localhost:4000/docs-json`
 
+On Azure, Swagger is available at your deployed API URL, for example:
+
+- **Swagger UI (Azure):** `https://myshopname-api-nrpgzs.icyisland-9b0231d6.westus2.azurecontainerapps.io/docs/`
+
 The spec is generated from OpenAPI annotations directly in route files (`backend/src/routes/*.ts`).
 
 Optionally export a static file:
