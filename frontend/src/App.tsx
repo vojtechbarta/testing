@@ -33,6 +33,12 @@ import {
   type BuyerFormPayload,
 } from "./api/checkout";
 import { toShopDisplayMoney } from "./displayMoney";
+import {
+  buildCartExportRows,
+  buildProductsExportRows,
+  downloadFile,
+  toCsv,
+} from "./exportHelpers";
 
 const FAILURE_RATE_SUPPORTED_KEYS = new Set<string>([
   "cart_add_ui_double_call",
@@ -575,6 +581,47 @@ function App() {
         err instanceof Error ? err.message : t("errors.cartUpdateFailed"),
       );
     }
+  };
+
+  const nowTimestamp = () => {
+    const d = new Date();
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    return (
+      d.getFullYear().toString() +
+      pad(d.getMonth() + 1) +
+      pad(d.getDate()) +
+      "-" +
+      pad(d.getHours()) +
+      pad(d.getMinutes())
+    );
+  };
+
+  const handleExportProductsCsv = () => {
+    if (products.length === 0) return;
+    const rows = buildProductsExportRows(products);
+    const headers = ["Name", "Description", "Price", "In stock"];
+    const csvRows = rows.map((r) => [
+      r.name,
+      r.description,
+      r.price,
+      r.inStock,
+    ]);
+    const csv = toCsv(headers, csvRows);
+    downloadFile(`products-export-${nowTimestamp()}.csv`, "text/csv", csv);
+  };
+
+  const handleExportCartCsv = () => {
+    if (!cart || cart.items.length === 0) return;
+    const rows = buildCartExportRows(cart);
+    const headers = ["Name", "Unit price", "Quantity", "Line total"];
+    const csvRows = rows.map((r) => [
+      r.name,
+      r.unitPrice,
+      r.quantity,
+      r.lineTotal,
+    ]);
+    const csv = toCsv(headers, csvRows);
+    downloadFile(`cart-export-${nowTimestamp()}.csv`, "text/csv", csv);
   };
 
   const handleSwitchToAdmin = async () => {
@@ -1612,8 +1659,58 @@ function App() {
               </div>
             </div>
 
+            <div className="shop-export-panel">
+              <div className="shop-export-panel__title">{t("shop.exportTitle")}</div>
+              <div className="shop-export-section">
+                <div className="shop-export-section__label">
+                  {t("shop.exportSearchResults")}
+                </div>
+                <div className="shop-export-section__actions">
+                  <button
+                    type="button"
+                    className="btn btn-small"
+                    onClick={handleExportProductsCsv}
+                    disabled={products.length === 0}
+                  >
+                    {t("shop.exportCsv")}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-small"
+                    disabled={products.length === 0}
+                  >
+                    {t("shop.exportPdf")}
+                  </button>
+                </div>
+              </div>
+              <div className="shop-export-section">
+                <div className="shop-export-section__label">
+                  {t("cart.exportTitle")}
+                </div>
+                <div className="shop-export-section__actions">
+                  <button
+                    type="button"
+                    className="btn btn-small"
+                    onClick={handleExportCartCsv}
+                    disabled={!cart || cart.items.length === 0}
+                  >
+                    {t("cart.exportCsv")}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-small"
+                    disabled={!cart || cart.items.length === 0}
+                  >
+                    {t("cart.exportPdf")}
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div className="cart-panel">
-              <div className="cart-panel__title">{t("cart.title")}</div>
+              <div className="cart-panel__title-row">
+                <div className="cart-panel__title">{t("cart.title")}</div>
+              </div>
               {!cart || cart.items.length === 0 ? (
                 <p className="muted">{t("cart.empty")}</p>
               ) : (

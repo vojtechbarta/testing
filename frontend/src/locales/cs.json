@@ -88,7 +88,11 @@
     "sortPriceDesc": "Cena (od nejvyšší)",
     "priceRange": "Rozsah ceny (CZK)",
     "min": "Min",
-    "max": "Max"
+    "max": "Max",
+    "exportTitle": "Export produktů",
+    "exportSearchResults": "Export výsledků vyhledávání",
+    "exportCsv": "CSV",
+    "exportPdf": "PDF"
   },
   "cart": {
     "title": "Nákupní košík",
@@ -100,7 +104,10 @@
     "ofStock": "z {{count}}",
     "subtotal": "Mezisoučet",
     "estimatedTotal": "Odhadovaný součet",
-    "checkout": "Pokračovat k pokladně"
+    "checkout": "Pokračovat k pokladně",
+    "exportTitle": "Export košíku",
+    "exportCsv": "CSV",
+    "exportPdf": "PDF"
   },
   "checkout": {
     "title": "Pokladna",

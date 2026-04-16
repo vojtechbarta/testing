@@ -31,7 +31,7 @@ Demo e‑shop (React + Node) určený jako **tréninkové hřiště** pro testov
 
 ### Kde je co ve frontendu
 
-- **`src/App.tsx`** – hlavní UI (shop, košík, checkout, admin, záložka bugs).
+- **`src/App.tsx`** – hlavní UI (shop, košík, checkout, admin, záložka bugs, CSV export produktů a košíku).
 - **`src/api/`** – fetch klienti (`cart`, `checkout`, `products`, `admin`, `faults`, …).
 - **`src/lib/cartSession.ts`** – `sessionStorage` + UUID relace košíku (`X-Cart-Session`).
 - **`e2e/`** – Playwright: `tests/*.spec.ts`, `pages/` (page objects). Popis: [`frontend/e2e/README.md`](frontend/e2e/README.md).

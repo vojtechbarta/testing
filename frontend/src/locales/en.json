@@ -88,7 +88,11 @@
     "sortPriceDesc": "Price (high to low)",
     "priceRange": "Price range (EUR)",
     "min": "Min",
-    "max": "Max"
+    "max": "Max",
+    "exportTitle": "Export products",
+    "exportSearchResults": "Export search results",
+    "exportCsv": "CSV",
+    "exportPdf": "PDF"
   },
   "cart": {
     "title": "Shopping Cart",
@@ -100,7 +104,10 @@
     "ofStock": "of {{count}}",
     "subtotal": "Subtotal",
     "estimatedTotal": "Estimated total",
-    "checkout": "Proceed to checkout"
+    "checkout": "Proceed to checkout",
+    "exportTitle": "Export cart",
+    "exportCsv": "CSV",
+    "exportPdf": "PDF"
   },
   "checkout": {
     "title": "Checkout",

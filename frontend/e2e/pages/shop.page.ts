@@ -135,4 +135,25 @@ export class ShopPage {
     await expect(total).toBeVisible();
     await expect(total).toContainText("€");
   }
+
+  async exportProductsCsv(): Promise<import("@playwright/test").Download> {
+    const exportPanel = this.page.locator(".shop-export-panel");
+    const searchSection = exportPanel.locator(".shop-export-section").first();
+    const [download] = await Promise.all([
+      this.page.waitForEvent("download"),
+      searchSection.getByRole("button", { name: "CSV" }).click(),
+    ]);
+    return download;
+  }
+
+  async exportCartCsv(): Promise<import("@playwright/test").Download> {
+    const exportPanel = this.page.locator(".shop-export-panel");
+    const sections = exportPanel.locator(".shop-export-section");
+    const cartSection = sections.nth(1);
+    const [download] = await Promise.all([
+      this.page.waitForEvent("download"),
+      cartSection.getByRole("button", { name: "CSV" }).click(),
+    ]);
+    return download;
+  }
 }

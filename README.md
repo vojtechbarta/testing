@@ -31,7 +31,7 @@ Demo e-shop (React + Node) designed as a **training playground** for testing: ca
 
 ### Where things are in frontend
 
-- **`src/App.tsx`** – main UI (shop, cart, checkout, admin, bugs tab).
+- **`src/App.tsx`** – main UI (shop, cart, checkout, admin, bugs tab, CSV export of products and cart).
 - **`src/api/`** – fetch clients (`cart`, `checkout`, `products`, `admin`, `faults`, ...).
 - **`src/lib/cartSession.ts`** – `sessionStorage` + cart session UUID (`X-Cart-Session`).
 - **`e2e/`** – Playwright: `tests/*.spec.ts`, `pages/` (page objects). Docs: [`frontend/e2e/README.md`](frontend/e2e/README.md).
