@@ -11,6 +11,7 @@ const INTEGRATION_TESTS_DIR = path.join(BACKEND_DIR, "src", "integration-tests")
 const UNIT_TESTS_DIR = path.join(BACKEND_DIR, "src", "services", "unit-tests");
 const SERVICES_DIR = path.join(BACKEND_DIR, "src", "services");
 const UI_TESTS_DIR = path.join(ROOT, "frontend", "e2e", "tests");
+const UI_COVERAGE_MATRIX_FILE = path.join(ROOT, "frontend", "e2e", "ui-coverage-matrix.json");
 const DEFAULT_OUT = path.join(ROOT, "agents-results", "test-pyramid-coverage-report.md");
 const COVERAGE_JSON = path.join(BACKEND_DIR, "coverage-pyramid", "coverage-summary.json");
 
@@ -234,11 +235,24 @@ async function analyzeUiFlows() {
   let totalTests = 0;
   let independentTests = 0;
   let longFlowWarnings = 0;
+  const perspectiveCoverage = {
+    shop: false,
+    admin: false,
+    tester: false,
+  };
 
   for (const specFile of specFiles) {
     const text = await readFile(specFile, "utf-8");
+    const fileName = path.basename(specFile).toLowerCase();
+    if (fileName.includes("shop")) perspectiveCoverage.shop = true;
+    if (fileName.includes("admin")) perspectiveCoverage.admin = true;
+    if (fileName.includes("tester")) perspectiveCoverage.tester = true;
+
     const testBlocks = text.match(/test\((.|\n)*?\}\);/g) || [];
+    const titleMatches = text.matchAll(/test\(\s*["'`]{1}([^"'`]+)["'`]{1}\s*,/g);
+    const testTitles = [...titleMatches].map((m) => m[1]).filter(Boolean);
     const fileResult = { file: path.relative(ROOT, specFile), tests: testBlocks.length, warnings: [] };
+    fileResult.testTitles = testTitles;
     totalTests += testBlocks.length;
 
     for (const block of testBlocks) {
@@ -254,7 +268,110 @@ async function analyzeUiFlows() {
   }
 
   const independenceScore = totalTests === 0 ? 0 : (independentTests / totalTests) * 100;
-  return { specFiles, analyses, totalTests, independentTests, independenceScore, longFlowWarnings };
+  return {
+    specFiles,
+    analyses,
+    totalTests,
+    independentTests,
+    independenceScore,
+    longFlowWarnings,
+    perspectiveCoverage,
+  };
+}
+
+async function readUiCoverageMatrix() {
+  if (!existsSync(UI_COVERAGE_MATRIX_FILE)) {
+    return {
+      available: false,
+      warning: "UI coverage matrix file is missing.",
+      areas: [],
+    };
+  }
+
+  try {
+    const raw = await readFile(UI_COVERAGE_MATRIX_FILE, "utf-8");
+    const parsed = JSON.parse(raw);
+    const areas = Array.isArray(parsed?.areas) ? parsed.areas : [];
+    if (areas.length === 0) {
+      return {
+        available: false,
+        warning: "UI coverage matrix is empty or malformed (missing areas array).",
+        areas: [],
+      };
+    }
+    return { available: true, warning: "", areas };
+  } catch (error) {
+    return {
+      available: false,
+      warning: `UI coverage matrix parse failed: ${error instanceof Error ? error.message : String(error)}`,
+      areas: [],
+    };
+  }
+}
+
+function buildUiTestTitleIndex(ui) {
+  const index = new Map();
+  for (const analysis of ui.analyses) {
+    index.set(analysis.file, analysis.testTitles || []);
+  }
+  return index;
+}
+
+function evaluateUiCoverageMatrix(ui, matrix) {
+  if (!matrix.available) {
+    return {
+      available: false,
+      warning: matrix.warning,
+      totalAreas: 0,
+      coveredAreas: 0,
+      missingAreas: [],
+      areaResults: [],
+    };
+  }
+
+  const titleIndex = buildUiTestTitleIndex(ui);
+  const areaResults = matrix.areas.map((area) => {
+    const requiredScenarios = Array.isArray(area.requiredScenarios) ? area.requiredScenarios : [];
+    const evidence = area.evidence && typeof area.evidence === "object" ? area.evidence : {};
+    const scenarioResults = requiredScenarios.map((scenario) => {
+      const evidences = Array.isArray(evidence[scenario]) ? evidence[scenario] : [];
+      let covered = false;
+      for (const ev of evidences) {
+        const specFile = ev?.specFile;
+        const titleNeedle = String(ev?.testTitleIncludes ?? "").trim().toLowerCase();
+        if (!specFile || !titleNeedle) continue;
+        const titles = titleIndex.get(specFile) || [];
+        if (titles.some((title) => String(title).toLowerCase().includes(titleNeedle))) {
+          covered = true;
+          break;
+        }
+      }
+      return { scenario, covered };
+    });
+    const missingScenarios = scenarioResults.filter((s) => !s.covered).map((s) => s.scenario);
+    return {
+      id: area.id,
+      title: area.title,
+      requiredForRoles: Array.isArray(area.requiredForRoles) ? area.requiredForRoles : [],
+      suggestedFilePlacement: Array.isArray(area.suggestedFilePlacement)
+        ? area.suggestedFilePlacement
+        : [],
+      missingScenarios,
+      covered: missingScenarios.length === 0,
+    };
+  });
+
+  const coveredAreas = areaResults.filter((a) => a.covered).length;
+  const totalAreas = areaResults.length;
+  const missingAreas = areaResults.filter((a) => !a.covered);
+  return {
+    available: true,
+    warning: "",
+    totalAreas,
+    coveredAreas,
+    missingAreas,
+    areaResults,
+  };
 }
 
 function buildUnitSection(unitCoverage, unitSurface) {
@@ -354,7 +471,7 @@ function buildIntegrationSection(endpoints, coverageSet) {
   return lines.join("\n");
 }
 
-function buildUiSection(ui) {
+function buildUiSection(ui, uiMatrix) {
   const lines = [];
   lines.push("## UI Coverage");
   lines.push("");
@@ -362,11 +479,27 @@ function buildUiSection(ui) {
   lines.push(`- Total tests: ${ui.totalTests}`);
   lines.push(`- Independent setup signals: ${ui.independentTests}/${ui.totalTests}`);
   lines.push(`- Independence score: ${ui.independenceScore.toFixed(2)}%`);
+  lines.push(
+    `- Perspective coverage: shop=${ui.perspectiveCoverage.shop ? "Yes" : "No"}, admin=${ui.perspectiveCoverage.admin ? "Yes" : "No"}, tester=${ui.perspectiveCoverage.tester ? "Yes" : "No"}`,
+  );
+  if (uiMatrix.available) {
+    lines.push(`- Matrix coverage: ${uiMatrix.coveredAreas}/${uiMatrix.totalAreas} area(s) fully covered`);
+  } else {
+    lines.push(`- Matrix coverage: unavailable (${uiMatrix.warning})`);
+  }
   lines.push("");
 
   const warnings = [];
   if (ui.independenceScore < 80) warnings.push("Independence score below 80%");
   if (ui.longFlowWarnings > 0) warnings.push(`${ui.longFlowWarnings} long chained test flow(s) detected`);
+  if (!ui.perspectiveCoverage.tester) {
+    warnings.push("Missing tester perspective UI flow");
+  }
+  if (!uiMatrix.available) {
+    warnings.push(`UI area matrix unavailable: ${uiMatrix.warning}`);
+  } else if (uiMatrix.missingAreas.length > 0) {
+    warnings.push(`${uiMatrix.missingAreas.length} UI area(s) have missing scenario coverage`);
+  }
 
   if (warnings.length === 0) {
     lines.push("- No UI flow-structure warnings detected.");
@@ -375,12 +508,49 @@ function buildUiSection(ui) {
     lines.push("- **Missing Tests**");
     lines.push("  - Add short isolated checkout error UX flow (validation + retry).");
     lines.push("  - Add explicit post-failure state continuity checks.");
+    if (!ui.perspectiveCoverage.tester) {
+      lines.push("  - Add tester-perspective flows for fault-management UI actions.");
+    }
+    if (uiMatrix.available && uiMatrix.missingAreas.length > 0) {
+      lines.push("  - Add scenarios for matrix areas listed below as missing.");
+    }
     lines.push("- **Implementation Proposal**");
     lines.push("  - Split long scenarios into multiple tests with fresh `goto()` setup.");
     lines.push("  - Reuse page-object methods to keep selectors stable and tests readable.");
+    if (!ui.perspectiveCoverage.tester) {
+      lines.push("  - Add `frontend/e2e/tests/tester.spec.ts` with short independent login/bugs flows.");
+    }
     lines.push("- **Suggested File Placement**");
     lines.push("  - `frontend/e2e/tests/shop.spec.ts`");
     lines.push("  - `frontend/e2e/tests/checkout-errors.spec.ts`");
+    if (!ui.perspectiveCoverage.tester) {
+      lines.push("  - `frontend/e2e/tests/tester.spec.ts`");
+    }
+    if (uiMatrix.available) {
+      for (const area of uiMatrix.missingAreas) {
+        for (const suggestion of area.suggestedFilePlacement) {
+          lines.push(`  - \`${suggestion}\``);
+        }
+      }
+    }
+  }
+
+  lines.push("");
+  lines.push("### UI Area Coverage Matrix");
+  if (!uiMatrix.available) {
+    lines.push(`- Warning: ${uiMatrix.warning}`);
+  } else {
+    lines.push("| Area | Status | Missing Scenarios |");
+    lines.push("|---|---|---|");
+    for (const area of uiMatrix.areaResults) {
+      if (area.covered) {
+        lines.push(`| \`${area.id}\` (${area.title}) | Covered | - |`);
+      } else {
+        lines.push(
+          `| \`${area.id}\` (${area.title}) | Missing | ${area.missingScenarios.join(", ")} |`,
+        );
+      }
+    }
   }
 
   lines.push("");
@@ -392,7 +562,7 @@ function buildUiSection(ui) {
   return lines.join("\n");
 }
 
-function buildPrioritizedGaps(unitSurface, endpoints, coverageSet, ui) {
+function buildPrioritizedGaps(unitSurface, endpoints, coverageSet, ui, uiMatrix) {
   const lines = [];
   lines.push("## Prioritized Gaps");
   lines.push("");
@@ -409,9 +579,15 @@ function buildPrioritizedGaps(unitSurface, endpoints, coverageSet, ui) {
   if (unitSurface.missing.length) {
     lines.push(`   - Missing modules: ${unitSurface.missing.join(", ")}.`);
   }
-  lines.push("3. UI: add dedicated checkout failure UX spec and keep flows short.");
+  lines.push("3. UI: keep flows short and cover shop/admin/tester perspectives.");
   if (ui.longFlowWarnings > 0) {
     lines.push(`   - Split ${ui.longFlowWarnings} long chained flow(s).`);
+  }
+  if (!ui.perspectiveCoverage.tester) {
+    lines.push("   - Add missing tester perspective coverage.");
+  }
+  if (uiMatrix.available && uiMatrix.missingAreas.length > 0) {
+    lines.push(`   - Fill missing scenarios in ${uiMatrix.missingAreas.length} UI matrix area(s).`);
   }
 
   return lines.join("\n");
@@ -421,12 +597,14 @@ async function main() {
   const { outFile } = parseArgs();
   await mkdir(path.dirname(outFile), { recursive: true });
 
-  const [unitCoverage, mountsData, unitSurface, ui] = await Promise.all([
+  const [unitCoverage, mountsData, unitSurface, ui, uiMatrixRaw] = await Promise.all([
     readUnitCoverage(),
     parseMounts(),
     analyzeUnitTestSurface(),
     analyzeUiFlows(),
+    readUiCoverageMatrix(),
   ]);
+  const uiMatrix = evaluateUiCoverageMatrix(ui, uiMatrixRaw);
 
   const routeEndpoints = await parseRouteEndpoints(mountsData.mounts);
   const endpoints = [...mountsData.directEndpoints, ...routeEndpoints].sort((a, b) =>
@@ -445,9 +623,9 @@ async function main() {
     "",
     buildIntegrationSection(endpoints, integration.covered),
     "",
-    buildUiSection(ui),
+    buildUiSection(ui, uiMatrix),
     "",
-    buildPrioritizedGaps(unitSurface, endpoints, integration.covered, ui),
+    buildPrioritizedGaps(unitSurface, endpoints, integration.covered, ui, uiMatrix),
     "",
   ].join("\n");
 

@@ -19,6 +19,17 @@ export async function loginAsAdmin(request: APIRequestContext): Promise<string> 
   return body.token;
 }
 
+export async function loginAsTester(request: APIRequestContext): Promise<string> {
+  const res = await request.post(`${apiBaseUrl()}/auth/login`, {
+    data: { username: "tester", password: "tester" },
+  });
+  if (!res.ok()) {
+    throw new Error(`Tester login failed: ${res.status()} ${await res.text()}`);
+  }
+  const body = (await res.json()) as { token: string };
+  return body.token;
+}
+
 export async function deleteAdminProduct(
   request: APIRequestContext,
   token: string,

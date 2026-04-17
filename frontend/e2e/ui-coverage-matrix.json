@@ -1,0 +1,230 @@
+{
+  "version": 1,
+  "areas": [
+    {
+      "id": "auth.login",
+      "title": "Authentication login flows",
+      "requiredScenarios": ["happy", "error", "authz"],
+      "requiredForRoles": ["admin", "tester"],
+      "evidence": {
+        "happy": [
+          {
+            "specFile": "frontend/e2e/tests/auth.spec.ts",
+            "testTitleIncludes": "admin login succeeds"
+          },
+          {
+            "specFile": "frontend/e2e/tests/auth.spec.ts",
+            "testTitleIncludes": "tester login succeeds"
+          }
+        ],
+        "error": [
+          {
+            "specFile": "frontend/e2e/tests/auth.spec.ts",
+            "testTitleIncludes": "invalid credentials"
+          }
+        ],
+        "authz": [
+          {
+            "specFile": "frontend/e2e/tests/auth.spec.ts",
+            "testTitleIncludes": "only tester navigation is visible"
+          }
+        ]
+      },
+      "suggestedFilePlacement": [
+        "frontend/e2e/tests/auth.spec.ts"
+      ]
+    },
+    {
+      "id": "shop.catalog",
+      "title": "Shop catalog browsing",
+      "requiredScenarios": ["happy"],
+      "requiredForRoles": ["shop"],
+      "evidence": {
+        "happy": [
+          {
+            "specFile": "frontend/e2e/tests/shop.spec.ts",
+            "testTitleIncludes": "home shows 15 seed products"
+          }
+        ]
+      },
+      "suggestedFilePlacement": [
+        "frontend/e2e/tests/shop.spec.ts"
+      ]
+    },
+    {
+      "id": "shop.cart",
+      "title": "Shop cart interactions",
+      "requiredScenarios": ["happy", "error"],
+      "requiredForRoles": ["shop"],
+      "evidence": {
+        "happy": [
+          {
+            "specFile": "frontend/e2e/tests/shop.spec.ts",
+            "testTitleIncludes": "add-to-cart shows cart line"
+          }
+        ],
+        "error": [
+          {
+            "specFile": "frontend/e2e/tests/checkout-errors.spec.ts",
+            "testTitleIncludes": "stock ceiling"
+          }
+        ]
+      },
+      "suggestedFilePlacement": [
+        "frontend/e2e/tests/shop.spec.ts",
+        "frontend/e2e/tests/cart-errors.spec.ts"
+      ]
+    },
+    {
+      "id": "shop.checkout",
+      "title": "Checkout happy-path flows",
+      "requiredScenarios": ["happy", "error"],
+      "requiredForRoles": ["shop"],
+      "evidence": {
+        "happy": [
+          {
+            "specFile": "frontend/e2e/tests/checkout.spec.ts",
+            "testTitleIncludes": "bank transfer flow reaches dummy transfer details"
+          }
+        ],
+        "error": [
+          {
+            "specFile": "frontend/e2e/tests/checkout-errors.spec.ts",
+            "testTitleIncludes": "validates required checkout fields"
+          }
+        ]
+      },
+      "suggestedFilePlacement": [
+        "frontend/e2e/tests/checkout.spec.ts",
+        "frontend/e2e/tests/checkout-errors.spec.ts"
+      ]
+    },
+    {
+      "id": "shop.checkoutErrors",
+      "title": "Checkout validation and failure recovery",
+      "requiredScenarios": ["error"],
+      "requiredForRoles": ["shop"],
+      "evidence": {
+        "error": [
+          {
+            "specFile": "frontend/e2e/tests/checkout-errors.spec.ts",
+            "testTitleIncludes": "validates required checkout fields"
+          }
+        ]
+      },
+      "suggestedFilePlacement": [
+        "frontend/e2e/tests/checkout-errors.spec.ts"
+      ]
+    },
+    {
+      "id": "admin.products",
+      "title": "Admin product management",
+      "requiredScenarios": ["happy", "authz"],
+      "requiredForRoles": ["admin"],
+      "evidence": {
+        "happy": [
+          {
+            "specFile": "frontend/e2e/tests/admin.spec.ts",
+            "testTitleIncludes": "adds one product via UI"
+          }
+        ],
+        "authz": [
+          {
+            "specFile": "frontend/e2e/tests/auth.spec.ts",
+            "testTitleIncludes": "only tester navigation is visible"
+          }
+        ]
+      },
+      "suggestedFilePlacement": [
+        "frontend/e2e/tests/admin.spec.ts",
+        "frontend/e2e/tests/admin-authz.spec.ts"
+      ]
+    },
+    {
+      "id": "tester.faults",
+      "title": "Tester fault-management UI",
+      "requiredScenarios": ["happy", "authz"],
+      "requiredForRoles": ["tester"],
+      "evidence": {
+        "happy": [
+          {
+            "specFile": "frontend/e2e/tests/tester.spec.ts",
+            "testTitleIncludes": "tester can open fault-injection view"
+          },
+          {
+            "specFile": "frontend/e2e/tests/tester.spec.ts",
+            "testTitleIncludes": "tester can save fault changes"
+          }
+        ],
+        "authz": [
+          {
+            "specFile": "frontend/e2e/tests/tester.spec.ts",
+            "testTitleIncludes": "does not see Admin navigation"
+          }
+        ]
+      },
+      "suggestedFilePlacement": [
+        "frontend/e2e/tests/tester.spec.ts"
+      ]
+    },
+    {
+      "id": "exports.products",
+      "title": "Products export flows",
+      "requiredScenarios": ["happy"],
+      "requiredForRoles": ["shop"],
+      "evidence": {
+        "happy": [
+          {
+            "specFile": "frontend/e2e/tests/shop.spec.ts",
+            "testTitleIncludes": "export products and cart as CSV"
+          },
+          {
+            "specFile": "frontend/e2e/tests/shop.spec.ts",
+            "testTitleIncludes": "export products and cart as PDF"
+          }
+        ]
+      },
+      "suggestedFilePlacement": [
+        "frontend/e2e/tests/shop.spec.ts"
+      ]
+    },
+    {
+      "id": "exports.cart",
+      "title": "Cart export flows",
+      "requiredScenarios": ["happy"],
+      "requiredForRoles": ["shop"],
+      "evidence": {
+        "happy": [
+          {
+            "specFile": "frontend/e2e/tests/shop.spec.ts",
+            "testTitleIncludes": "export products and cart as CSV"
+          },
+          {
+            "specFile": "frontend/e2e/tests/shop.spec.ts",
+            "testTitleIncludes": "export products and cart as PDF"
+          }
+        ]
+      },
+      "suggestedFilePlacement": [
+        "frontend/e2e/tests/shop.spec.ts"
+      ]
+    },
+    {
+      "id": "i18n.languageSwitch",
+      "title": "Language switch behavior",
+      "requiredScenarios": ["happy"],
+      "requiredForRoles": ["shop"],
+      "evidence": {
+        "happy": [
+          {
+            "specFile": "frontend/e2e/tests/i18n.spec.ts",
+            "testTitleIncludes": "switches EN/CS labels"
+          }
+        ]
+      },
+      "suggestedFilePlacement": [
+        "frontend/e2e/tests/i18n.spec.ts"
+      ]
+    }
+  ]
+}
