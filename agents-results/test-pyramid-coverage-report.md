@@ -1,6 +1,6 @@
 # Test Pyramid Coverage Report
 
-Generated: 2026-04-17T14:54:02.159Z
+Generated: 2026-04-17T16:31:21.181Z
 
 ## Unit Coverage
 
@@ -61,6 +61,23 @@ Generated: 2026-04-17T14:54:02.159Z
 | `exports.products` (Products export flows) | Covered | - |
 | `exports.cart` (Cart export flows) | Covered | - |
 | `i18n.languageSwitch` (Language switch behavior) | Covered | - |
+
+### Cross-browser Smoke Eligibility
+- Smoke-eligible areas: 7/10
+- Smoke-ineligible areas: 3
+
+| Area | Smoke Eligible |
+|---|---|
+| `auth.login` (Authentication login flows) | Yes |
+| `shop.catalog` (Shop catalog browsing) | Yes |
+| `shop.cart` (Shop cart interactions) | Yes |
+| `shop.checkout` (Checkout happy-path flows) | Yes |
+| `shop.checkoutErrors` (Checkout validation and failure recovery) | No |
+| `admin.products` (Admin product management) | Yes |
+| `tester.faults` (Tester fault-management UI) | Yes |
+| `exports.products` (Products export flows) | No |
+| `exports.cart` (Cart export flows) | No |
+| `i18n.languageSwitch` (Language switch behavior) | Yes |
 
 ### Flow Inventory
 - `frontend/e2e/tests/admin.spec.ts`: 1 test(s)

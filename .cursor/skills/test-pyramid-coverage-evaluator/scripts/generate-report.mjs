@@ -12,6 +12,7 @@ const UNIT_TESTS_DIR = path.join(BACKEND_DIR, "src", "services", "unit-tests");
 const SERVICES_DIR = path.join(BACKEND_DIR, "src", "services");
 const UI_TESTS_DIR = path.join(ROOT, "frontend", "e2e", "tests");
 const UI_COVERAGE_MATRIX_FILE = path.join(ROOT, "frontend", "e2e", "ui-coverage-matrix.json");
+const PLAYWRIGHT_CONFIG_FILE = path.join(ROOT, "frontend", "playwright.config.ts");
 const DEFAULT_OUT = path.join(ROOT, "agents-results", "test-pyramid-coverage-report.md");
 const COVERAGE_JSON = path.join(BACKEND_DIR, "coverage-pyramid", "coverage-summary.json");
 
@@ -352,6 +353,7 @@ function evaluateUiCoverageMatrix(ui, matrix) {
     return {
       id: area.id,
       title: area.title,
+      crossBrowserSmokeEligible: Boolean(area.crossBrowserSmokeEligible),
       requiredForRoles: Array.isArray(area.requiredForRoles) ? area.requiredForRoles : [],
       suggestedFilePlacement: Array.isArray(area.suggestedFilePlacement)
         ? area.suggestedFilePlacement
@@ -364,14 +366,27 @@ function evaluateUiCoverageMatrix(ui, matrix) {
   const coveredAreas = areaResults.filter((a) => a.covered).length;
   const totalAreas = areaResults.length;
   const missingAreas = areaResults.filter((a) => !a.covered);
+  const smokeEligibleAreas = areaResults.filter((a) => a.crossBrowserSmokeEligible);
+  const smokeIneligibleAreas = areaResults.filter((a) => !a.crossBrowserSmokeEligible);
   return {
     available: true,
     warning: "",
     totalAreas,
     coveredAreas,
     missingAreas,
+    smokeEligibleAreas,
+    smokeIneligibleAreas,
     areaResults,
   };
+}
+
+async function readSmokeScopeConfig() {
+  if (!existsSync(PLAYWRIGHT_CONFIG_FILE)) {
+    return { available: false, smokeProjectsConfigured: false };
+  }
+  const text = await readFile(PLAYWRIGHT_CONFIG_FILE, "utf-8");
+  const smokeProjectsConfigured = /firefox-smoke|webkit-smoke|@smoke/.test(text);
+  return { available: true, smokeProjectsConfigured };
 }
 
 function buildUnitSection(unitCoverage, unitSurface) {
@@ -471,7 +486,7 @@ function buildIntegrationSection(endpoints, coverageSet) {
   return lines.join("\n");
 }
 
-function buildUiSection(ui, uiMatrix) {
+function buildUiSection(ui, uiMatrix, smokeScope) {
   const lines = [];
   lines.push("## UI Coverage");
   lines.push("");
@@ -554,6 +569,30 @@ function buildUiSection(ui, uiMatrix) {
   }
 
   lines.push("");
+  lines.push("### Cross-browser Smoke Eligibility");
+  if (!uiMatrix.available) {
+    lines.push("- Warning: UI matrix unavailable, cannot evaluate smoke eligibility.");
+  } else {
+    lines.push(
+      `- Smoke-eligible areas: ${uiMatrix.smokeEligibleAreas.length}/${uiMatrix.areaResults.length}`,
+    );
+    lines.push(`- Smoke-ineligible areas: ${uiMatrix.smokeIneligibleAreas.length}`);
+    if (smokeScope.smokeProjectsConfigured && uiMatrix.smokeEligibleAreas.length === 0) {
+      lines.push(
+        "- Warning: smoke browser scope is configured but zero matrix areas are marked as cross-browser smoke eligible.",
+      );
+    }
+    lines.push("");
+    lines.push("| Area | Smoke Eligible |");
+    lines.push("|---|---|");
+    for (const area of uiMatrix.areaResults) {
+      lines.push(
+        `| \`${area.id}\` (${area.title}) | ${area.crossBrowserSmokeEligible ? "Yes" : "No"} |`,
+      );
+    }
+  }
+
+  lines.push("");
   lines.push("### Flow Inventory");
   for (const analysis of ui.analyses) {
     lines.push(`- \`${analysis.file}\`: ${analysis.tests} test(s)`);
@@ -597,12 +636,13 @@ async function main() {
   const { outFile } = parseArgs();
   await mkdir(path.dirname(outFile), { recursive: true });
 
-  const [unitCoverage, mountsData, unitSurface, ui, uiMatrixRaw] = await Promise.all([
+  const [unitCoverage, mountsData, unitSurface, ui, uiMatrixRaw, smokeScope] = await Promise.all([
     readUnitCoverage(),
     parseMounts(),
     analyzeUnitTestSurface(),
     analyzeUiFlows(),
     readUiCoverageMatrix(),
+    readSmokeScopeConfig(),
   ]);
   const uiMatrix = evaluateUiCoverageMatrix(ui, uiMatrixRaw);
 
@@ -623,7 +663,7 @@ async function main() {
     "",
     buildIntegrationSection(endpoints, integration.covered),
     "",
-    buildUiSection(ui, uiMatrix),
+    buildUiSection(ui, uiMatrix, smokeScope),
     "",
     buildPrioritizedGaps(unitSurface, endpoints, integration.covered, ui, uiMatrix),
     "",

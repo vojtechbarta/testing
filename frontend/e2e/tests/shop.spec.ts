@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { ShopPage, SEED_PRODUCTS } from "../pages/shop.page";
 
 test.describe("Shop — catalog and cart", () => {
-  test("home shows 15 seed products; add-to-cart shows cart line (amounts checked in API integration tests)", async ({
+  test("@smoke home shows 15 seed products; add-to-cart shows cart line (amounts checked in API integration tests)", async ({
     page,
   }) => {
     const shop = new ShopPage(page);

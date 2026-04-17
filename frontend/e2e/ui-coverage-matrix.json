@@ -4,6 +4,7 @@
     {
       "id": "auth.login",
       "title": "Authentication login flows",
+      "crossBrowserSmokeEligible": true,
       "requiredScenarios": ["happy", "error", "authz"],
       "requiredForRoles": ["admin", "tester"],
       "evidence": {
@@ -37,6 +38,7 @@
     {
       "id": "shop.catalog",
       "title": "Shop catalog browsing",
+      "crossBrowserSmokeEligible": true,
       "requiredScenarios": ["happy"],
       "requiredForRoles": ["shop"],
       "evidence": {
@@ -54,6 +56,7 @@
     {
       "id": "shop.cart",
       "title": "Shop cart interactions",
+      "crossBrowserSmokeEligible": true,
       "requiredScenarios": ["happy", "error"],
       "requiredForRoles": ["shop"],
       "evidence": {
@@ -78,6 +81,7 @@
     {
       "id": "shop.checkout",
       "title": "Checkout happy-path flows",
+      "crossBrowserSmokeEligible": true,
       "requiredScenarios": ["happy", "error"],
       "requiredForRoles": ["shop"],
       "evidence": {
@@ -102,6 +106,7 @@
     {
       "id": "shop.checkoutErrors",
       "title": "Checkout validation and failure recovery",
+      "crossBrowserSmokeEligible": false,
       "requiredScenarios": ["error"],
       "requiredForRoles": ["shop"],
       "evidence": {
@@ -119,6 +124,7 @@
     {
       "id": "admin.products",
       "title": "Admin product management",
+      "crossBrowserSmokeEligible": true,
       "requiredScenarios": ["happy", "authz"],
       "requiredForRoles": ["admin"],
       "evidence": {
@@ -143,6 +149,7 @@
     {
       "id": "tester.faults",
       "title": "Tester fault-management UI",
+      "crossBrowserSmokeEligible": true,
       "requiredScenarios": ["happy", "authz"],
       "requiredForRoles": ["tester"],
       "evidence": {
@@ -170,6 +177,7 @@
     {
       "id": "exports.products",
       "title": "Products export flows",
+      "crossBrowserSmokeEligible": false,
       "requiredScenarios": ["happy"],
       "requiredForRoles": ["shop"],
       "evidence": {
@@ -191,6 +199,7 @@
     {
       "id": "exports.cart",
       "title": "Cart export flows",
+      "crossBrowserSmokeEligible": false,
       "requiredScenarios": ["happy"],
       "requiredForRoles": ["shop"],
       "evidence": {
@@ -212,6 +221,7 @@
     {
       "id": "i18n.languageSwitch",
       "title": "Language switch behavior",
+      "crossBrowserSmokeEligible": true,
       "requiredScenarios": ["happy"],
       "requiredForRoles": ["shop"],
       "evidence": {

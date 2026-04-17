@@ -29,7 +29,21 @@ export default defineConfig({
     screenshot: { mode: "only-on-failure", fullPage: true },
     trace: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    {
+      name: "firefox-smoke",
+      dependencies: ["chromium"],
+      grep: /@smoke/,
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "webkit-smoke",
+      dependencies: ["firefox-smoke"],
+      grep: /@smoke/,
+      use: { ...devices["Desktop Safari"] },
+    },
+  ],
   ...(process.env.SKIP_WEBSERVER
     ? {}
     : {

@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Auth — login perspectives", () => {
-  test("admin login succeeds and opens product management controls", async ({ page }) => {
+  test("@smoke admin login succeeds and opens product management controls", async ({ page }) => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Login" }).click();
     await page.locator('input[name="username"]').fill("admin");

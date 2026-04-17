@@ -21,7 +21,7 @@ test.describe("Tester — bugs/faults perspective", () => {
     await expect(page.getByRole("button", { name: "Bugs" })).toBeVisible();
   });
 
-  test("tester can open fault-injection view and sees editable faults grid", async ({
+  test("@smoke tester can open fault-injection view and sees editable faults grid", async ({
     page,
   }) => {
     const tester = new TesterPage(page);

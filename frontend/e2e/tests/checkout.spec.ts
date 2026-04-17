@@ -10,7 +10,7 @@ async function fillBuyerRequiredFields(page: import("@playwright/test").Page) {
 }
 
 test.describe("Checkout — happy path", () => {
-  test("bank transfer flow reaches dummy transfer details", async ({ page }) => {
+  test("@smoke bank transfer flow reaches dummy transfer details", async ({ page }) => {
     const shop = new ShopPage(page);
     await shop.goto();
 

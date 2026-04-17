@@ -3,7 +3,7 @@ import { AdminPage } from "../pages/admin.page";
 import { deleteAdminProduct, loginAsAdmin } from "../helpers/adminApi";
 
 test.describe("Admin — products", () => {
-  test("adds one product via UI; teardown removes it via API", async ({
+  test("@smoke adds one product via UI; teardown removes it via API", async ({
     page,
     request,
   }) => {
