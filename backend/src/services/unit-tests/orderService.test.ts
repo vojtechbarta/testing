@@ -1,0 +1,93 @@
+import { describe, expect, it, vi, beforeEach } from "vitest";
+
+const { mockPrisma, mockIsFaultEnabled } = vi.hoisted(() => ({
+  mockPrisma: {
+    product: { findMany: vi.fn() },
+    order: { create: vi.fn() },
+  },
+  mockIsFaultEnabled: vi.fn(),
+}));
+
+vi.mock("../../db/prisma", () => ({
+  default: mockPrisma,
+}));
+
+vi.mock("../../faults/faultService", () => ({
+  isFaultEnabled: mockIsFaultEnabled,
+}));
+
+import { createOrder } from "../orderService";
+
+describe("orderService.createOrder", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockIsFaultEnabled.mockReturnValue(false);
+  });
+
+  it("throws when requested product is not found", async () => {
+    mockPrisma.product.findMany.mockResolvedValue([]);
+
+    await expect(createOrder(1, [{ productId: 999, quantity: 1 }])).rejects.toThrow(
+      "Product 999 not found",
+    );
+    expect(mockPrisma.order.create).not.toHaveBeenCalled();
+  });
+
+  it("creates order with 10% miscalculation fault applied", async () => {
+    mockIsFaultEnabled.mockImplementation((key) => key === "cart_price_miscalculation");
+    mockPrisma.product.findMany.mockResolvedValue([
+      {
+        id: 1,
+        price: 200,
+        currencyId: 1,
+        currency: { id: 1, code: "CZK" },
+      },
+    ]);
+    mockPrisma.order.create.mockResolvedValue({ id: 1, total: 180, items: [] });
+
+    const result = await createOrder(7, [{ productId: 1, quantity: 1 }]);
+
+    expect(mockPrisma.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          total: 180,
+          userId: 7,
+        }),
+      }),
+    );
+    expect(result).toMatchObject({ id: 1, total: 180 });
+  });
+
+  it("creates order with standard total when miscalculation fault is disabled", async () => {
+    mockPrisma.product.findMany.mockResolvedValue([
+      {
+        id: 1,
+        price: 200,
+        currencyId: 1,
+        currency: { id: 1, code: "CZK" },
+      },
+      {
+        id: 2,
+        price: 50,
+        currencyId: 1,
+        currency: { id: 1, code: "CZK" },
+      },
+    ]);
+    mockPrisma.order.create.mockResolvedValue({ id: 2, total: 450, items: [] });
+
+    const result = await createOrder(9, [
+      { productId: 1, quantity: 2 },
+      { productId: 2, quantity: 1 },
+    ]);
+
+    expect(mockPrisma.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          total: 450,
+          userId: 9,
+        }),
+      }),
+    );
+    expect(result).toMatchObject({ id: 2, total: 450 });
+  });
+});

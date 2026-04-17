@@ -95,6 +95,13 @@ describe("checkoutService", () => {
         validateBuyer({ ...buyer, phone: "   " }),
       ).toThrowError(/customerPhone is required/);
     });
+
+    it.each([
+      ["customerFirstName", { ...buyer, firstName: "" }],
+      ["customerLastName", { ...buyer, lastName: "   " }],
+    ])("throws when %s is missing", (_field, payload) => {
+      expect(() => validateBuyer(payload)).toThrowError(/is required/);
+    });
   });
 
   describe("buildDummyBankTransferInfo", () => {
@@ -209,6 +216,15 @@ describe("checkoutService", () => {
       await expect(checkoutGatewayInit(TEST_CART_KEY, buyer)).rejects.toThrow(
         "Cart is empty",
       );
+    });
+
+    it("throws early when customer first name is missing", async () => {
+      const invalidBuyer = { ...buyer, firstName: " " };
+      await expect(checkoutGatewayInit(TEST_CART_KEY, invalidBuyer)).rejects.toThrow(
+        "customerFirstName is required",
+      );
+      expect(mockPrisma.order.findFirst).not.toHaveBeenCalled();
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
     });
   });
 
