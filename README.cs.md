@@ -251,6 +251,7 @@ Git policy pro `agents-results/`:
 
 - **Košík** je vázaný na **relaci** (`X-Cart-Session` + `sessionStorage` ve frontendu), ne na jednoho globálního uživatele v DB — každý tab / kontext Playwright má vlastní košík.
 - **Fault injection** — chyby jde zapínat v DB/UI (úrovně UI / API / Unit); slouží k tréninku testů a simulaci regresí.
+- **Politika baseline testů pro faulty** — nikdy neoslabovat baseline testy kvůli injektované chybě; držet striktní očekávané chování a fault-mode scénáře řešit oddělenými testy (pravidlo: [`.cursor/rules/fault-injection-baseline-tests.mdc`](.cursor/rules/fault-injection-baseline-tests.mdc)).
 - **CORS:** v produkci povolené originy z `CORS_ORIGINS`; ve vývoji je **`origin: true`** (libovolný lokální origin). Ve vývoji navíc Vite **proxy** na `127.0.0.1:4000` pro cesty API. Hlavičky: `Authorization`, `X-Cart-Session`, …
 
 ---

@@ -251,6 +251,7 @@ Git policy for `agents-results/`:
 
 - **Cart** is bound to a **session** (`X-Cart-Session` + `sessionStorage` in frontend), not to one global DB user — each tab / Playwright context has its own cart.
 - **Fault injection** — faults can be enabled in DB/UI (UI / API / Unit levels); intended for test training and regression simulation.
+- **Baseline testing policy for faults** — do not weaken baseline tests to pass injected bugs; keep strict expected behavior and add separate fault-mode tests when needed (rule: [`.cursor/rules/fault-injection-baseline-tests.mdc`](.cursor/rules/fault-injection-baseline-tests.mdc)).
 - **CORS:** in production, allowed origins come from `CORS_ORIGINS`; in development it uses **`origin: true`** (any local origin). In development, Vite also **proxies** API paths to `127.0.0.1:4000`. Headers include `Authorization`, `X-Cart-Session`, ...
 
 ---

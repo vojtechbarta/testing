@@ -3,6 +3,47 @@ import { readFile } from "node:fs/promises";
 import { ShopPage, SEED_PRODUCTS } from "../pages/shop.page";
 
 test.describe("Shop — catalog and cart", () => {
+  test("@smoke product grid cards do not overlap (DOM geometry check)", async ({
+    page,
+    browserName,
+  }) => {
+    const shop = new ShopPage(page);
+    await shop.goto();
+    await shop.expectProductCount(15);
+
+    const cards = page.locator(".product-grid .product-card");
+    const count = await cards.count();
+    expect(count).toBeGreaterThan(0);
+
+    const overlaps = await cards.evaluateAll((elements) => {
+      const tol = 1; // tolerate tiny sub-pixel rounding differences
+      const rects = elements.map((el, idx) => {
+        const r = el.getBoundingClientRect();
+        return { idx, left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+      });
+
+      const collisions = [];
+      for (let i = 0; i < rects.length; i += 1) {
+        for (let j = i + 1; j < rects.length; j += 1) {
+          const a = rects[i];
+          const b = rects[j];
+          if (!a || !b) continue;
+          const overlapX = a.right - tol > b.left && b.right - tol > a.left;
+          const overlapY = a.bottom - tol > b.top && b.bottom - tol > a.top;
+          if (overlapX && overlapY) {
+            collisions.push({ first: a.idx, second: b.idx });
+          }
+        }
+      }
+      return collisions;
+    });
+
+    expect(
+      overlaps,
+      `Detected overlapping product cards in ${browserName}: ${JSON.stringify(overlaps)}`,
+    ).toEqual([]);
+  });
+
   test("@smoke home shows 15 seed products; add-to-cart shows cart line (amounts checked in API integration tests)", async ({
     page,
   }) => {
