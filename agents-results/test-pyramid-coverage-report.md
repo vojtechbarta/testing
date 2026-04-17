@@ -1,23 +1,15 @@
 # Test Pyramid Coverage Report
 
-Generated: 2026-04-17T13:58:10.576Z
+Generated: 2026-04-17T14:31:12.369Z
 
 ## Unit Coverage
 
-- line: 77.27% (target >= 95%) - Warning
-- function: 70.45% (target >= 95%) - Warning
-- branch: 61.53% (target >= 90%) - Warning
-- statement: 76.99% (target >= 95%) - Warning
+- line: 95.48% (target >= 95%) - OK
+- function: 97.56% (target >= 95%) - OK
+- branch: 90.18% (target >= 90%) - OK
+- statement: 95.22% (target >= 95%) - OK
 
-### Warning: line, function, branch coverage below target
-- **Missing Tests**
-  - Add branch-focused tests for checkout/cart failure conditions and service error paths.
-  - Add missing unit coverage for service modules without direct tests: emailService, exchangeRateService, faultAdminService, storefrontCatalogService.
-- **Implementation Proposal**
-  - Add `it.each(...)` variants for invalid inputs and not-found branches.
-  - Mock Prisma side effects and assert both thrown error and unchanged persisted state.
-- **Suggested File Placement**
-  - `backend/src/services/unit-tests/*.test.ts`
+- No threshold warnings at Unit level.
 
 ## Integration/API Coverage
 
@@ -38,51 +30,12 @@ Generated: 2026-04-17T13:58:10.576Z
 | `POST /auth/login` | Yes |
 | `POST /cart/items` | Yes |
 | `POST /checkout/bank-transfer` | Yes |
-| `POST /checkout/gateway/:orderId/mock-pay` | No |
-| `POST /checkout/gateway/init` | No |
-| `POST /orders` | No |
-| `PUT /admin/products/:id` | No |
+| `POST /checkout/gateway/:orderId/mock-pay` | Yes |
+| `POST /checkout/gateway/init` | Yes |
+| `POST /orders` | Yes |
+| `PUT /admin/products/:id` | Yes |
 
-### Warning: Missing integration coverage for POST /checkout/gateway/:orderId/mock-pay
-- **Missing Tests**
-  - positive flow
-  - route param
-  - validation/error flow
-- **Implementation Proposal**
-  - Add a focused integration test block for `POST /checkout/gateway/:orderId/mock-pay` with positive + error assertions and contract checks.
-- **Suggested File Placement**
-  - `backend/src/integration-tests/internalApi.integration.test.ts`
-
-### Warning: Missing integration coverage for POST /checkout/gateway/init
-- **Missing Tests**
-  - positive flow
-  - validation/error flow
-- **Implementation Proposal**
-  - Add a focused integration test block for `POST /checkout/gateway/init` with positive + error assertions and contract checks.
-- **Suggested File Placement**
-  - `backend/src/integration-tests/internalApi.integration.test.ts`
-
-### Warning: Missing integration coverage for POST /orders
-- **Missing Tests**
-  - positive flow
-  - validation/error flow
-- **Implementation Proposal**
-  - Add a focused integration test block for `POST /orders` with positive + error assertions and contract checks.
-- **Suggested File Placement**
-  - `backend/src/integration-tests/internalApi.integration.test.ts`
-
-### Warning: Missing integration coverage for PUT /admin/products/:id
-- **Missing Tests**
-  - positive flow
-  - route param
-  - validation/error flow
-  - unauthorized/forbidden
-- **Implementation Proposal**
-  - Add a focused integration test block for `PUT /admin/products/:id` with positive + error assertions and contract checks.
-  - Include explicit 401 (no token) and 403 (insufficient role) checks.
-- **Suggested File Placement**
-  - `backend/src/integration-tests/internalApi.integration.test.ts`
-
+- No endpoint presence gaps detected in integration tests.
 
 ## UI Coverage
 
@@ -99,8 +52,6 @@ Generated: 2026-04-17T13:58:10.576Z
 
 ## Prioritized Gaps
 
-1. Integration/API: cover uncovered endpoints (4).
-   - Highest priority: POST /checkout/gateway/:orderId/mock-pay, POST /checkout/gateway/init, POST /orders, PUT /admin/products/:id.
-2. Unit: add direct tests for untested service modules (4).
-   - Missing modules: emailService, exchangeRateService, faultAdminService, storefrontCatalogService.
+1. Integration/API: cover uncovered endpoints (0).
+2. Unit: add direct tests for untested service modules (0).
 3. UI: add dedicated checkout failure UX spec and keep flows short.

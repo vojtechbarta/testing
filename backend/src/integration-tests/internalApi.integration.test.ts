@@ -18,6 +18,7 @@ const CART_SESSION = "aaaaaaaa-bbbb-4ccc-bddd-000000000001";
 const CART_SESSION_SINGLE_ITEM = "aaaaaaaa-bbbb-4ccc-bddd-000000000002";
 const CART_SESSION_LANG_CS = "aaaaaaaa-bbbb-4ccc-bddd-000000000003";
 const CART_SESSION_CHECKOUT_CS = "aaaaaaaa-bbbb-4ccc-bddd-000000000004";
+const CART_SESSION_GATEWAY = "aaaaaaaa-bbbb-4ccc-bddd-000000000005";
 
 describe("Internal API (frontend contract)", () => {
   let seededProductId: number;
@@ -47,6 +48,7 @@ describe("Internal API (frontend contract)", () => {
             CART_SESSION_SINGLE_ITEM,
             CART_SESSION_LANG_CS,
             CART_SESSION_CHECKOUT_CS,
+            CART_SESSION_GATEWAY,
           ],
         },
       },
@@ -323,6 +325,123 @@ describe("Internal API (frontend contract)", () => {
     expect(body.bankTransfer.note).toContain("DUMMY PLATEBNÍ ÚDAJE");
   });
 
+  it("POST /checkout/gateway/init creates pending gateway order for valid cart and buyer", async () => {
+    await request(app)
+      .post("/cart/items")
+      .set("Content-Type", "application/json")
+      .set("X-Cart-Session", CART_SESSION_GATEWAY)
+      .send({ productId: seededProductId, quantity: 1 })
+      .expect(200);
+
+    const res = await request(app)
+      .post("/checkout/gateway/init")
+      .set("Content-Type", "application/json")
+      .set("X-Cart-Session", CART_SESSION_GATEWAY)
+      .send({
+        customerEmail: "gateway-init-ok@example.test",
+        customerFirstName: "Test",
+        customerLastName: "Buyer",
+        customerPhone: "+420123456789",
+      })
+      .expect(201);
+
+    expect(res.body).toMatchObject({
+      order: {
+        id: expect.any(Number),
+        paymentMethod: "PAYMENT_GATEWAY",
+      },
+      nextStep: expect.stringContaining("/checkout/gateway/:orderId/mock-pay"),
+    });
+  });
+
+  it("POST /checkout/gateway/init rejects missing X-Cart-Session", async () => {
+    const res = await request(app)
+      .post("/checkout/gateway/init")
+      .set("Content-Type", "application/json")
+      .send({
+        customerEmail: "gateway-missing-cart@example.test",
+        customerFirstName: "Missing",
+        customerLastName: "Session",
+        customerPhone: "+420123456789",
+      })
+      .expect(400);
+    expect(res.body.message).toMatch(/X-Cart-Session/i);
+  });
+
+  it("POST /checkout/gateway/:orderId/mock-pay returns success for pending gateway order", async () => {
+    await request(app)
+      .post("/cart/items")
+      .set("Content-Type", "application/json")
+      .set("X-Cart-Session", CART_SESSION_GATEWAY)
+      .send({ productId: seededProductId, quantity: 1 })
+      .expect(200);
+
+    const initRes = await request(app)
+      .post("/checkout/gateway/init")
+      .set("Content-Type", "application/json")
+      .set("X-Cart-Session", CART_SESSION_GATEWAY)
+      .send({
+        customerEmail: "gateway-pay-ok@example.test",
+        customerFirstName: "Gate",
+        customerLastName: "Way",
+        customerPhone: "+420123456789",
+      })
+      .expect(201);
+
+    const orderId = (initRes.body as { order: { id: number } }).order.id;
+
+    const payRes = await request(app)
+      .post(`/checkout/gateway/${orderId}/mock-pay`)
+      .set("Content-Type", "application/json")
+      .expect(200);
+    expect(payRes.body).toMatchObject({
+      success: expect.any(Boolean),
+      orderId,
+    });
+  });
+
+  it("POST /checkout/gateway/:orderId/mock-pay returns error for missing order", async () => {
+    const res = await request(app)
+      .post("/checkout/gateway/99999999/mock-pay")
+      .set("Content-Type", "application/json")
+      .expect(400);
+    expect(res.body.message).toMatch(/Order not found/i);
+  });
+
+  it("POST /checkout/gateway/:orderId/mock-pay handles invalid route param format", async () => {
+    const res = await request(app)
+      .post("/checkout/gateway/not-a-number/mock-pay")
+      .set("Content-Type", "application/json");
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBeLessThan(600);
+  });
+
+  it("POST /orders creates direct order for valid payload", async () => {
+    const res = await request(app)
+      .post("/orders")
+      .set("Content-Type", "application/json")
+      .send({
+        userId: 1,
+        items: [{ productId: seededProductId, quantity: 1 }],
+      })
+      .expect(201);
+
+    expect(res.body).toMatchObject({
+      id: expect.any(Number),
+      total: expect.any(Number),
+      items: expect.any(Array),
+    });
+  });
+
+  it("POST /orders rejects invalid payload", async () => {
+    const res = await request(app)
+      .post("/orders")
+      .set("Content-Type", "application/json")
+      .send({ userId: 1, items: [] })
+      .expect(400);
+    expect(res.body.message).toMatch(/Invalid order payload/i);
+  });
+
   // Cart API requires a valid UUID in X-Cart-Session; missing header must fail fast with 400.
   it("POST /cart/items rejects missing X-Cart-Session", async () => {
     const res = await request(app)
@@ -545,6 +664,51 @@ describe("Internal API (frontend contract)", () => {
       price: { amount: 42, currencyCode: "CZK" },
     });
     expect(typeof (res.body as { id: number }).id).toBe("number");
+  });
+
+  it("PUT /admin/products/:id updates product when admin", async () => {
+    const login = await request(app)
+      .post("/auth/login")
+      .send({ username: "admin", password: "admin" })
+      .expect(200);
+    const token = (login.body as { token: string }).token;
+
+    const uniqueName = `Integration API Product update ${Date.now()}`;
+    const createRes = await request(app)
+      .post("/admin/products")
+      .set("Content-Type", "application/json")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: uniqueName,
+        description: "to be updated",
+        price: { amount: 10, currencyCode: "CZK" },
+        inStock: 2,
+        active: true,
+      })
+      .expect(201);
+
+    const id = (createRes.body as { id: number }).id;
+
+    const updateRes = await request(app)
+      .put(`/admin/products/${id}`)
+      .set("Content-Type", "application/json")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: `${uniqueName} v2`,
+        description: "updated description",
+        price: { amount: 25, currencyCode: "CZK" },
+        inStock: 5,
+        active: false,
+      })
+      .expect(200);
+
+    expect(updateRes.body).toMatchObject({
+      id,
+      name: `${uniqueName} v2`,
+      inStock: 5,
+      active: false,
+      price: { amount: 25, currencyCode: "CZK" },
+    });
   });
 
   it("DELETE /admin/products/:id removes product when admin", async () => {

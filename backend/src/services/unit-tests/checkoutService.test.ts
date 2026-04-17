@@ -115,6 +115,17 @@ describe("checkoutService", () => {
       expect(info.variableSymbol).toBe(String(900_000_012));
       expect(info.amount).toEqual({ value: 1999, currencyCode: "CZK" });
     });
+
+    it("uses English note and defaults currency code to CZK", () => {
+      const info = buildDummyBankTransferInfo({
+        id: 13,
+        total: 100,
+        currency: null,
+        lang: "en",
+      });
+      expect(info.amount.currencyCode).toBe("CZK");
+      expect(info.note).toContain("DUMMY PAYMENT DETAILS");
+    });
   });
 
   describe("checkoutBankTransfer", () => {
@@ -169,6 +180,90 @@ describe("checkoutService", () => {
       expect(result).toBe(createdOrder);
       const fn = mockPrisma.$transaction.mock.calls[0]?.[0];
       expect(typeof fn).toBe("function");
+    });
+
+    it("trims optional address fields to null/trimmed values in created order payload", async () => {
+      const createSpy = vi.fn().mockResolvedValue({
+        id: 56,
+        userId: 1,
+        total: 800,
+        status: OrderStatus.PAID,
+        paymentMethod: PaymentMethod.BANK_TRANSFER,
+        items: [],
+        currency: { code: "CZK" },
+      });
+      mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => {
+        const tx = {
+          cartItem: {
+            findMany: vi.fn().mockResolvedValue([activeProductCartRow]),
+            deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+          },
+          order: { create: createSpy },
+          product: { update: vi.fn().mockResolvedValue({}) },
+        };
+        return fn(tx);
+      });
+
+      await checkoutBankTransfer(TEST_CART_KEY, {
+        ...buyer,
+        addressLine1: "  Main street  ",
+        addressLine2: "   ",
+        city: " Prague ",
+        postalCode: "",
+        country: " CZ ",
+      });
+
+      const createArg = createSpy.mock.calls[0]?.[0];
+      expect(createArg.data).toMatchObject({
+        addressLine1: "Main street",
+        addressLine2: null,
+        city: "Prague",
+        postalCode: null,
+        country: "CZ",
+      });
+    });
+
+    it("throws when cart contains inactive product", async () => {
+      mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => {
+        const tx = {
+          cartItem: {
+            findMany: vi.fn().mockResolvedValue([
+              {
+                ...activeProductCartRow,
+                product: { ...activeProductCartRow.product, active: false },
+              },
+            ]),
+            deleteMany: vi.fn(),
+          },
+          order: { create: vi.fn() },
+          product: { update: vi.fn() },
+        };
+        return fn(tx);
+      });
+
+      await expect(checkoutBankTransfer(TEST_CART_KEY, buyer)).rejects.toThrow(/not available/);
+    });
+
+    it("throws when cart quantity exceeds in-stock during checkout", async () => {
+      mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => {
+        const tx = {
+          cartItem: {
+            findMany: vi.fn().mockResolvedValue([
+              {
+                ...activeProductCartRow,
+                quantity: 9,
+                product: { ...activeProductCartRow.product, inStock: 2 },
+              },
+            ]),
+            deleteMany: vi.fn(),
+          },
+          order: { create: vi.fn() },
+          product: { update: vi.fn() },
+        };
+        return fn(tx);
+      });
+
+      await expect(checkoutBankTransfer(TEST_CART_KEY, buyer)).rejects.toThrow(/Insufficient stock/);
     });
   });
 
@@ -226,6 +321,26 @@ describe("checkoutService", () => {
       expect(mockPrisma.order.findFirst).not.toHaveBeenCalled();
       expect(mockPrisma.$transaction).not.toHaveBeenCalled();
     });
+
+    it("throws when gateway-init cart contains inactive product", async () => {
+      mockPrisma.order.findFirst.mockResolvedValue(null);
+      mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => {
+        const tx = {
+          cartItem: {
+            findMany: vi.fn().mockResolvedValue([
+              {
+                ...activeProductCartRow,
+                product: { ...activeProductCartRow.product, active: false },
+              },
+            ]),
+          },
+          order: { create: vi.fn() },
+        };
+        return fn(tx);
+      });
+
+      await expect(checkoutGatewayInit(TEST_CART_KEY, buyer)).rejects.toThrow(/not available/);
+    });
   });
 
   describe("mockGatewayPayment", () => {
@@ -250,6 +365,20 @@ describe("checkoutService", () => {
       await expect(mockGatewayPayment(1)).rejects.toThrow(
         "not using the payment gateway flow",
       );
+    });
+
+    it("throws when order is not in pending status", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: 2,
+        status: OrderStatus.PAID,
+        paymentMethod: PaymentMethod.PAYMENT_GATEWAY,
+        customerEmail: "a@b.com",
+        items: [],
+        userId: 1,
+        currency: null,
+      });
+
+      await expect(mockGatewayPayment(2)).rejects.toThrow(/cannot be processed/);
     });
 
     // When PaymentConfigs maps the buyer email to failure: mark order CANCELLED, no stock change, no $transaction capture.
@@ -325,6 +454,193 @@ describe("checkoutService", () => {
       });
     });
 
+    it("fails capture when product stock is insufficient during transaction", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: 12,
+        status: OrderStatus.PENDING,
+        paymentMethod: PaymentMethod.PAYMENT_GATEWAY,
+        customerEmail: "ok@example.com",
+        items: [{ productId: 20, quantity: 3 }],
+        userId: 7,
+        guestCartKey: TEST_CART_KEY,
+        currency: null,
+      });
+      mockLoadMockPaymentOutcomeForEmail.mockReturnValue("success");
+      mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => {
+        const tx = {
+          order: {
+            findUnique: vi.fn().mockResolvedValue({
+              id: 12,
+              status: OrderStatus.PENDING,
+              userId: 7,
+              guestCartKey: TEST_CART_KEY,
+              items: [{ productId: 20, quantity: 3 }],
+            }),
+            update: vi.fn().mockResolvedValue({}),
+          },
+          product: {
+            findUnique: vi.fn().mockResolvedValue({ id: 20, inStock: 1 }),
+            update: vi.fn().mockResolvedValue({}),
+          },
+          cartItem: {
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+          },
+        };
+        return fn(tx);
+      });
+
+      await expect(mockGatewayPayment(12)).rejects.toThrow(/Insufficient stock/);
+    });
+
+    it("fails when order is no longer awaiting payment inside transaction", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: 14,
+        status: OrderStatus.PENDING,
+        paymentMethod: PaymentMethod.PAYMENT_GATEWAY,
+        customerEmail: "ok@example.com",
+        items: [{ productId: 20, quantity: 1 }],
+        userId: 7,
+        guestCartKey: TEST_CART_KEY,
+        currency: null,
+      });
+      mockLoadMockPaymentOutcomeForEmail.mockReturnValue("success");
+      mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => {
+        const tx = {
+          order: {
+            findUnique: vi.fn().mockResolvedValue({
+              id: 14,
+              status: OrderStatus.PAID,
+              userId: 7,
+              guestCartKey: TEST_CART_KEY,
+              items: [{ productId: 20, quantity: 1 }],
+            }),
+            update: vi.fn().mockResolvedValue({}),
+          },
+          product: {
+            findUnique: vi.fn().mockResolvedValue({ id: 20, inStock: 5 }),
+            update: vi.fn().mockResolvedValue({}),
+          },
+          cartItem: {
+            deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+          },
+        };
+        return fn(tx);
+      });
+
+      await expect(mockGatewayPayment(14)).rejects.toThrow(/no longer awaiting payment/);
+    });
+
+    it("fails when order disappears inside capture transaction", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: 16,
+        status: OrderStatus.PENDING,
+        paymentMethod: PaymentMethod.PAYMENT_GATEWAY,
+        customerEmail: "ok@example.com",
+        items: [{ productId: 20, quantity: 1 }],
+        userId: 7,
+        guestCartKey: TEST_CART_KEY,
+        currency: null,
+      });
+      mockLoadMockPaymentOutcomeForEmail.mockReturnValue("success");
+      mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => {
+        const tx = {
+          order: {
+            findUnique: vi.fn().mockResolvedValue(null),
+            update: vi.fn().mockResolvedValue({}),
+          },
+          product: {
+            findUnique: vi.fn().mockResolvedValue({ id: 20, inStock: 5 }),
+            update: vi.fn().mockResolvedValue({}),
+          },
+          cartItem: {
+            deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+          },
+        };
+        return fn(tx);
+      });
+
+      await expect(mockGatewayPayment(16)).rejects.toThrow(/no longer awaiting payment/);
+    });
+
+    it("success path skips cart cleanup when guestCartKey is missing", async () => {
+      const deleteManySpy = vi.fn().mockResolvedValue({ count: 1 });
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: 15,
+        status: OrderStatus.PENDING,
+        paymentMethod: PaymentMethod.PAYMENT_GATEWAY,
+        customerEmail: "ok@example.com",
+        items: [{ productId: 20, quantity: 1 }],
+        userId: 7,
+        guestCartKey: null,
+        currency: null,
+      });
+      mockLoadMockPaymentOutcomeForEmail.mockReturnValue("success");
+      mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => {
+        const tx = {
+          order: {
+            findUnique: vi.fn().mockResolvedValue({
+              id: 15,
+              status: OrderStatus.PENDING,
+              userId: 7,
+              guestCartKey: null,
+              items: [{ productId: 20, quantity: 1 }],
+            }),
+            update: vi.fn().mockResolvedValue({}),
+          },
+          product: {
+            findUnique: vi.fn().mockResolvedValue({ id: 20, inStock: 5 }),
+            update: vi.fn().mockResolvedValue({}),
+          },
+          cartItem: {
+            deleteMany: deleteManySpy,
+          },
+        };
+        return fn(tx);
+      });
+
+      const result = await mockGatewayPayment(15);
+      expect(result.success).toBe(true);
+      expect(deleteManySpy).not.toHaveBeenCalled();
+    });
+
+    it("fails when a product row is missing during stock check", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: 17,
+        status: OrderStatus.PENDING,
+        paymentMethod: PaymentMethod.PAYMENT_GATEWAY,
+        customerEmail: "ok@example.com",
+        items: [{ productId: 20, quantity: 1 }],
+        userId: 7,
+        guestCartKey: TEST_CART_KEY,
+        currency: null,
+      });
+      mockLoadMockPaymentOutcomeForEmail.mockReturnValue("success");
+      mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => {
+        const tx = {
+          order: {
+            findUnique: vi.fn().mockResolvedValue({
+              id: 17,
+              status: OrderStatus.PENDING,
+              userId: 7,
+              guestCartKey: TEST_CART_KEY,
+              items: [{ productId: 20, quantity: 1 }],
+            }),
+            update: vi.fn().mockResolvedValue({}),
+          },
+          product: {
+            findUnique: vi.fn().mockResolvedValue(null),
+            update: vi.fn().mockResolvedValue({}),
+          },
+          cartItem: {
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+          },
+        };
+        return fn(tx);
+      });
+
+      await expect(mockGatewayPayment(17)).rejects.toThrow(/Insufficient stock/);
+    });
+
     // With behavior "random", payment fails when Math.random() < 0.5; here we fix 0.1 so the outcome is a declined random roll.
     it("uses random outcome: mocks Math.random for deterministic decline", async () => {
       const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.1);
@@ -346,6 +662,50 @@ describe("checkoutService", () => {
       expect(result.success).toBe(false);
       expect(result.mockPaymentBehavior).toBe("random");
       expect(result.mockRandomRollSuccess).toBe(false);
+      randomSpy.mockRestore();
+    });
+
+    it("uses random outcome: success branch when Math.random >= 0.5", async () => {
+      const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.9);
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: 13,
+        status: OrderStatus.PENDING,
+        paymentMethod: PaymentMethod.PAYMENT_GATEWAY,
+        customerEmail: "pay-random-success@example.com",
+        items: [{ productId: 20, quantity: 1 }],
+        userId: 7,
+        guestCartKey: TEST_CART_KEY,
+        currency: null,
+      });
+      mockLoadMockPaymentOutcomeForEmail.mockReturnValue("random");
+      mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => {
+        const tx = {
+          order: {
+            findUnique: vi.fn().mockResolvedValue({
+              id: 13,
+              status: OrderStatus.PENDING,
+              userId: 7,
+              guestCartKey: TEST_CART_KEY,
+              items: [{ productId: 20, quantity: 1 }],
+            }),
+            update: vi.fn().mockResolvedValue({}),
+          },
+          product: {
+            findUnique: vi.fn().mockResolvedValue({ id: 20, inStock: 5 }),
+            update: vi.fn().mockResolvedValue({}),
+          },
+          cartItem: {
+            deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+          },
+        };
+        return fn(tx);
+      });
+
+      const result = await mockGatewayPayment(13);
+
+      expect(result.success).toBe(true);
+      expect(result.mockPaymentBehavior).toBe("random");
+      expect(result.mockRandomRollSuccess).toBe(true);
       randomSpy.mockRestore();
     });
   });

@@ -90,4 +90,34 @@ describe("orderService.createOrder", () => {
     );
     expect(result).toMatchObject({ id: 2, total: 450 });
   });
+
+  it("falls back to nested currency.id when product currencyId is null", async () => {
+    mockPrisma.product.findMany.mockResolvedValue([
+      {
+        id: 5,
+        price: 120,
+        currencyId: null,
+        currency: { id: 42, code: "CZK" },
+      },
+    ]);
+    mockPrisma.order.create.mockResolvedValue({ id: 5, total: 120, items: [] });
+
+    await createOrder(10, [{ productId: 5, quantity: 1 }]);
+
+    expect(mockPrisma.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          currencyId: 42,
+          items: {
+            create: [
+              expect.objectContaining({
+                productId: 5,
+                currencyId: 42,
+              }),
+            ],
+          },
+        }),
+      }),
+    );
+  });
 });

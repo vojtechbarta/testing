@@ -162,3 +162,9 @@ Batch size: 8
 
 Status: waiting for approval (`--approve`).
 
+## 2026-04-17T14:10:25.990Z - Approved iter-3-1776434290646
+
+Approved tests: 8
+
+Next step: implement approved tests, rerun evaluator, then run --propose again.
+

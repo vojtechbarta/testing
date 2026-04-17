@@ -67,4 +67,16 @@ describe("mockPaymentConfigService", () => {
     readSpy.mockReturnValue(JSON.stringify({}));
     expect(loadMockPaymentOutcomeForEmail("x@y.com")).toBe("success");
   });
+
+  it("uses exact trimmed direct key fallback before lowercased map", () => {
+    readSpy.mockReturnValue(
+      JSON.stringify({ byBuyerEmail: { "Exact@Case.com": "failure" } }),
+    );
+    expect(loadMockPaymentOutcomeForEmail("Exact@Case.com")).toBe("failure");
+  });
+
+  it("returns success when config file has invalid JSON", () => {
+    readSpy.mockReturnValue("{ this-is-invalid-json");
+    expect(loadMockPaymentOutcomeForEmail("a@b.com")).toBe("success");
+  });
 });
