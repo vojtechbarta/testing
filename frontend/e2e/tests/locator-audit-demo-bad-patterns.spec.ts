@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 /**
  * Intentionally bad Playwright locators for exercising the locator audit cycle
- * (see `frontend/e2e/README.md` and PR template). Do not copy these patterns.
+ * (see `frontend/e2e/README.md`). Do not copy these patterns.
  *
  * The whole describe is skipped so `npm run test:e2e` stays green; remove `.skip`
  * locally if you want to watch this fail or mis-click the wrong element.
