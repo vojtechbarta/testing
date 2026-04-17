@@ -53,3 +53,46 @@ Product card **images** must live under **`frontend/public/catalog/`** (URLs `/c
 ## UI language
 
 The app defaults to **English** (`i18n` initial language + `localStorage` key `i18nextLng`). Playwright specs assume **English** UI (nav labels, product titles from API, etc.). If you switch to Czech in the browser, assertions that match visible product titles would need the Czech strings from `frontend/src/locales/cs.json` (`products.byId.*`). Language switcher: `data-testid="lang-switch-en"` / `lang-switch-cs`.
+
+## Locator audit cycle
+
+Run a locator audit when any of the following changes:
+
+- `frontend/e2e/tests/*.spec.ts` (see also `locator-audit-demo-bad-patterns.spec.ts` for **intentionally wrong** examples used in audit training PRs)
+- `frontend/e2e/pages/*.ts`
+- Related UI elements in `frontend/src/` that test locators target
+
+### Required process
+
+Follow the project skill at `.cursor/skills/playwright-locator-review/SKILL.md`:
+
+1. Identify changed/new locators in specs and page objects.
+2. Check whether matching `data-testid` exists in targeted UI components.
+3. Prefer resilient locators in this order: `data-testid` -> role/name -> constrained text.
+4. Flag fragile selectors inline when needed:
+   - `// ! Unstable locator - <reason>`
+5. Mark fixed/replaced selectors inline:
+   - `// ! Fixed locator - <reason>`
+6. Append review output to `agents-results/locators-reviewer-results.md` with date, files touched, findings, and decisions.
+
+### Severity rubric and merge gates
+
+- **High risk**
+  - Deep CSS or layout-only selectors (`nth-child`, chained descendants tied to structure).
+  - Ambiguous locators that can match multiple elements in normal UI states.
+  - **Merge gate**: unresolved High findings block merge.
+- **Medium risk**
+  - i18n-fragile text locators or role locators lacking enough disambiguation in repeated UI.
+  - **Merge gate**: allowed only with explicit follow-up action recorded in PR notes.
+- **Low risk**
+  - Stable selector that can be improved for clarity/maintainability.
+  - **Merge gate**: allowed; track as cleanup when practical.
+
+### Definition of done
+
+A Playwright locator change is done only when:
+
+- locator audit has been executed,
+- any High findings are fixed before merge,
+- latest review entry is appended to `agents-results/locators-reviewer-results.md`,
+- unresolved Medium/Low findings have explicit follow-up notes.
