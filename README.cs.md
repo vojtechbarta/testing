@@ -209,6 +209,44 @@ Podrobnosti: [`frontend/e2e/README.md`](frontend/e2e/README.md).
 
 ---
 
+## AI Agent Coverage Workflow
+
+Dvě projektové skills automatizují analýzu coverage podle test pyramidy a iterativní zvyšování pokrytí testy:
+
+- **Evaluator:** [`.cursor/skills/test-pyramid-coverage-evaluator/SKILL.md`](.cursor/skills/test-pyramid-coverage-evaluator/SKILL.md)
+  - Vygeneruje aktuální report coverage pyramidy (Unit / Integration/API / UI).
+- **Increase loop:** [`.cursor/skills/test-pyramid-coverage-increase/SKILL.md`](.cursor/skills/test-pyramid-coverage-increase/SKILL.md)
+  - Navrhne další střední dávku testů (4-8), počká na explicitní schválení, a pak může implementace pokračovat v další iteraci.
+
+Kanonické výstupy v `agents-results/`:
+
+- `test-pyramid-coverage-report.md` - aktuální snapshot vyhodnocení coverage
+- `test-pyramid-coverage-increase-log.md` - historie návrhů a schválení
+- `test-pyramid-coverage-increase-state.json` - stav smyčky pro automatizaci
+
+Typický tok příkazů (z kořene repozitáře):
+
+```bash
+# 1) Přepočítat aktuální report coverage
+node .cursor/skills/test-pyramid-coverage-evaluator/scripts/generate-report.mjs
+
+# 2) Navrhnout další dávku testů
+node .cursor/skills/test-pyramid-coverage-increase/scripts/increase-coverage.mjs --propose
+
+# 3) Schválit aktuální návrh
+node .cursor/skills/test-pyramid-coverage-increase/scripts/increase-coverage.mjs --approve
+
+# 4) (Agent implementuje schválené testy), pak znovu spustit evaluator
+node .cursor/skills/test-pyramid-coverage-evaluator/scripts/generate-report.mjs
+```
+
+Git policy pro `agents-results/`:
+
+- Trackované: `test-pyramid-coverage-report.md`, `test-pyramid-coverage-increase-log.md`, `locators-reviewer-results.md`
+- Ignorované: `test-pyramid-coverage-increase-state.json` (dočasný stav automatizace)
+
+---
+
 ## Důležité koncepty
 
 - **Košík** je vázaný na **relaci** (`X-Cart-Session` + `sessionStorage` ve frontendu), ne na jednoho globálního uživatele v DB — každý tab / kontext Playwright má vlastní košík.

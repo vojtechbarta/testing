@@ -209,6 +209,44 @@ Details: [`frontend/e2e/README.md`](frontend/e2e/README.md).
 
 ---
 
+## AI Agent Coverage Workflow
+
+Two project skills automate test-pyramid coverage analysis and iterative test improvements:
+
+- **Evaluator:** [`.cursor/skills/test-pyramid-coverage-evaluator/SKILL.md`](.cursor/skills/test-pyramid-coverage-evaluator/SKILL.md)
+  - Generates latest pyramid coverage report (Unit / Integration/API / UI).
+- **Increase loop:** [`.cursor/skills/test-pyramid-coverage-increase/SKILL.md`](.cursor/skills/test-pyramid-coverage-increase/SKILL.md)
+  - Proposes the next medium batch of tests (4-8), waits for explicit approval, then implementation can continue in the next loop iteration.
+
+Canonical outputs in `agents-results/`:
+
+- `test-pyramid-coverage-report.md` - latest coverage evaluation snapshot
+- `test-pyramid-coverage-increase-log.md` - approval/proposal history
+- `test-pyramid-coverage-increase-state.json` - loop state for automation
+
+Typical command flow (from repo root):
+
+```bash
+# 1) Recompute latest coverage report
+node .cursor/skills/test-pyramid-coverage-evaluator/scripts/generate-report.mjs
+
+# 2) Propose next test batch
+node .cursor/skills/test-pyramid-coverage-increase/scripts/increase-coverage.mjs --propose
+
+# 3) Approve current proposal
+node .cursor/skills/test-pyramid-coverage-increase/scripts/increase-coverage.mjs --approve
+
+# 4) (Agent implements approved tests), then rerun evaluator
+node .cursor/skills/test-pyramid-coverage-evaluator/scripts/generate-report.mjs
+```
+
+Git policy for `agents-results/`:
+
+- Tracked: `test-pyramid-coverage-report.md`, `test-pyramid-coverage-increase-log.md`, `locators-reviewer-results.md`
+- Ignored: `test-pyramid-coverage-increase-state.json` (ephemeral automation state)
+
+---
+
 ## Important concepts
 
 - **Cart** is bound to a **session** (`X-Cart-Session` + `sessionStorage` in frontend), not to one global DB user — each tab / Playwright context has its own cart.
