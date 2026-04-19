@@ -19,6 +19,17 @@ Each fault is **disabled by default**. Enabling/disabling takes effect within ~1
 
 ## Fault reference
 
+### `cart_add_api_double_quantity_payload`
+| | |
+|---|---|
+| **Level** | API |
+| **Name** | API: Doubled cart quantity delta |
+| **Description** | The API route doubles the requested quantity delta before passing it to the service layer. A request to add 1 item persists as 2. |
+| **Supports `failureRate`** | No (always triggers when enabled) |
+| **Affected area** | `POST /cart/items` endpoint |
+
+---
+
 ### `cart_add_ui_double_call`
 | | |
 |---|---|
@@ -27,6 +38,28 @@ Each fault is **disabled by default**. Enabling/disabling takes effect within ~1
 | **Description** | With a single click the UI calls the cart-add endpoint **twice**. Each call adds 1 unit, so the cart ends up with 2 items instead of 1. |
 | **Supports `failureRate`** | Yes — e.g. `0.5` triggers the double call on ~50 % of clicks |
 | **Affected area** | "Add to cart" button on the product card and product detail |
+
+---
+
+### `cart_add_unit_double_quantity_persist`
+| | |
+|---|---|
+| **Level** | Unit |
+| **Name** | Backend/DB: Doubled cart quantity delta |
+| **Description** | The service layer doubles the quantity delta before writing to the database. The HTTP response already contains the inflated value. |
+| **Supports `failureRate`** | No (always triggers when enabled) |
+| **Affected area** | `cartService` — database write |
+
+---
+
+### `checkout_email_wrong_language`
+| | |
+|---|---|
+| **Level** | API |
+| **Name** | API: Checkout email in wrong language |
+| **Description** | The bank-transfer checkout route sends confirmation email content in the opposite language than the selected storefront language (**EN↔CS**). |
+| **Supports `failureRate`** | Yes — when set, the language flip triggers probabilistically |
+| **Affected area** | `POST /checkout/bank-transfer` → confirmation email subject/body |
 
 ---
 
@@ -41,14 +74,47 @@ Each fault is **disabled by default**. Enabling/disabling takes effect within ~1
 
 ---
 
-### `network_inject_api_fail_every minute`
+### `discount_more_is_less_boundary_4`
+| | |
+|---|---|
+| **Level** | API |
+| **Name** | API: MoreIsLess discount — boundary off-by-one at 4 items |
+| **Description** | Volume code **MoreIsLess**: exactly **4** units in cart still yields **15%** instead of **20%**; **5+** yields **20%**. |
+| **Supports `failureRate`** | No |
+| **Affected area** | Cart totals and checkout pricing when promo **MOREISLESS** is applied (`resolveMoreIsLessFinalPercent`) |
+
+---
+
+### `discount_more_is_less_empty_at_10`
+| | |
+|---|---|
+| **Level** | API |
+| **Name** | API: MoreIsLess discount — toxic partition at 10 items |
+| **Description** | Volume code **MoreIsLess**: exactly **10** units yields **0%** discount; other counts follow normal tiers. |
+| **Supports `failureRate`** | No |
+| **Affected area** | Cart totals and checkout pricing when promo **MOREISLESS** is applied |
+
+---
+
+### `discount_more_is_less_tier_20_plus_50pct`
+| | |
+|---|---|
+| **Level** | API |
+| **Name** | API: MoreIsLess discount — bogus 50% tier at 20+ items |
+| **Description** | Volume code **MoreIsLess**: **20** or more units yields **50%** off (incorrect extra tier vs baseline spec). |
+| **Supports `failureRate`** | No |
+| **Affected area** | Cart totals and checkout pricing when promo **MOREISLESS** is applied |
+
+---
+
+### `export_cart_ui_swap_currency_label`
 | | |
 |---|---|
 | **Level** | UI |
-| **Name** | UI/API: Inject error network call every minute |
-| **Description** | When enabled, frontend calls `GET /faults/inject-error` every 60 seconds (with current `lang`). Endpoint always returns **400 Bad Request** with localized response message: CS **"tohle je bug"**, EN **"this is bug"**. |
+| **Name** | UI: Export cart swaps EUR/CZK labels |
+| **Description** | Cart export (both CSV and PDF) swaps currency labels **EUR↔CZK** while keeping numeric amounts unchanged. The bug affects unit price, line total, and exported estimated total label. |
 | **Supports `failureRate`** | No |
-| **Affected area** | Browser DevTools → Network |
+| **Affected area** | Shop export panel — cart CSV + PDF |
 
 ---
 
@@ -74,58 +140,36 @@ Each fault is **disabled by default**. Enabling/disabling takes effect within ~1
 
 ---
 
-### `export_cart_ui_swap_currency_label`
+### `grid_non_chrome_broken`
 | | |
 |---|---|
 | **Level** | UI |
-| **Name** | UI: Export cart swaps EUR/CZK labels |
-| **Description** | Cart export (both CSV and PDF) swaps currency labels **EUR↔CZK** while keeping numeric amounts unchanged. The bug affects unit price, line total, and exported estimated total label. |
+| **Name** | UI: Broken product grid (non-Chrome) |
+| **Description** | Simulates a CSS grid cross-browser compatibility bug. In **any browser other than Google Chrome** (detected via `navigator.vendor`) the product grid renders with misaligned and partially overlapping cards. Chrome (Mac & Windows) is unaffected. |
 | **Supports `failureRate`** | No |
-| **Affected area** | Shop export panel — cart CSV + PDF |
+| **Affected area** | Product grid — visible only in Firefox, Safari, Edge (non-Chromium), etc. |
 
 ---
 
-### `cart_add_api_double_quantity_payload`
+### `network_inject_api_fail_every minute`
 | | |
 |---|---|
-| **Level** | API |
-| **Name** | API: Doubled cart quantity delta |
-| **Description** | The API route doubles the requested quantity delta before passing it to the service layer. A request to add 1 item persists as 2. |
-| **Supports `failureRate`** | No (always triggers when enabled) |
-| **Affected area** | `POST /cart/items` endpoint |
-
----
-
-### `checkout_email_wrong_language`
-| | |
-|---|---|
-| **Level** | API |
-| **Name** | API: Checkout email in wrong language |
-| **Description** | The bank-transfer checkout route sends confirmation email content in the opposite language than the selected storefront language (**EN↔CS**). |
-| **Supports `failureRate`** | Yes — when set, the language flip triggers probabilistically |
-| **Affected area** | `POST /checkout/bank-transfer` → confirmation email subject/body |
-
----
-
-### `cart_add_unit_double_quantity_persist`
-| | |
-|---|---|
-| **Level** | Unit |
-| **Name** | Backend/DB: Doubled cart quantity delta |
-| **Description** | The service layer doubles the quantity delta before writing to the database. The HTTP response already contains the inflated value. |
-| **Supports `failureRate`** | No (always triggers when enabled) |
-| **Affected area** | `cartService` — database write |
-
----
-
-### `sort_price_asc_swap_last_two`
-| | |
-|---|---|
-| **Level** | API |
-| **Name** | API: Price sort – swap last two items |
-| **Description** | When the product list is sorted by **Price (low to high)** the last two products silently swap their positions. All other sort orders are unaffected. |
+| **Level** | UI |
+| **Name** | UI/API: Inject error network call every minute |
+| **Description** | When enabled, frontend calls `GET /faults/inject-error` every 60 seconds (with current `lang`). Endpoint always returns **400 Bad Request** with localized response message: CS **"tohle je bug"**, EN **"this is bug"**. |
 | **Supports `failureRate`** | No |
-| **Affected area** | `GET /products` sort pipeline (`sort=price-asc`) |
+| **Affected area** | Browser DevTools → Network |
+
+---
+
+### `products_api_odd_minute_wait_to_even`
+| | |
+|---|---|
+| **Level** | API |
+| **Name** | API: Products odd-minute delay to next even minute |
+| **Description** | Controlled performance fault injection on `GET /products`. When enabled and the current minute at request time is **odd**, the API delays the response until the start of the **next even minute**, simulating intermittent latency up to almost 60 seconds. When the minute is even, the endpoint behaves normally. |
+| **Supports `failureRate`** | No (time-based behavior only) |
+| **Affected area** | `GET /products` — main storefront product catalog on the homepage |
 
 ---
 
@@ -137,6 +181,17 @@ Each fault is **disabled by default**. Enabling/disabling takes effect within ~1
 | **Description** | When the product list is sorted by **Name (Z-A)** the last two products silently swap their positions. All other sort orders are unaffected. |
 | **Supports `failureRate`** | No |
 | **Affected area** | `GET /products` sort pipeline (`sort=name-desc`) |
+
+---
+
+### `sort_price_asc_swap_last_two`
+| | |
+|---|---|
+| **Level** | API |
+| **Name** | API: Price sort – swap last two items |
+| **Description** | When the product list is sorted by **Price (low to high)** the last two products silently swap their positions. All other sort orders are unaffected. |
+| **Supports `failureRate`** | No |
+| **Affected area** | `GET /products` sort pipeline (`sort=price-asc`) |
 
 ---
 
@@ -156,28 +211,6 @@ Each fault is **disabled by default**. Enabling/disabling takes effect within ~1
 
 ---
 
-### `grid_non_chrome_broken`
-| | |
-|---|---|
-| **Level** | UI |
-| **Name** | UI: Broken product grid (non-Chrome) |
-| **Description** | Simulates a CSS grid cross-browser compatibility bug. In **any browser other than Google Chrome** (detected via `navigator.vendor`) the product grid renders with misaligned and partially overlapping cards. Chrome (Mac & Windows) is unaffected. |
-| **Supports `failureRate`** | No |
-| **Affected area** | Product grid — visible only in Firefox, Safari, Edge (non-Chromium), etc. |
-
----
-
-### `products_api_odd_minute_wait_to_even`
-| | |
-|---|---|
-| **Level** | API |
-| **Name** | API: Products odd-minute delay to next even minute |
-| **Description** | Controlled performance fault injection on `GET /products`. When enabled and the current minute at request time is **odd**, the API delays the response until the start of the **next even minute**, simulating intermittent latency up to almost 60 seconds. When the minute is even, the endpoint behaves normally. |
-| **Supports `failureRate`** | No (time-based behavior only) |
-| **Affected area** | `GET /products` — main storefront product catalog on the homepage |
-
----
-
 ## How to add a new fault
 
 1. **Seed** — add a `prisma.faultConfig.upsert` block in `backend/prisma/seed.ts`.
@@ -187,4 +220,4 @@ Each fault is **disabled by default**. Enabling/disabling takes effect within ~1
    - **API fault**: call `shouldTriggerFault(FAULT_KEYS.xxx)` in the relevant route in `backend/src/routes/`.
    - **Unit fault**: call `shouldTriggerFault(FAULT_KEYS.xxx)` in the relevant service in `backend/src/services/`.
 4. **Run seed locally**: `cd backend && npm run prisma:seed`
-5. **Document** — add an entry to this file.
+5. **Document** — add an entry to this file (keep keys in **alphabetical order**).
