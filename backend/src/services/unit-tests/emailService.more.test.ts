@@ -237,4 +237,81 @@ describe("emailService additional coverage", () => {
 
     expect(result).toEqual({ sent: false, error: "smtp-failed" });
   });
+
+  it("includes subtotal/discount/total breakdown when discount fields are set", async () => {
+    process.env.SMTP_HOST = "smtp.example.test";
+    process.env.SMTP_FROM = "shop@example.test";
+    mockSendMail.mockResolvedValue({ messageId: "disc-html" });
+    mockCreateTransport.mockReturnValue({ sendMail: mockSendMail });
+
+    await sendBankTransferOrderEmail({
+      to: "buyer@example.test",
+      lang: "en",
+      order: {
+        id: 50,
+        total: 900,
+        subtotalBeforeDiscount: 1000,
+        discountAmount: 100,
+        discountPercent: 10,
+        discountCode: "MOREISLESS",
+        items: [{ quantity: 2, unitPrice: 500, product: { name: "SKU" } }],
+        currency: { code: "CZK" },
+      } as any,
+      bankTransfer: {
+        beneficiary: "Demo",
+        iban: "CZ00",
+        bic: "BIC",
+        bankName: "Bank",
+        variableSymbol: "50",
+        specificSymbol: "S",
+        constantSymbol: "C",
+        amount: { value: 900, currencyCode: "CZK" },
+        note: "note",
+      },
+    });
+
+    const payload = mockSendMail.mock.calls[0]?.[0] as { html: string; text: string };
+    expect(payload.html).toContain("Subtotal");
+    expect(payload.html).toContain("Discount");
+    expect(payload.html).toContain("MOREISLESS");
+    expect(payload.text).toContain("Subtotal:");
+    expect(payload.text).toMatch(/10%/);
+  });
+
+  it("omits percent suffix in plain-text discount line when discountPercent is missing", async () => {
+    process.env.SMTP_HOST = "smtp.example.test";
+    process.env.SMTP_FROM = "shop@example.test";
+    mockSendMail.mockResolvedValue({ messageId: "disc-txt" });
+    mockCreateTransport.mockReturnValue({ sendMail: mockSendMail });
+
+    await sendBankTransferOrderEmail({
+      to: "buyer@example.test",
+      lang: "en",
+      order: {
+        id: 51,
+        total: 450,
+        subtotalBeforeDiscount: 500,
+        discountAmount: 50,
+        discountPercent: null,
+        discountCode: null,
+        items: [{ quantity: 1, unitPrice: 500, product: { name: "A" } }],
+        currency: { code: "CZK" },
+      } as any,
+      bankTransfer: {
+        beneficiary: "Demo",
+        iban: "CZ00",
+        bic: "BIC",
+        bankName: "Bank",
+        variableSymbol: "51",
+        specificSymbol: "S",
+        constantSymbol: "C",
+        amount: { value: 450, currencyCode: "CZK" },
+        note: "note",
+      },
+    });
+
+    const payload = mockSendMail.mock.calls[0]?.[0] as { text: string };
+    expect(payload.text).toContain("Discount:");
+    expect(payload.text).not.toMatch(/\d+%/);
+  });
 });

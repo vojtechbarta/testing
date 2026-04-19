@@ -118,6 +118,16 @@ const options: OAS3Options = {
             "lineTotal",
           ],
         },
+        CartDiscount: {
+          type: "object",
+          properties: {
+            code: { type: "string", example: "MOREISLESS" },
+            percent: { type: "number", example: 10 },
+            amount: { type: "number" },
+            currencyCode: { type: "string" },
+          },
+          required: ["code", "percent", "amount", "currencyCode"],
+        },
         Cart: {
           type: "object",
           properties: {
@@ -126,9 +136,13 @@ const options: OAS3Options = {
               type: "array",
               items: { $ref: "#/components/schemas/CartLine" },
             },
+            subtotal: { $ref: "#/components/schemas/Money" },
+            discount: {
+              oneOf: [{ type: "null" }, { $ref: "#/components/schemas/CartDiscount" }],
+            },
             total: { $ref: "#/components/schemas/Money" },
           },
-          required: ["cartSessionId", "items", "total"],
+          required: ["cartSessionId", "items", "subtotal", "discount", "total"],
         },
         AdminFault: {
           type: "object",

@@ -38,6 +38,7 @@ export async function createOrder(userId: number, items: OrderItemInput[]) {
     });
   }
 
+  const subtotalBeforeDiscount = orderTotal;
   if (isFaultEnabled("cart_price_miscalculation")) {
     orderTotal = Math.floor(orderTotal * 0.9);
   }
@@ -45,6 +46,10 @@ export async function createOrder(userId: number, items: OrderItemInput[]) {
   const order = await prisma.order.create({
     data: {
       userId,
+      subtotalBeforeDiscount,
+      discountAmount: 0,
+      discountCode: null,
+      discountPercent: null,
       total: orderTotal,
       currencyId: currencyId ?? undefined,
       paymentMethod: PaymentMethod.BANK_TRANSFER,

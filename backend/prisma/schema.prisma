@@ -69,6 +69,11 @@ model Order {
   user              User          @relation(fields: [userId], references: [id])
   userId            Int
   total             Int
+  /// Sum of line amounts before discount (storage currency minor units).
+  subtotalBeforeDiscount Int @default(0)
+  discountAmount    Int           @default(0)
+  discountCode      String?       @db.VarChar(64)
+  discountPercent   Int?
   status            OrderStatus   @default(PENDING)
   currencyId        Int?
   currency          Currency?     @relation(fields: [currencyId], references: [id])
@@ -124,6 +129,14 @@ model CartItem {
   updatedAt  DateTime  @updatedAt
 
   @@unique([cartKey, productId], name: "cartKey_productId")
+}
+
+/// Applied promotion code for a guest cart session (volume discount, etc.).
+model CartPromotion {
+  cartKey     String   @id @db.VarChar(64)
+  appliedCode String?  @db.VarChar(64)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model FaultConfig {

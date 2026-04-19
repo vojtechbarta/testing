@@ -10,7 +10,12 @@ import { useTranslation } from "react-i18next";
 import "./App.css";
 import { getExchangeRates, type ExchangeRateDto } from "./api/exchangeRates";
 import { getStorefrontProducts, type Product } from "./api/products";
-import { getCart, updateCartItem, type Cart } from "./api/cart";
+import {
+  applyCartPromotion,
+  getCart,
+  updateCartItem,
+  type Cart,
+} from "./api/cart";
 import {
   adminLogin,
   createAdminProduct,
@@ -31,6 +36,7 @@ import {
   checkoutMockPay,
   type BankTransferDetails,
   type BuyerFormPayload,
+  type CheckoutOrderDto,
 } from "./api/checkout";
 import { toShopDisplayMoney } from "./displayMoney";
 import {
@@ -164,7 +170,11 @@ function App() {
     emailPreviewUrl?: string;
     emailError?: string;
   } | null>(null);
-  const [gatewayOrderId, setGatewayOrderId] = useState<number | null>(null);
+  const [placedOrder, setPlacedOrder] = useState<CheckoutOrderDto | null>(
+    null,
+  );
+  const [promoInput, setPromoInput] = useState("");
+  const [promoBusy, setPromoBusy] = useState(false);
 
   /** After language/search reset, omit priceMin/priceMax until the next catalog response re-seeds the slider. */
   const resetCatalogPriceFilterRef = useRef(false);
@@ -496,13 +506,15 @@ function App() {
     setPaymentChoice("bank");
     setBankTransferInfo(null);
     setBankEmailInfo(null);
-    setGatewayOrderId(null);
+    setPlacedOrder(null);
+    setPromoInput("");
   };
 
   const closeCheckout = () => {
     setCheckoutOpen(false);
     setCheckoutBusy(false);
     setCheckoutError(null);
+    setPlacedOrder(null);
   };
 
   const validateBuyerClient = (): boolean => {
@@ -535,6 +547,7 @@ function App() {
     try {
       if (paymentChoice === "bank") {
         const res = await checkoutBankTransfer(buyerForm, shopLang);
+        setPlacedOrder(res.order);
         setBankTransferInfo(res.bankTransfer);
         setBankEmailInfo({
           message: res.message,
@@ -547,7 +560,7 @@ function App() {
         setCheckoutStep("bankResult");
       } else {
         const res = await checkoutGatewayInit(buyerForm, shopLang);
-        setGatewayOrderId(res.order.id);
+        setPlacedOrder(res.order);
         setCheckoutStep("gatewayPay");
       }
     } catch (err) {
@@ -560,11 +573,11 @@ function App() {
   };
 
   const handleMockGatewayPay = async () => {
-    if (gatewayOrderId == null) return;
+    if (placedOrder == null) return;
     setCheckoutError(null);
     setCheckoutBusy(true);
     try {
-      const res = await checkoutMockPay(gatewayOrderId);
+      const res = await checkoutMockPay(placedOrder.id);
       if (res.success) {
         await refreshShopData();
         closeCheckout();
@@ -593,6 +606,38 @@ function App() {
       setCartError(
         err instanceof Error ? err.message : t("errors.cartUpdateFailed"),
       );
+    }
+  };
+
+  const handleApplyPromo = async () => {
+    setCartError(null);
+    setPromoBusy(true);
+    try {
+      const code = promoInput.trim() === "" ? null : promoInput.trim();
+      const updated = await applyCartPromotion(code, shopLang);
+      setCart(updated);
+    } catch (err) {
+      setCartError(
+        err instanceof Error ? err.message : t("errors.cartUpdateFailed"),
+      );
+    } finally {
+      setPromoBusy(false);
+    }
+  };
+
+  const handleClearPromo = async () => {
+    setCartError(null);
+    setPromoBusy(true);
+    try {
+      const updated = await applyCartPromotion(null, shopLang);
+      setCart(updated);
+      setPromoInput("");
+    } catch (err) {
+      setCartError(
+        err instanceof Error ? err.message : t("errors.cartUpdateFailed"),
+      );
+    } finally {
+      setPromoBusy(false);
     }
   };
 
@@ -1554,6 +1599,24 @@ function App() {
               <p className="empty-state">{t("shop.emptyPriceFilter")}</p>
             )}
 
+            {!loading && !error && (
+              <aside
+                className="store-promo-banner"
+                data-testid="shop-discount-promo"
+              >
+                <h2 className="store-promo-banner__title">
+                  {t("shop.discountBannerTitle")}
+                </h2>
+                <p className="store-promo-banner__text">
+                  {t("shop.discountBannerBody")}
+                </p>
+                <p className="store-promo-banner__code">
+                  <strong>{t("shop.discountBannerCode")}:</strong>{" "}
+                  <code className="promo-code-chip">MoreIsLess</code>
+                </p>
+              </aside>
+            )}
+
             <div className={usebrokenGrid ? "product-grid product-grid--broken" : "product-grid"}>
               {products.map((p) => {
                 const inCartQty =
@@ -1802,6 +1865,43 @@ function App() {
                 <p className="muted">{t("cart.empty")}</p>
               ) : (
                 <>
+                  <div className="cart-promo">
+                    <label className="cart-promo__label" htmlFor="cart-promo-input">
+                      {t("cart.promoLabel")}
+                    </label>
+                    <div className="cart-promo__row">
+                      <input
+                        id="cart-promo-input"
+                        className="cart-promo__input"
+                        type="text"
+                        autoComplete="off"
+                        spellCheck={false}
+                        placeholder={t("cart.promoPlaceholder")}
+                        value={promoInput}
+                        onChange={(e) => setPromoInput(e.target.value)}
+                        disabled={promoBusy}
+                        data-testid="cart-promo-input"
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-small btn-primary"
+                        disabled={promoBusy}
+                        data-testid="cart-promo-apply"
+                        onClick={() => void handleApplyPromo()}
+                      >
+                        {t("cart.promoApply")}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-small"
+                        disabled={promoBusy || !cart.discount}
+                        data-testid="cart-promo-clear"
+                        onClick={() => void handleClearPromo()}
+                      >
+                        {t("cart.promoClear")}
+                      </button>
+                    </div>
+                  </div>
                   <ul className="cart-list">
                     {cart.items.map((item) => {
                       const plusDisabled =
@@ -1882,6 +1982,32 @@ function App() {
                   </ul>
                   <hr className="cart-divider" />
                   <div className="cart-total-row">
+                    <span>{t("cart.subtotal")}</span>
+                    <strong data-testid="cart-subtotal">
+                      {formatCartMoney(
+                        cart.subtotal.amount,
+                        cart.subtotal.currencyCode,
+                      )}
+                    </strong>
+                  </div>
+                  {cart.discount && (
+                    <div className="cart-total-row cart-total-row--muted">
+                      <span>
+                        {t("cart.discountLine", {
+                          code: cart.discount.code,
+                          percent: cart.discount.percent,
+                        })}
+                      </span>
+                      <strong data-testid="cart-discount-amount">
+                        −
+                        {formatCartMoney(
+                          cart.discount.amount,
+                          cart.discount.currencyCode,
+                        )}
+                      </strong>
+                    </div>
+                  )}
+                  <div className="cart-total-row cart-total-row--emphasis">
                     <span>{t("cart.estimatedTotal")}</span>
                     <strong data-testid="cart-estimated-total">
                       {formatCartMoney(
@@ -2113,6 +2239,47 @@ function App() {
 
             {checkoutStep === "payment" && (
               <div className="checkout-form-stack">
+                {cart && cart.items.length > 0 && (
+                  <div
+                    className="checkout-order-preview"
+                    data-testid="checkout-order-preview"
+                  >
+                    <h3 className="checkout-order-preview__title">
+                      {t("checkout.orderSummaryTitle")}
+                    </h3>
+                    <dl className="checkout-dl">
+                      <dt>{t("checkout.orderSubtotal")}</dt>
+                      <dd>
+                        {formatStorefrontMoney(
+                          cart.subtotal.amount,
+                          cart.subtotal.currencyCode,
+                        )}
+                      </dd>
+                      {cart.discount && (
+                        <>
+                          <dt>{t("checkout.orderDiscount")}</dt>
+                          <dd>
+                            −
+                            {formatStorefrontMoney(
+                              cart.discount.amount,
+                              cart.discount.currencyCode,
+                            )}{" "}
+                            ({cart.discount.code} −{cart.discount.percent}%)
+                          </dd>
+                        </>
+                      )}
+                      <dt>{t("checkout.orderTotal")}</dt>
+                      <dd>
+                        <strong>
+                          {formatStorefrontMoney(
+                            cart.total.amount,
+                            cart.total.currencyCode,
+                          )}
+                        </strong>
+                      </dd>
+                    </dl>
+                  </div>
+                )}
                 <p className="muted">{t("checkout.paymentHint")}</p>
                 <label className="checkout-radio">
                   <input
@@ -2190,6 +2357,50 @@ function App() {
                     </a>
                   </p>
                 )}
+                {placedOrder &&
+                  (placedOrder.discountAmount > 0 ||
+                    placedOrder.discountCode != null) && (
+                  <div
+                    className="checkout-order-preview checkout-order-preview--compact"
+                    data-testid="checkout-placed-summary"
+                  >
+                    <h3 className="checkout-order-preview__title">
+                      {t("checkout.orderSummaryTitle")}
+                    </h3>
+                    <dl className="checkout-dl">
+                      <dt>{t("checkout.orderSubtotal")}</dt>
+                      <dd>
+                        {formatStorefrontMoney(
+                          placedOrder.subtotalBeforeDiscount,
+                          placedOrder.currency?.code ??
+                            bankTransferInfo.amount.currencyCode,
+                        )}
+                      </dd>
+                      <dt>{t("checkout.orderDiscount")}</dt>
+                      <dd>
+                        −
+                        {formatStorefrontMoney(
+                          placedOrder.discountAmount,
+                          placedOrder.currency?.code ??
+                            bankTransferInfo.amount.currencyCode,
+                        )}
+                        {placedOrder.discountCode != null &&
+                          placedOrder.discountPercent != null &&
+                          ` (−${placedOrder.discountPercent}% ${placedOrder.discountCode})`}
+                      </dd>
+                      <dt>{t("checkout.orderTotal")}</dt>
+                      <dd>
+                        <strong>
+                          {formatStorefrontMoney(
+                            placedOrder.total,
+                            placedOrder.currency?.code ??
+                              bankTransferInfo.amount.currencyCode,
+                          )}
+                        </strong>
+                      </dd>
+                    </dl>
+                  </div>
+                )}
                 <div className="bank-box">
                   <h3 className="bank-box__title">
                     {t("checkout.dummyTransferTitle")}
@@ -2229,12 +2440,21 @@ function App() {
               </div>
             )}
 
-            {checkoutStep === "gatewayPay" && (
+            {checkoutStep === "gatewayPay" && placedOrder && (
               <div className="checkout-form-stack">
                 <p>
                   {t("checkout.gatewayP1")}{" "}
-                  <strong>#{gatewayOrderId}</strong> {t("checkout.gatewayP2")}
+                  <strong>#{placedOrder.id}</strong>
+                  {" · "}
+                  {t("checkout.gatewayAmountDue")}{" "}
+                  <strong data-testid="checkout-gateway-due">
+                    {formatStorefrontMoney(
+                      placedOrder.total,
+                      placedOrder.currency?.code ?? "CZK",
+                    )}
+                  </strong>
                 </p>
+                <p className="muted">{t("checkout.gatewayP2")}</p>
                 <p className="muted" style={{ fontSize: "0.82rem" }}>
                   {t("checkout.gatewayHelp", {
                     email: buyerForm.customerEmail,

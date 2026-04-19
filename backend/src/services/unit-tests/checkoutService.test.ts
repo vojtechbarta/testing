@@ -5,6 +5,7 @@ const {
   mockPrisma,
   mockIsFaultEnabled,
   mockLoadMockPaymentOutcomeForEmail,
+  mockResolveMoreIsLessFinalPercent,
 } = vi.hoisted(() => ({
   mockPrisma: {
     $transaction: vi.fn(),
@@ -25,6 +26,7 @@ const {
   },
   mockIsFaultEnabled: vi.fn(),
   mockLoadMockPaymentOutcomeForEmail: vi.fn(),
+  mockResolveMoreIsLessFinalPercent: vi.fn(),
 }));
 
 vi.mock("../../db/prisma", () => ({
@@ -33,6 +35,16 @@ vi.mock("../../db/prisma", () => ({
 
 vi.mock("../../faults/faultService", () => ({
   isFaultEnabled: mockIsFaultEnabled,
+}));
+
+vi.mock("../../shop/discountMoreIsLess", () => ({
+  PROMO_CODE_MORE_IS_LESS: "MOREISLESS",
+  normalizePromotionCode: (s: string | null | undefined) =>
+    String(s ?? "").trim().toUpperCase(),
+  canonicalPromotionCode: (s: string) =>
+    s === "MOREISLESS" ? "MOREISLESS" : null,
+  resolveMoreIsLessFinalPercent: (...args: unknown[]) =>
+    mockResolveMoreIsLessFinalPercent(...args),
 }));
 
 vi.mock("../mockPaymentConfigService", () => ({
@@ -75,6 +87,7 @@ describe("checkoutService", () => {
     mockIsFaultEnabled.mockReturnValue(false);
     mockLoadMockPaymentOutcomeForEmail.mockReturnValue("success");
     mockPrisma.order.findFirst.mockResolvedValue(null);
+    mockResolveMoreIsLessFinalPercent.mockResolvedValue(10);
   });
 
   afterEach(() => {
@@ -165,6 +178,10 @@ describe("checkoutService", () => {
             findMany: vi.fn().mockResolvedValue([activeProductCartRow]),
             deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
           },
+          cartPromotion: {
+            findUnique: vi.fn().mockResolvedValue(null),
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+          },
           order: {
             create: vi.fn().mockResolvedValue(createdOrder),
           },
@@ -197,6 +214,10 @@ describe("checkoutService", () => {
           cartItem: {
             findMany: vi.fn().mockResolvedValue([activeProductCartRow]),
             deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+          },
+          cartPromotion: {
+            findUnique: vi.fn().mockResolvedValue(null),
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
           },
           order: { create: createSpy },
           product: { update: vi.fn().mockResolvedValue({}) },
@@ -341,6 +362,46 @@ describe("checkoutService", () => {
 
       await expect(checkoutGatewayInit(TEST_CART_KEY, buyer)).rejects.toThrow(/not available/);
     });
+
+    it("persists MoreIsLess discount fields when cart promotion is applied", async () => {
+      mockPrisma.order.findFirst.mockResolvedValue(null);
+      const createSpy = vi.fn().mockResolvedValue({
+        id: 77,
+        total: 720,
+        items: [],
+        currency: { code: "CZK" },
+      });
+      mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => {
+        const tx = {
+          cartItem: {
+            findMany: vi.fn().mockResolvedValue([activeProductCartRow]),
+          },
+          cartPromotion: {
+            findUnique: vi.fn().mockResolvedValue({
+              cartKey: TEST_CART_KEY,
+              appliedCode: "MOREISLESS",
+            }),
+          },
+          order: { create: createSpy },
+        };
+        return fn(tx);
+      });
+
+      await checkoutGatewayInit(TEST_CART_KEY, buyer);
+
+      expect(mockResolveMoreIsLessFinalPercent).toHaveBeenCalledWith(2);
+      expect(createSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            subtotalBeforeDiscount: 800,
+            discountAmount: 80,
+            discountPercent: 10,
+            discountCode: "MOREISLESS",
+            total: 720,
+          }),
+        }),
+      );
+    });
   });
 
   describe("mockGatewayPayment", () => {
@@ -440,6 +501,9 @@ describe("checkoutService", () => {
           cartItem: {
             deleteMany: cartDeleteMany,
           },
+          cartPromotion: {
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+          },
         };
         return fn(tx);
       });
@@ -485,6 +549,9 @@ describe("checkoutService", () => {
           cartItem: {
             deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
           },
+          cartPromotion: {
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+          },
         };
         return fn(tx);
       });
@@ -523,6 +590,9 @@ describe("checkoutService", () => {
           cartItem: {
             deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
           },
+          cartPromotion: {
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+          },
         };
         return fn(tx);
       });
@@ -554,6 +624,9 @@ describe("checkoutService", () => {
           },
           cartItem: {
             deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+          },
+          cartPromotion: {
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
           },
         };
         return fn(tx);
@@ -594,6 +667,9 @@ describe("checkoutService", () => {
           cartItem: {
             deleteMany: deleteManySpy,
           },
+          cartPromotion: {
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+          },
         };
         return fn(tx);
       });
@@ -632,6 +708,9 @@ describe("checkoutService", () => {
             update: vi.fn().mockResolvedValue({}),
           },
           cartItem: {
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+          },
+          cartPromotion: {
             deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
           },
         };
@@ -696,6 +775,9 @@ describe("checkoutService", () => {
           },
           cartItem: {
             deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+          },
+          cartPromotion: {
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
           },
         };
         return fn(tx);

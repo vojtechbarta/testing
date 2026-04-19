@@ -15,9 +15,21 @@ export interface CartItem {
   };
 }
 
+export interface CartDiscount {
+  code: string;
+  percent: number;
+  amount: number;
+  currencyCode: string;
+}
+
 export interface Cart {
   cartSessionId: string;
   items: CartItem[];
+  subtotal: {
+    amount: number;
+    currencyCode: string;
+  };
+  discount: CartDiscount | null;
   total: {
     amount: number;
     currencyCode: string;
@@ -59,6 +71,38 @@ export async function updateCartItem(
       }
     } catch {
       // no-op, fallback to generic message
+    }
+    throw new Error(message);
+  }
+
+  return res.json();
+}
+
+export async function applyCartPromotion(
+  code: string | null | undefined,
+  lang: string,
+): Promise<Cart> {
+  const res = await fetch(
+    `${API_BASE_URL}/cart/promotion${cartLangQuery(lang)}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...cartSessionHeaders(),
+      },
+      body: JSON.stringify({ code: code ?? null }),
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Promotion failed with status ${res.status}`;
+    try {
+      const body = (await res.json()) as { message?: string };
+      if (body?.message) {
+        message = body.message;
+      }
+    } catch {
+      /* ignore */
     }
     throw new Error(message);
   }

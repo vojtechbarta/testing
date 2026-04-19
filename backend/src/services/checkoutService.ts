@@ -1,6 +1,6 @@
 import prisma from "../db/prisma";
-import { isFaultEnabled } from "../faults/faultService";
 import { OrderStatus, PaymentMethod, Prisma } from "@prisma/client";
+import { computeStorageOrderPricing } from "./checkoutOrderPricing";
 import { loadMockPaymentOutcomeForEmail } from "./mockPaymentConfigService";
 import type { StorefrontLang } from "../shop/storefrontMoney";
 
@@ -49,8 +49,7 @@ function trimOrNull(v: string | null | undefined) {
   return t === "" ? null : t;
 }
 
-function cartRowsToOrderPayload(cartItems: CartRow[]) {
-  let orderTotal = 0;
+function buildOrderItemsPayload(cartItems: CartRow[]) {
   const orderItemsData: {
     productId: number;
     quantity: number;
@@ -64,7 +63,6 @@ function cartRowsToOrderPayload(cartItems: CartRow[]) {
 
   for (const ci of cartItems) {
     const p = ci.product;
-    orderTotal += p.price * ci.quantity;
     orderItemsData.push({
       productId: ci.productId,
       quantity: ci.quantity,
@@ -72,11 +70,7 @@ function cartRowsToOrderPayload(cartItems: CartRow[]) {
     });
   }
 
-  if (isFaultEnabled("cart_price_miscalculation")) {
-    orderTotal = Math.floor(orderTotal * 0.9);
-  }
-
-  return { orderTotal, orderItemsData, currencyId };
+  return { orderItemsData, currencyId };
 }
 
 function assertCartRowsValidForCheckout(cartItems: CartRow[]) {
@@ -110,14 +104,21 @@ export async function checkoutBankTransfer(
 
     assertCartRowsValidForCheckout(cartItems);
 
-    const { orderTotal, orderItemsData, currencyId } =
-      cartRowsToOrderPayload(cartItems);
+    const promotion = await tx.cartPromotion.findUnique({
+      where: { cartKey },
+    });
+    const pricing = await computeStorageOrderPricing(cartItems, promotion);
+    const { orderItemsData, currencyId } = buildOrderItemsPayload(cartItems);
 
     const order = await tx.order.create({
       data: {
         userId: STOREFRONT_DEMO_USER_ID,
         guestCartKey: cartKey,
-        total: orderTotal,
+        subtotalBeforeDiscount: pricing.grossSubtotal,
+        discountAmount: pricing.discountAmount,
+        discountCode: pricing.discountCode,
+        discountPercent: pricing.discountPercent,
+        total: pricing.orderTotal,
         currencyId: currencyId ?? undefined,
         status: OrderStatus.PAID,
         paymentMethod: PaymentMethod.BANK_TRANSFER,
@@ -158,6 +159,7 @@ export async function checkoutBankTransfer(
     }
 
     await tx.cartItem.deleteMany({ where: { cartKey } });
+    await tx.cartPromotion.deleteMany({ where: { cartKey } });
 
     return order;
   });
@@ -197,14 +199,21 @@ export async function checkoutGatewayInit(
 
     assertCartRowsValidForCheckout(cartItems);
 
-    const { orderTotal, orderItemsData, currencyId } =
-      cartRowsToOrderPayload(cartItems);
+    const promotion = await tx.cartPromotion.findUnique({
+      where: { cartKey },
+    });
+    const pricing = await computeStorageOrderPricing(cartItems, promotion);
+    const { orderItemsData, currencyId } = buildOrderItemsPayload(cartItems);
 
     const order = await tx.order.create({
       data: {
         userId: STOREFRONT_DEMO_USER_ID,
         guestCartKey: cartKey,
-        total: orderTotal,
+        subtotalBeforeDiscount: pricing.grossSubtotal,
+        discountAmount: pricing.discountAmount,
+        discountCode: pricing.discountCode,
+        discountPercent: pricing.discountPercent,
+        total: pricing.orderTotal,
         currencyId: currencyId ?? undefined,
         status: OrderStatus.PENDING,
         paymentMethod: PaymentMethod.PAYMENT_GATEWAY,
@@ -326,6 +335,7 @@ export async function mockGatewayPayment(orderId: number) {
     const sessionKey = fresh.guestCartKey;
     if (sessionKey) {
       await tx.cartItem.deleteMany({ where: { cartKey: sessionKey } });
+      await tx.cartPromotion.deleteMany({ where: { cartKey: sessionKey } });
     }
   });
 

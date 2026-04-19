@@ -12,3 +12,4 @@ npm-debug.log*
 azure/.last-deployment.json
 agents-results/test-pyramid-coverage-increase-state.json
 backend/coverage-pyramid/
+backend/coverage/

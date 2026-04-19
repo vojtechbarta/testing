@@ -51,6 +51,10 @@ describe("orderService.createOrder", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           total: 180,
+          subtotalBeforeDiscount: 200,
+          discountAmount: 0,
+          discountCode: null,
+          discountPercent: null,
           userId: 7,
         }),
       }),
@@ -84,11 +88,33 @@ describe("orderService.createOrder", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           total: 450,
+          subtotalBeforeDiscount: 450,
+          discountAmount: 0,
+          discountCode: null,
+          discountPercent: null,
           userId: 9,
         }),
       }),
     );
     expect(result).toMatchObject({ id: 2, total: 450 });
+  });
+
+  it("creates a zero-total order when items array is empty", async () => {
+    mockPrisma.product.findMany.mockResolvedValue([]);
+    mockPrisma.order.create.mockResolvedValue({ id: 99, total: 0, items: [] });
+
+    await createOrder(3, []);
+
+    expect(mockPrisma.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          total: 0,
+          subtotalBeforeDiscount: 0,
+          currencyId: undefined,
+          userId: 3,
+        }),
+      }),
+    );
   });
 
   it("falls back to nested currency.id when product currencyId is null", async () => {

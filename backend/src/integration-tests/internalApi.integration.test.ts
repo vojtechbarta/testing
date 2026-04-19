@@ -19,6 +19,7 @@ const CART_SESSION_SINGLE_ITEM = "aaaaaaaa-bbbb-4ccc-bddd-000000000002";
 const CART_SESSION_LANG_CS = "aaaaaaaa-bbbb-4ccc-bddd-000000000003";
 const CART_SESSION_CHECKOUT_CS = "aaaaaaaa-bbbb-4ccc-bddd-000000000004";
 const CART_SESSION_GATEWAY = "aaaaaaaa-bbbb-4ccc-bddd-000000000005";
+const CART_SESSION_PROMO = "aaaaaaaa-bbbb-4ccc-bddd-000000000099";
 
 describe("Internal API (frontend contract)", () => {
   let seededProductId: number;
@@ -49,6 +50,21 @@ describe("Internal API (frontend contract)", () => {
             CART_SESSION_LANG_CS,
             CART_SESSION_CHECKOUT_CS,
             CART_SESSION_GATEWAY,
+            CART_SESSION_PROMO,
+          ],
+        },
+      },
+    });
+    await prisma.cartPromotion.deleteMany({
+      where: {
+        cartKey: {
+          in: [
+            CART_SESSION,
+            CART_SESSION_SINGLE_ITEM,
+            CART_SESSION_LANG_CS,
+            CART_SESSION_CHECKOUT_CS,
+            CART_SESSION_GATEWAY,
+            CART_SESSION_PROMO,
           ],
         },
       },
@@ -465,12 +481,66 @@ describe("Internal API (frontend contract)", () => {
     expect(res.body).toMatchObject({
       cartSessionId: CART_SESSION,
       items: expect.any(Array),
+      subtotal: {
+        amount: expect.any(Number),
+        currencyCode: expect.any(String),
+      },
+      discount: null,
       total: { amount: expect.any(Number), currencyCode: expect.any(String) },
     });
     const line = (res.body.items as { productId: number; quantity: number }[]).find(
       (i) => i.productId === seededProductId,
     );
     expect(line?.quantity).toBe(2);
+  });
+
+  it("POST /cart/promotion applies MOREISLESS with 2 units → 10% discount", async () => {
+    await prisma.cartItem.deleteMany({ where: { cartKey: CART_SESSION_PROMO } });
+    await prisma.cartPromotion.deleteMany({
+      where: { cartKey: CART_SESSION_PROMO },
+    });
+
+    await request(app)
+      .post("/cart/items")
+      .set("Content-Type", "application/json")
+      .set("X-Cart-Session", CART_SESSION_PROMO)
+      .send({ productId: seededProductId, quantity: 2 })
+      .expect(200);
+
+    const res = await request(app)
+      .post("/cart/promotion")
+      .set("Content-Type", "application/json")
+      .set("X-Cart-Session", CART_SESSION_PROMO)
+      .send({ code: "MoreIsLess" })
+      .expect(200);
+
+    expect(res.body.discount).toMatchObject({
+      code: "MOREISLESS",
+      percent: 10,
+    });
+    expect(res.body.subtotal.amount).toBeGreaterThan(res.body.total.amount);
+    expect(res.body.discount.amount).toBeGreaterThan(0);
+  });
+
+  it("POST /cart/promotion rejects unknown promotion code", async () => {
+    await prisma.cartItem.deleteMany({ where: { cartKey: CART_SESSION_PROMO } });
+    await prisma.cartPromotion.deleteMany({
+      where: { cartKey: CART_SESSION_PROMO },
+    });
+
+    await request(app)
+      .post("/cart/items")
+      .set("Content-Type", "application/json")
+      .set("X-Cart-Session", CART_SESSION_PROMO)
+      .send({ productId: seededProductId, quantity: 1 })
+      .expect(200);
+
+    await request(app)
+      .post("/cart/promotion")
+      .set("Content-Type", "application/json")
+      .set("X-Cart-Session", CART_SESSION_PROMO)
+      .send({ code: "UNKNOWN_SHOP_CODE" })
+      .expect(400);
   });
 
   // Add exactly one unit: POST returns the full cart (same shape as GET /cart); GET verifies read-after-write.

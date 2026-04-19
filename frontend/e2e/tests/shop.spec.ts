@@ -3,6 +3,14 @@ import { readFile } from "node:fs/promises";
 import { ShopPage, SEED_PRODUCTS } from "../pages/shop.page";
 
 test.describe("Shop — catalog and cart", () => {
+  test("@smoke discount promo banner is visible", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("shop-discount-promo")).toBeVisible();
+    await expect(page.getByTestId("shop-discount-promo")).toContainText(
+      "MoreIsLess",
+    );
+  });
+
   test("@smoke product grid cards do not overlap (DOM geometry check)", async ({
     page,
     browserName,

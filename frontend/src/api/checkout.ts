@@ -12,6 +12,16 @@ export type BuyerFormPayload = {
   country?: string;
 };
 
+export type CheckoutOrderDto = {
+  id: number;
+  total: number;
+  subtotalBeforeDiscount: number;
+  discountAmount: number;
+  discountCode: string | null;
+  discountPercent: number | null;
+  currency?: { code: string } | null;
+};
+
 export type BankTransferDetails = {
   beneficiary: string;
   iban: string;
@@ -28,7 +38,7 @@ export async function checkoutBankTransfer(
   buyer: BuyerFormPayload,
   lang: string,
 ): Promise<{
-  order: unknown;
+  order: CheckoutOrderDto;
   bankTransfer: BankTransferDetails;
   emailConfigured: boolean;
   emailSent: boolean;
@@ -40,9 +50,9 @@ export async function checkoutBankTransfer(
   const res = await fetch(
     `${API_BASE_URL}/checkout/bank-transfer?lang=${encodeURIComponent(checkoutLang)}`,
     {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...cartSessionHeaders() },
-    body: JSON.stringify(buyer),
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...cartSessionHeaders() },
+      body: JSON.stringify(buyer),
     },
   );
   if (!res.ok) {
@@ -61,14 +71,14 @@ export async function checkoutBankTransfer(
 export async function checkoutGatewayInit(
   buyer: BuyerFormPayload,
   lang: string,
-): Promise<{ order: { id: number }; nextStep: string }> {
+): Promise<{ order: CheckoutOrderDto; nextStep: string }> {
   const checkoutLang = lang.startsWith("cs") ? "cs" : "en";
   const res = await fetch(
     `${API_BASE_URL}/checkout/gateway/init?lang=${encodeURIComponent(checkoutLang)}`,
     {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...cartSessionHeaders() },
-    body: JSON.stringify(buyer),
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...cartSessionHeaders() },
+      body: JSON.stringify(buyer),
     },
   );
   if (!res.ok) {
@@ -95,11 +105,11 @@ export async function checkoutMockPay(orderId: number): Promise<{
     `${API_BASE_URL}/checkout/gateway/${orderId}/mock-pay`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...cartSessionHeaders() },
     },
   );
   if (!res.ok) {
-    let message = `Mock payment failed (${res.status})`;
+    let message = `Payment failed (${res.status})`;
     try {
       const body = (await res.json()) as { message?: string };
       if (body?.message) message = body.message;

@@ -18,4 +18,19 @@ describe("faultService static config access", () => {
     expect(isFaultEnabled("productListing_latency")).toBe(true);
     faultConfig.productListing_latency.enabled = prev;
   });
+
+  it("reflects cart_price_miscalculation toggle", () => {
+    const prev = faultConfig.cart_price_miscalculation.enabled;
+    faultConfig.cart_price_miscalculation.enabled = true;
+    expect(isFaultEnabled("cart_price_miscalculation")).toBe(true);
+    faultConfig.cart_price_miscalculation.enabled = false;
+    expect(isFaultEnabled("cart_price_miscalculation")).toBe(false);
+    faultConfig.cart_price_miscalculation.enabled = prev;
+  });
+
+  it("returns settings for cart_price_miscalculation", () => {
+    expect(getFaultSettings("cart_price_miscalculation")).toEqual(
+      faultConfig.cart_price_miscalculation,
+    );
+  });
 });

@@ -1,5 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const mockResolveMoreIsLessFinalPercent = vi.fn();
+
+vi.mock("../../shop/discountMoreIsLess", () => ({
+  PROMO_CODE_MORE_IS_LESS: "MOREISLESS",
+  normalizePromotionCode: (s: string | null | undefined) =>
+    String(s ?? "").trim().toUpperCase(),
+  canonicalPromotionCode: (s: string) =>
+    s === "MOREISLESS" ? "MOREISLESS" : null,
+  resolveMoreIsLessFinalPercent: (...args: unknown[]) =>
+    mockResolveMoreIsLessFinalPercent(...args),
+}));
+
 const { mockPrisma, mockShouldTriggerFault } = vi.hoisted(() => ({
   mockPrisma: {
     cartItem: {
@@ -8,6 +20,12 @@ const { mockPrisma, mockShouldTriggerFault } = vi.hoisted(() => ({
       findFirst: vi.fn(),
       update: vi.fn(),
       create: vi.fn(),
+    },
+    cartPromotion: {
+      findUnique: vi.fn(),
+      deleteMany: vi.fn(),
+      delete: vi.fn(),
+      upsert: vi.fn(),
     },
     product: {
       findUnique: vi.fn(),
@@ -30,22 +48,22 @@ vi.mock("../../faults/faultRuntime", () => ({
   shouldTriggerFault: mockShouldTriggerFault,
 }));
 
-import { addOrUpdateCartItem, clearCart, getCart } from "../cartService";
+import { addOrUpdateCartItem, applyCartPromotion, clearCart, getCart } from "../cartService";
 
 const TEST_CART_KEY = "aaaaaaaa-bbbb-4ccc-bddd-111111111111";
 
 describe("cartService", () => {
-  // Default: unit-level fault does not fire (disabled / non-triggered behaviour).
   beforeEach(() => {
     mockShouldTriggerFault.mockResolvedValue(false);
     mockPrisma.exchangeRate.findFirst.mockResolvedValue(null);
+    mockPrisma.cartPromotion.findUnique.mockResolvedValue(null);
+    mockResolveMoreIsLessFinalPercent.mockResolvedValue(10);
   });
 
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  // Verifies getCart maps DB rows to the cart DTO (price, currency, line subtotals, cart total).
   it("calculates cart totals and maps money fields", async () => {
     mockPrisma.cartItem.findMany.mockResolvedValue([
       {
@@ -75,13 +93,142 @@ describe("cartService", () => {
     const cart = await getCart(TEST_CART_KEY);
 
     expect(cart.cartSessionId).toBe(TEST_CART_KEY);
+    expect(cart.subtotal.amount).toBe(1300);
+    expect(cart.discount).toBeNull();
     expect(cart.total.amount).toBe(1300);
     expect(cart.total.currencyCode).toBe("CZK");
     expect(cart.items[0]?.lineTotal.amount).toBe(1000);
     expect(cart.items[1]?.price.amount).toBe(300);
   });
 
-  // Verifies quantity <= 0 removes the cart line via deleteMany (no positive-quantity update/create).
+  it("applyCartPromotion accepts case-insensitive code and upserts storage", async () => {
+    mockPrisma.cartItem.findMany.mockResolvedValue([
+      {
+        productId: 10,
+        quantity: 1,
+        product: {
+          id: 10,
+          name: "Keyboard",
+          price: 1000,
+          inStock: 10,
+          currency: { code: "CZK" },
+        },
+      },
+    ]);
+    mockPrisma.cartPromotion.upsert.mockResolvedValue({});
+    mockPrisma.cartPromotion.findUnique.mockResolvedValue({
+      cartKey: TEST_CART_KEY,
+      appliedCode: "MOREISLESS",
+    });
+
+    const cart = await applyCartPromotion(TEST_CART_KEY, "  moreisless  ");
+
+    expect(mockPrisma.cartPromotion.upsert).toHaveBeenCalledWith({
+      where: { cartKey: TEST_CART_KEY },
+      create: { cartKey: TEST_CART_KEY, appliedCode: "MOREISLESS" },
+      update: { appliedCode: "MOREISLESS" },
+    });
+    expect(cart.discount).toMatchObject({ code: "MOREISLESS" });
+  });
+
+  it("applyCartPromotion with empty code clears promotion and returns cart", async () => {
+    mockPrisma.cartItem.findMany.mockResolvedValue([]);
+    mockPrisma.cartPromotion.deleteMany.mockResolvedValue({ count: 0 });
+
+    const cart = await applyCartPromotion(TEST_CART_KEY, "   ");
+
+    expect(mockPrisma.cartPromotion.deleteMany).toHaveBeenCalledWith({
+      where: { cartKey: TEST_CART_KEY },
+    });
+    expect(cart.items).toEqual([]);
+    expect(cart.discount).toBeNull();
+  });
+
+  it("applyCartPromotion throws for unknown code and does not upsert", async () => {
+    await expect(
+      applyCartPromotion(TEST_CART_KEY, "UNKNOWN"),
+    ).rejects.toThrow("Unknown promotion code.");
+    expect(mockPrisma.cartPromotion.upsert).not.toHaveBeenCalled();
+  });
+
+  it("getCart drops non-canonical stored code and deletes the row", async () => {
+    mockPrisma.cartPromotion.findUnique.mockResolvedValue({
+      cartKey: TEST_CART_KEY,
+      appliedCode: "EXPIRED",
+    });
+    mockPrisma.cartItem.findMany.mockResolvedValue([
+      {
+        productId: 10,
+        quantity: 1,
+        product: {
+          id: 10,
+          name: "Keyboard",
+          price: 1000,
+          inStock: 10,
+          currency: { code: "CZK" },
+        },
+      },
+    ]);
+    mockPrisma.cartPromotion.delete.mockResolvedValue({});
+
+    const cart = await getCart(TEST_CART_KEY);
+
+    expect(mockPrisma.cartPromotion.delete).toHaveBeenCalledWith({
+      where: { cartKey: TEST_CART_KEY },
+    });
+    expect(cart.discount).toBeNull();
+    expect(cart.total.amount).toBe(1000);
+  });
+
+  it("getCart clears promotion from DB when cart is empty", async () => {
+    mockPrisma.cartItem.findMany.mockResolvedValue([]);
+    mockPrisma.cartPromotion.findUnique.mockResolvedValue({
+      cartKey: TEST_CART_KEY,
+      appliedCode: "MOREISLESS",
+    });
+    mockPrisma.cartPromotion.deleteMany.mockResolvedValue({ count: 1 });
+
+    const cart = await getCart(TEST_CART_KEY);
+
+    expect(mockPrisma.cartPromotion.deleteMany).toHaveBeenCalledWith({
+      where: { cartKey: TEST_CART_KEY },
+    });
+    expect(cart.items).toEqual([]);
+    expect(cart.discount).toBeNull();
+  });
+
+  it("applies MoreIsLess discount when promotion row is present", async () => {
+    mockPrisma.cartPromotion.findUnique.mockResolvedValue({
+      cartKey: TEST_CART_KEY,
+      appliedCode: "MOREISLESS",
+    });
+    mockPrisma.cartItem.findMany.mockResolvedValue([
+      {
+        productId: 10,
+        quantity: 2,
+        product: {
+          id: 10,
+          name: "Keyboard",
+          price: 500,
+          inStock: 10,
+          currency: { code: "CZK" },
+        },
+      },
+    ]);
+
+    const cart = await getCart(TEST_CART_KEY);
+
+    expect(mockResolveMoreIsLessFinalPercent).toHaveBeenCalled();
+    expect(cart.subtotal.amount).toBe(1000);
+    expect(cart.discount).toMatchObject({
+      code: "MOREISLESS",
+      percent: 10,
+      amount: 100,
+      currencyCode: "CZK",
+    });
+    expect(cart.total.amount).toBe(900);
+  });
+
   it("deletes item when quantity is zero", async () => {
     mockPrisma.product.findUnique.mockResolvedValue({
       id: 10,
@@ -98,7 +245,6 @@ describe("cartService", () => {
     });
   });
 
-  // Verifies a missing (or inactive) product throws a clear error instead of failing silently.
   it("throws when product is missing or inactive", async () => {
     mockPrisma.product.findUnique.mockResolvedValue(null);
 
@@ -120,7 +266,6 @@ describe("cartService", () => {
     );
   });
 
-  // Verifies an existing line is updated to the exact requested quantity when the unit fault does not apply.
   it("updates existing cart item without fault mutation", async () => {
     mockPrisma.product.findUnique.mockResolvedValue({
       id: 10,
@@ -140,7 +285,6 @@ describe("cartService", () => {
     });
   });
 
-  // Verifies when shouldTriggerFault is true, only the delta vs current cart quantity is doubled (unit/DB mutation).
   it("applies unit fault by doubling quantity delta", async () => {
     mockShouldTriggerFault.mockResolvedValue(true);
     mockPrisma.product.findUnique.mockResolvedValue({
@@ -149,7 +293,6 @@ describe("cartService", () => {
       inStock: 20,
       currencyId: 1,
     });
-    // Existing quantity 2, target quantity 3 => delta 1, mutated target 4.
     mockPrisma.cartItem.findFirst.mockResolvedValue({ id: 123, quantity: 2 });
     mockPrisma.cartItem.findMany.mockResolvedValue([]);
 
@@ -161,7 +304,6 @@ describe("cartService", () => {
     });
   });
 
-  // Verifies quantity after all logic (including optional mutation) cannot exceed stock; otherwise throws with limit.
   it("throws when requested quantity exceeds stock", async () => {
     mockPrisma.product.findUnique.mockResolvedValue({
       id: 10,
@@ -236,9 +378,12 @@ describe("cartService", () => {
     });
   });
 
-  it("clearCart removes all lines for the session", async () => {
+  it("clearCart removes cart lines and promotions for the session", async () => {
     await clearCart(TEST_CART_KEY);
     expect(mockPrisma.cartItem.deleteMany).toHaveBeenCalledWith({
+      where: { cartKey: TEST_CART_KEY },
+    });
+    expect(mockPrisma.cartPromotion.deleteMany).toHaveBeenCalledWith({
       where: { cartKey: TEST_CART_KEY },
     });
   });
@@ -249,6 +394,41 @@ describe("cartService", () => {
     const cart = await getCart(TEST_CART_KEY);
 
     expect(cart.total).toEqual({ amount: 0, currencyCode: "CZK" });
+    expect(cart.subtotal).toEqual({ amount: 0, currencyCode: "CZK" });
+    expect(cart.discount).toBeNull();
+  });
+
+  it("applies MoreIsLess discount with EUR rounding on subtotal", async () => {
+    mockPrisma.exchangeRate.findFirst.mockResolvedValue({ exchangeRate: 24 });
+    mockPrisma.cartPromotion.findUnique.mockResolvedValue({
+      cartKey: TEST_CART_KEY,
+      appliedCode: "MOREISLESS",
+    });
+    mockResolveMoreIsLessFinalPercent.mockResolvedValue(10);
+    mockPrisma.cartItem.findMany.mockResolvedValue([
+      {
+        productId: 10,
+        quantity: 3,
+        product: {
+          id: 10,
+          name: "Keyboard",
+          price: 399,
+          inStock: 10,
+          currency: { code: "CZK" },
+        },
+      },
+    ]);
+
+    const cart = await getCart(TEST_CART_KEY, "en");
+
+    expect(cart.subtotal.amount).toBe(49.89);
+    expect(cart.discount).toMatchObject({
+      code: "MOREISLESS",
+      percent: 10,
+      currencyCode: "EUR",
+      amount: 4.99,
+    });
+    expect(cart.total.amount).toBe(44.9);
   });
 
   it("getCart keeps EUR decimals for totals", async () => {
@@ -270,7 +450,9 @@ describe("cartService", () => {
     const cart = await getCart(TEST_CART_KEY, "en");
 
     expect(cart.total.currencyCode).toBe("EUR");
+    expect(cart.subtotal.amount).toBe(49.89);
     expect(cart.total.amount).toBe(49.89);
+    expect(cart.discount).toBeNull();
   });
 
   it("getCart defaults missing product currency to CZK", async () => {
@@ -292,6 +474,7 @@ describe("cartService", () => {
     const cart = await getCart(TEST_CART_KEY, "cs");
 
     expect(cart.total).toEqual({ amount: 1499, currencyCode: "CZK" });
+    expect(cart.subtotal).toEqual({ amount: 1499, currencyCode: "CZK" });
     expect(cart.items[0]?.price.currencyCode).toBe("CZK");
   });
 });

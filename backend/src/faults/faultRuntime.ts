@@ -17,6 +17,9 @@ export const FAULT_KEYS = {
   uiExportProductsIgnoreSortNameAsc: "export_products_ui_ignore_sort_name_asc",
   uiExportProductsOmitMiddleItem: "export_products_ui_omit_middle_item",
   uiExportCartSwapCurrencyLabel: "export_cart_ui_swap_currency_label",
+  discountMoreIsLessBoundary4: "discount_more_is_less_boundary_4",
+  discountMoreIsLessEmptyAt10: "discount_more_is_less_empty_at_10",
+  discountMoreIsLessTier20Plus50: "discount_more_is_less_tier_20_plus_50pct",
 } as const;
 
 type FaultRuntimeRow = {

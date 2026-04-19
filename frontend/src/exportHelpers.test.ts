@@ -47,6 +47,8 @@ describe("exportHelpers", () => {
           lineTotal: { amount: 20, currencyCode: "EUR" },
         },
       ],
+      subtotal: { amount: 20, currencyCode: "EUR" },
+      discount: null,
       total: { amount: 20, currencyCode: "EUR" },
     };
     const rows = buildCartExportRows(cart);

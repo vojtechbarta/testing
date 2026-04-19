@@ -35,3 +35,13 @@ Append dated sections here after each Playwright locator review (see `.cursor/sk
 - **High** — `xpath=//*[contains(@class,'button')]` + `.first()`: class substring matching is fragile and order-dependent.
 - **High** — `section .product-grid .product-card:nth-of-type(1) button`: structural chain + `nth-of-type`; breaks when grid order or markup changes.
 - **Decision** — File is `test.describe.skip` on purpose so CI does not run these tests. **Do not merge** with `.skip` removed unless locators are rewritten to the project standard (`data-testid` / role+name). Training PR only: either delete this spec after the exercise or replace with stable patterns.
+
+## 2026-04-19 — Volume discount promo (`shop.spec.ts`)
+
+**Files touched:** `frontend/e2e/tests/shop.spec.ts`, cart/checkout UI in `frontend/src/App.tsx`
+
+**Findings:**
+
+- **Stable** — Promo strip uses `data-testid="shop-discount-promo"`; cart promo uses `cart-promo-input`, `cart-promo-apply`, `cart-promo-clear`, `cart-subtotal`, `cart-discount-amount`, `cart-estimated-total`.
+- **Stable** — Checkout preview uses `checkout-order-preview`, gateway due amount `checkout-gateway-due`.
+- **Low risk** — Banner assertion uses `toContainText("MoreIsLess")` plus visible promo container; acceptable for marketing copy.

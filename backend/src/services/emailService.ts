@@ -153,6 +153,8 @@ function buildOrderSummaryHtml(
           qty: "Množství",
           unit: "Jednotka",
           line: "Řádek",
+          subtotal: "Mezisoučet",
+          discount: "Sleva",
           total: "Celkem",
           bankSection: "Bankovní převod (dummy)",
           beneficiary: "Příjemce",
@@ -171,6 +173,8 @@ function buildOrderSummaryHtml(
           qty: "Qty",
           unit: "Unit",
           line: "Line",
+          subtotal: "Subtotal",
+          discount: "Discount",
           total: "Total",
           bankSection: "Bank transfer (dummy)",
           beneficiary: "Beneficiary",
@@ -190,6 +194,26 @@ function buildOrderSummaryHtml(
     )
     .join("");
 
+  const showBreakdown =
+    order.discountCode != null || order.discountAmount > 0;
+
+  let tfootHtml: string;
+  if (!showBreakdown) {
+    tfootHtml = `<tr><th colspan="3" style="text-align:right">${i18n.total}</th><th style="text-align:right">${formatMoney(order.total, currencyCode, lang)}</th></tr>`;
+  } else {
+    const subtotalRow = `<tr><th colspan="3" style="text-align:right">${i18n.subtotal}</th><th style="text-align:right">${formatMoney(order.subtotalBeforeDiscount, currencyCode, lang)}</th></tr>`;
+    const pct =
+      order.discountPercent != null && order.discountPercent > 0
+        ? ` −${order.discountPercent}%`
+        : "";
+    const codePart = order.discountCode
+      ? ` (${escapeHtml(order.discountCode)})`
+      : "";
+    const discountRow = `<tr><th colspan="3" style="text-align:right">${i18n.discount}${pct}${codePart}</th><th style="text-align:right">−${formatMoney(order.discountAmount, currencyCode, lang)}</th></tr>`;
+    const totalRow = `<tr><th colspan="3" style="text-align:right">${i18n.total}</th><th style="text-align:right">${formatMoney(order.total, currencyCode, lang)}</th></tr>`;
+    tfootHtml = `${subtotalRow}${discountRow}${totalRow}`;
+  }
+
   return `
 <!DOCTYPE html>
 <html>
@@ -201,7 +225,7 @@ function buildOrderSummaryHtml(
   <table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;max-width:640px">
     <thead><tr><th>${i18n.item}</th><th style="text-align:right">${i18n.qty}</th><th style="text-align:right">${i18n.unit}</th><th style="text-align:right">${i18n.line}</th></tr></thead>
     <tbody>${lines}</tbody>
-    <tfoot><tr><th colspan="3" style="text-align:right">${i18n.total}</th><th style="text-align:right">${formatMoney(order.total, currencyCode, lang)}</th></tr></tfoot>
+    <tfoot>${tfootHtml}</tfoot>
   </table>
   <h2>${i18n.bankSection}</h2>
   <p style="color:#b45309"><strong>${escapeHtml(bank.note)}</strong></p>
@@ -227,6 +251,8 @@ function buildOrderSummaryText(
     lang === "cs"
       ? {
           title: "Objednávka",
+          subtotal: "Mezisoučet",
+          discount: "Sleva",
           total: "Celkem",
           bankTransfer: "Bankovní převod (dummy)",
           variableSymbol: "Variabilní symbol",
@@ -234,6 +260,8 @@ function buildOrderSummaryText(
         }
       : {
           title: "Order",
+          subtotal: "Subtotal",
+          discount: "Discount",
           total: "Total",
           bankTransfer: "Bank transfer (dummy)",
           variableSymbol: "Variable symbol",
@@ -246,12 +274,24 @@ function buildOrderSummaryText(
         `- ${i.product.name}  ${i.quantity}x ${i.unitPrice} -> ${i.unitPrice * i.quantity} ${currencyCode}`,
     )
     .join("\n");
+
+  const showBreakdown =
+    order.discountCode != null || order.discountAmount > 0;
+
+  const totalsBlock = showBreakdown
+    ? [
+        `${i18n.subtotal}: ${order.subtotalBeforeDiscount} ${currencyCode}`,
+        `${i18n.discount}${order.discountPercent != null && order.discountPercent > 0 ? ` −${order.discountPercent}%` : ""}${order.discountCode ? ` (${order.discountCode})` : ""}: −${order.discountAmount} ${currencyCode}`,
+        `${i18n.total}: ${order.total} ${currencyCode}`,
+      ].join("\n")
+    : `${i18n.total}: ${order.total} ${currencyCode}`;
+
   return [
     `${i18n.title} #${order.id} · AI Testing Shop (demo)`,
     ``,
     lines,
     ``,
-    `${i18n.total}: ${order.total} ${currencyCode}`,
+    totalsBlock,
     ``,
     `${i18n.bankTransfer}: ${bank.note}`,
     `IBAN: ${bank.iban}  ${i18n.variableSymbol}: ${bank.variableSymbol}`,

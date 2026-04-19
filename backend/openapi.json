@@ -164,6 +164,31 @@
           "lineTotal"
         ]
       },
+      "CartDiscount": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "MOREISLESS"
+          },
+          "percent": {
+            "type": "number",
+            "example": 10
+          },
+          "amount": {
+            "type": "number"
+          },
+          "currencyCode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "percent",
+          "amount",
+          "currencyCode"
+        ]
+      },
       "Cart": {
         "type": "object",
         "properties": {
@@ -177,6 +202,19 @@
               "$ref": "#/components/schemas/CartLine"
             }
           },
+          "subtotal": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "discount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CartDiscount"
+              }
+            ]
+          },
           "total": {
             "$ref": "#/components/schemas/Money"
           }
@@ -184,6 +222,8 @@
         "required": [
           "cartSessionId",
           "items",
+          "subtotal",
+          "discount",
           "total"
         ]
       },
@@ -824,6 +864,68 @@
           },
           "400": {
             "description": "Validation/service error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cart/promotion": {
+      "post": {
+        "tags": [
+          "Cart"
+        ],
+        "summary": "Apply or clear a promotion code on the cart session.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CartSessionHeader"
+          },
+          {
+            "in": "query",
+            "name": "lang",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "cs"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated cart DTO.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cart"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown code or validation error.",
             "content": {
               "application/json": {
                 "schema": {

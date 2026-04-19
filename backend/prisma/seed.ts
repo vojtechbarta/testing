@@ -381,6 +381,72 @@ async function main() {
     },
   });
 
+  await prisma.faultConfig.upsert({
+    where: { key: "discount_more_is_less_boundary_4" },
+    update: {
+      name: "API: MoreIsLess discount — boundary off-by-one at 4 items",
+      description:
+        "Volume code MoreIsLess: exactly 4 units in cart still yields 15% instead of 20%; 5+ yields 20%.",
+      level: FaultLevel.API,
+      latencyMs: null,
+      failureRate: null,
+    },
+    create: {
+      key: "discount_more_is_less_boundary_4",
+      name: "API: MoreIsLess discount — boundary off-by-one at 4 items",
+      description:
+        "Volume code MoreIsLess: exactly 4 units in cart still yields 15% instead of 20%; 5+ yields 20%.",
+      level: FaultLevel.API,
+      enabled: false,
+      latencyMs: null,
+      failureRate: null,
+    },
+  });
+
+  await prisma.faultConfig.upsert({
+    where: { key: "discount_more_is_less_empty_at_10" },
+    update: {
+      name: "API: MoreIsLess discount — toxic partition at 10 items",
+      description:
+        "Volume code MoreIsLess: exactly 10 units yields 0% discount; other counts follow normal tiers.",
+      level: FaultLevel.API,
+      latencyMs: null,
+      failureRate: null,
+    },
+    create: {
+      key: "discount_more_is_less_empty_at_10",
+      name: "API: MoreIsLess discount — toxic partition at 10 items",
+      description:
+        "Volume code MoreIsLess: exactly 10 units yields 0% discount; other counts follow normal tiers.",
+      level: FaultLevel.API,
+      enabled: false,
+      latencyMs: null,
+      failureRate: null,
+    },
+  });
+
+  await prisma.faultConfig.upsert({
+    where: { key: "discount_more_is_less_tier_20_plus_50pct" },
+    update: {
+      name: "API: MoreIsLess discount — bogus 50% tier at 20+ items",
+      description:
+        "Volume code MoreIsLess: 20 or more units yields 50% off (incorrect extra tier vs spec).",
+      level: FaultLevel.API,
+      latencyMs: null,
+      failureRate: null,
+    },
+    create: {
+      key: "discount_more_is_less_tier_20_plus_50pct",
+      name: "API: MoreIsLess discount — bogus 50% tier at 20+ items",
+      description:
+        "Volume code MoreIsLess: 20 or more units yields 50% off (incorrect extra tier vs spec).",
+      level: FaultLevel.API,
+      enabled: false,
+      latencyMs: null,
+      failureRate: null,
+    },
+  });
+
   // Stable ids 1..N so E2E `data-testid="shop-add-to-cart-${id}"` matches after every seed.
   // (MySQL AUTO_INCREMENT does not reset on `deleteMany`, so implicit ids would drift.)
   const productsData = [

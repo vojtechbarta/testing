@@ -1,6 +1,11 @@
 import prisma from "../db/prisma";
 import { shouldTriggerFault, FAULT_KEYS } from "../faults/faultRuntime";
 import {
+  canonicalPromotionCode,
+  normalizePromotionCode,
+  resolveMoreIsLessFinalPercent,
+} from "../shop/discountMoreIsLess";
+import {
   loadEurPerCzkRate,
   multiplyStorefrontMoney,
   toStorefrontMoney,
@@ -8,11 +13,46 @@ import {
 import { storefrontProductName } from "../shop/storefrontProductText";
 import type { StorefrontLang } from "../shop/storefrontMoney";
 
-export async function getCart(cartKey: string, lang: StorefrontLang = "en") {
+export type CartDiscountDto = {
+  code: string;
+  percent: number;
+  amount: number;
+  currencyCode: string;
+};
+
+export type CartDto = {
+  cartSessionId: string;
+  items: Array<{
+    productId: number;
+    name: string;
+    quantity: number;
+    price: { amount: number; currencyCode: string };
+    inStock: number;
+    lineTotal: { amount: number; currencyCode: string };
+  }>;
+  subtotal: { amount: number; currencyCode: string };
+  discount: CartDiscountDto | null;
+  total: { amount: number; currencyCode: string };
+};
+
+function roundMoneyAmount(amount: number, currencyCode: string): number {
+  const decimals = currencyCode === "CZK" ? 0 : 2;
+  const f = 10 ** decimals;
+  return Math.round(amount * f) / f;
+}
+
+export async function getCart(
+  cartKey: string,
+  lang: StorefrontLang = "en",
+): Promise<CartDto> {
   const items = await prisma.cartItem.findMany({
     where: { cartKey },
     include: { product: { include: { currency: true } } },
     orderBy: { createdAt: "asc" },
+  });
+
+  const promotion = await prisma.cartPromotion.findUnique({
+    where: { cartKey },
   });
 
   const eurPerCzk = await loadEurPerCzkRate();
@@ -36,24 +76,90 @@ export async function getCart(cartKey: string, lang: StorefrontLang = "en") {
     };
   });
 
-  const cartTotalRaw = mappedItems.reduce(
+  const currencyCode = mappedItems[0]?.lineTotal.currencyCode ?? "CZK";
+
+  if (mappedItems.length === 0) {
+    if (promotion) {
+      await prisma.cartPromotion.deleteMany({ where: { cartKey } });
+    }
+    return {
+      cartSessionId: cartKey,
+      items: [],
+      subtotal: { amount: 0, currencyCode },
+      discount: null,
+      total: { amount: 0, currencyCode },
+    };
+  }
+
+  const cartSubtotalRaw = mappedItems.reduce(
     (sum, item) => sum + item.lineTotal.amount,
     0,
   );
+  const subtotalAmount = roundMoneyAmount(cartSubtotalRaw, currencyCode);
 
-  const currencyCode = mappedItems[0]?.lineTotal.currencyCode ?? "CZK";
-  const decimals = currencyCode === "CZK" ? 0 : 2;
-  const cartTotal =
-    Math.round(cartTotalRaw * 10 ** decimals) / 10 ** decimals;
+  const totalUnits = mappedItems.reduce((s, i) => s + i.quantity, 0);
+
+  const normalizedPromo = normalizePromotionCode(promotion?.appliedCode);
+  const canonical =
+    normalizedPromo.length > 0
+      ? canonicalPromotionCode(normalizedPromo)
+      : null;
+
+  if (normalizedPromo.length > 0 && !canonical) {
+    await prisma.cartPromotion.delete({ where: { cartKey } });
+  }
+
+  let discount: CartDiscountDto | null = null;
+  let totalAmount = subtotalAmount;
+
+  if (canonical) {
+    const percent = await resolveMoreIsLessFinalPercent(totalUnits);
+    const discountRaw = (subtotalAmount * percent) / 100;
+    const discountAmount = roundMoneyAmount(discountRaw, currencyCode);
+    totalAmount = roundMoneyAmount(
+      subtotalAmount - discountAmount,
+      currencyCode,
+    );
+    discount = {
+      code: canonical,
+      percent,
+      amount: discountAmount,
+      currencyCode,
+    };
+  }
 
   return {
     cartSessionId: cartKey,
     items: mappedItems,
-    total: {
-      amount: cartTotal,
-      currencyCode,
-    },
+    subtotal: { amount: subtotalAmount, currencyCode },
+    discount,
+    total: { amount: totalAmount, currencyCode },
   };
+}
+
+export async function applyCartPromotion(
+  cartKey: string,
+  rawCode: string | null | undefined,
+  lang: StorefrontLang = "en",
+): Promise<CartDto> {
+  const trimmed = String(rawCode ?? "").trim();
+  if (trimmed === "") {
+    await prisma.cartPromotion.deleteMany({ where: { cartKey } });
+    return getCart(cartKey, lang);
+  }
+
+  const normalized = normalizePromotionCode(trimmed);
+  if (!canonicalPromotionCode(normalized)) {
+    throw new Error("Unknown promotion code.");
+  }
+
+  await prisma.cartPromotion.upsert({
+    where: { cartKey },
+    create: { cartKey, appliedCode: normalized },
+    update: { appliedCode: normalized },
+  });
+
+  return getCart(cartKey, lang);
 }
 
 export async function addOrUpdateCartItem(
@@ -119,4 +225,5 @@ export async function addOrUpdateCartItem(
 
 export async function clearCart(cartKey: string) {
   await prisma.cartItem.deleteMany({ where: { cartKey } });
+  await prisma.cartPromotion.deleteMany({ where: { cartKey } });
 }
