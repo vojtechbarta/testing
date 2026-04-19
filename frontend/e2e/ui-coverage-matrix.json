@@ -64,6 +64,10 @@
           {
             "specFile": "frontend/e2e/tests/shop.spec.ts",
             "testTitleIncludes": "add-to-cart shows cart line"
+          },
+          {
+            "specFile": "frontend/e2e/tests/shop.spec.ts",
+            "testTitleIncludes": "apply MoreIsLess promo and clear discount"
           }
         ],
         "error": [

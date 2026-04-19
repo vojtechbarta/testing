@@ -11,6 +11,26 @@ test.describe("Shop — catalog and cart", () => {
     );
   });
 
+  test("@smoke can apply MoreIsLess promo and clear discount", async ({
+    page,
+  }) => {
+    const shop = new ShopPage(page);
+    await shop.goto();
+
+    const mouse = SEED_PRODUCTS[0]!;
+    await shop.addToCart(mouse.name);
+    await shop.increaseCartLineQuantity(mouse.name, 1);
+
+    await shop.applyPromoCode("moreisless");
+
+    await expect(page.getByTestId("cart-discount-amount")).toBeVisible();
+    await expect(page.getByTestId("cart-discount-amount")).toContainText("€");
+    await expect(page.getByTestId("cart-promo-clear")).toBeEnabled();
+
+    await page.getByTestId("cart-promo-clear").click();
+    await expect(page.getByTestId("cart-discount-amount")).toHaveCount(0);
+  });
+
   test("@smoke product grid cards do not overlap (DOM geometry check)", async ({
     page,
     browserName,

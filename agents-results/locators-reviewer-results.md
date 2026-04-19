@@ -45,3 +45,12 @@ Append dated sections here after each Playwright locator review (see `.cursor/sk
 - **Stable** — Promo strip uses `data-testid="shop-discount-promo"`; cart promo uses `cart-promo-input`, `cart-promo-apply`, `cart-promo-clear`, `cart-subtotal`, `cart-discount-amount`, `cart-estimated-total`.
 - **Stable** — Checkout preview uses `checkout-order-preview`, gateway due amount `checkout-gateway-due`.
 - **Low risk** — Banner assertion uses `toContainText("MoreIsLess")` plus visible promo container; acceptable for marketing copy.
+
+## 2026-04-19 — Cart promo apply/clear smoke (`shop.spec.ts`, `shop.page.ts`)
+
+**Files touched:** `frontend/e2e/tests/shop.spec.ts`, `frontend/e2e/pages/shop.page.ts`
+
+**Findings:**
+
+- **Stable** — Uses existing `data-testid` hooks: `cart-promo-input`, `cart-promo-apply`, `cart-promo-clear`, `cart-discount-amount`.
+- **Low risk** — Quantity bump uses `cart-line-${id}` plus `.cart-qty-btn` **first()** (+ before − in markup). Documented in page object; if button order swaps, adjust to `nth(0)` semantics or add `data-testid` on +/− controls.

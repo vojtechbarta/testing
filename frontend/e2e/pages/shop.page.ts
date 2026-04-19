@@ -136,6 +136,22 @@ export class ShopPage {
     await expect(total).toContainText("€");
   }
 
+  /**
+   * Clicks the + control on a cart line (first `.cart-qty-btn` in the line) `times` times.
+   */
+  async increaseCartLineQuantity(productName: string, times: number): Promise<void> {
+    const line = this.cartLineForProduct(productName);
+    const plus = line.locator(".cart-qty-btn").first();
+    for (let i = 0; i < times; i += 1) {
+      await plus.click();
+    }
+  }
+
+  async applyPromoCode(code: string): Promise<void> {
+    await this.page.getByTestId("cart-promo-input").fill(code);
+    await this.page.getByTestId("cart-promo-apply").click();
+  }
+
   async exportProductsCsv(): Promise<import("@playwright/test").Download> {
     const exportPanel = this.page.locator(".shop-export-panel");
     const searchSection = exportPanel.locator(".shop-export-section").first();
