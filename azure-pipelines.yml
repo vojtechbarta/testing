@@ -1,0 +1,98 @@
+# Azure DevOps — Playwright E2E against an already-deployed SPA + API.
+# Checkout loads this repo (tests only); the app under test is whatever serves PLAYWRIGHT_BASE_URL.
+#
+# Required pipeline variables (Library variable group or Pipeline variables):
+#   PLAYWRIGHT_BASE_URL       — e.g. https://<your-app>.azurestaticapps.net
+#   PLAYWRIGHT_API_BASE_URL   — public API base URL (same as Container App / VITE_API_BASE_URL)
+#
+# Triggers: scheduled (default branch) + manual. No automatic run on every push.
+# In Azure DevOps: Pipelines → your pipeline → Schedules / Run pipeline. Enable "Allow scripts"
+# for scheduled builds if prompted.
+
+trigger: none
+pr: none
+
+parameters:
+  - name: smokeOnly
+    displayName: Run only @smoke tests (Chromium)
+    type: boolean
+    default: false
+
+schedules:
+  - cron: "0 21 * * *"
+    displayName: Nightly E2E (21:00 UTC — adjust cron for local 10 PM)
+    branches:
+      include:
+        - main
+    always: true
+
+variables:
+  CI: true
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - checkout: self
+    fetchDepth: 1
+
+  - task: NodeTool@0
+    inputs:
+      versionSpec: "20.x"
+    displayName: Use Node.js 20
+
+  - script: cd frontend && npm ci
+    displayName: npm ci (frontend)
+
+  - script: cd frontend && npx playwright install --with-deps chromium
+    displayName: Install Playwright (Chromium)
+
+  - bash: |
+      set -euo pipefail
+      if [ -z "${PLAYWRIGHT_BASE_URL:-}" ]; then
+        echo "Set pipeline variable PLAYWRIGHT_BASE_URL to your deployed SPA URL." >&2
+        exit 1
+      fi
+      if [ -z "${PLAYWRIGHT_API_BASE_URL:-}" ]; then
+        echo "Set pipeline variable PLAYWRIGHT_API_BASE_URL to your public API base URL." >&2
+        exit 1
+      fi
+      cd frontend
+      EXTRA_ARGS=(--project=chromium)
+      if [ "${{ parameters.smokeOnly }}" = "true" ]; then
+        EXTRA_ARGS+=("--grep" "@smoke")
+      fi
+      export CI=true
+      export SKIP_WEBSERVER=1
+      npm run test:e2e:deployed -- "${EXTRA_ARGS[@]}"
+    displayName: Run Playwright against deployed URLs
+    env:
+      PLAYWRIGHT_BASE_URL: $(PLAYWRIGHT_BASE_URL)
+      PLAYWRIGHT_API_BASE_URL: $(PLAYWRIGHT_API_BASE_URL)
+
+  - task: PublishTestResults@2
+    condition: always()
+    displayName: Publish JUnit test results
+    inputs:
+      testResultsFormat: JUnit
+      testResultsFiles: playwright-junit.xml
+      searchFolder: $(System.DefaultWorkingDirectory)/frontend
+      mergeTestResults: true
+      failTaskOnFailedTests: true
+
+  - bash: |
+      set -euo pipefail
+      OUT="$(Build.ArtifactStagingDirectory)/playwright-out"
+      mkdir -p "$OUT"
+      [ -d frontend/playwright-report ] && cp -R frontend/playwright-report "$OUT/" || true
+      [ -d frontend/test-results ] && cp -R frontend/test-results "$OUT/" || true
+      [ -f frontend/playwright-junit.xml ] && cp frontend/playwright-junit.xml "$OUT/" || true
+    condition: always()
+    displayName: Stage Playwright HTML report and attachments
+
+  - task: PublishPipelineArtifact@1
+    condition: always()
+    displayName: Publish playwright-output artifact
+    inputs:
+      targetPath: $(Build.ArtifactStagingDirectory)/playwright-out
+      artifact: playwright-output

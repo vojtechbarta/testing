@@ -4,6 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
  * E2E tests assume seeded DB (15 products — see `backend/prisma/seed.ts` `productsData`).
  * `webServer` starts backend, waits for /health, then Vite (see package.json `dev:e2e`).
  * Set SKIP_WEBSERVER=1 if you already run both servers manually.
+ * When CI is set, a JUnit file is written for Azure DevOps PublishTestResults (see `azure-pipelines.yml`).
  */
 export default defineConfig({
   testDir: "./e2e/tests",
@@ -19,6 +20,7 @@ export default defineConfig({
         outputFolder: "playwright-report",
       },
     ],
+    ...(process.env.CI ? ([["junit", { outputFile: "playwright-junit.xml" }]] as const) : []),
   ],
   use: {
     /* Must match an entry in backend `FRONTEND_DEV_ORIGINS` (CORS). */

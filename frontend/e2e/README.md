@@ -33,6 +33,28 @@ npx playwright install chromium firefox webkit
 
 The API allows `http://localhost:5173` and `http://127.0.0.1:5173`. Tests use **localhost** by default. Override with `PLAYWRIGHT_BASE_URL` if needed.
 
+## Deployed environment (Azure / CI agent)
+
+Use this when the SPA and API are already running (for example Azure Static Web Apps + Container Apps). Do **not** use `npm run test:e2e` here—it runs **local** `prisma:seed`; rely on your deployed DB state or seed via [`.github/workflows/azure-seed.yml`](../../.github/workflows/azure-seed.yml).
+
+Required:
+
+- **`SKIP_WEBSERVER=1`** — do not start `dev:e2e`; drive the browser against the live site.
+- **`PLAYWRIGHT_BASE_URL`** — deployed storefront origin (same URL users open).
+- **`PLAYWRIGHT_API_BASE_URL`** — public API base URL ([`e2e/helpers/adminApi.ts`](helpers/adminApi.ts)); production API must allow your SPA origin via **`CORS_ORIGINS`** on the backend.
+
+Example:
+
+```bash
+export CI=true
+export SKIP_WEBSERVER=1
+export PLAYWRIGHT_BASE_URL=https://your-app.azurestaticapps.net
+export PLAYWRIGHT_API_BASE_URL=https://your-api.example.azurecontainerapps.io
+cd frontend && npm ci && npx playwright install chromium && npm run test:e2e:deployed -- --project=chromium
+```
+
+Azure DevOps: see [`azure-pipelines.yml`](../../azure-pipelines.yml) at the repo root (JUnit + artifacts). Set `PLAYWRIGHT_BASE_URL` and `PLAYWRIGHT_API_BASE_URL` as pipeline variables.
+
 ## Layout
 
 - **`e2e/pages/`** — Page objects (`shop.page.ts`).
