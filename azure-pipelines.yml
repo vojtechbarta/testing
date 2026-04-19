@@ -59,9 +59,10 @@ steps:
       fi
       cd frontend
       EXTRA_ARGS=(--project=chromium)
-      if [ "${{ parameters.smokeOnly }}" = "true" ]; then
-        EXTRA_ARGS+=("--grep" "@smoke")
-      fi
+      # Boolean parameters may render as true or True at compile time
+      case "${{ parameters.smokeOnly }}" in
+        true|True) EXTRA_ARGS+=("--grep" "@smoke") ;;
+      esac
       export CI=true
       export SKIP_WEBSERVER=1
       npm run test:e2e:deployed -- "${EXTRA_ARGS[@]}"
