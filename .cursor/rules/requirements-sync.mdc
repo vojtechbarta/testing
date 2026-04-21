@@ -1,0 +1,37 @@
+---
+description: Keep functional requirements matrix synced with user-visible behavior
+globs: "{frontend/src/**,backend/src/**,backend/prisma/**,docs/FAULTS.md,README.md,docker-compose.yaml,.github/workflows/**,azure-pipelines.yml}"
+alwaysApply: false
+---
+
+# Requirements Matrix Sync Rule
+
+When user-visible functionality changes, update `docs/REQUIREMENTS.md` in the same change.
+
+## When updates are required
+
+- UI flow changes in `frontend/src/App.tsx` or related frontend modules.
+- API behavior changes in `backend/src/routes/` and `backend/src/services/`.
+- Data model or seeded behavior changes in `backend/prisma/schema.prisma` or `backend/prisma/seed.ts`.
+- Fault catalog/rules updates that affect tester behavior (`backend/src/faults/`, `docs/FAULTS.md`).
+- Developer workflow changes that alter technical capabilities (scripts, test layers, CI/CD).
+
+## How to update `docs/REQUIREMENTS.md`
+
+- Keep structure as Epics (`EP-XX`) and User Stories (`US-XX-YY`).
+- Keep acceptance criteria as concise bullet points with stable IDs:
+  - `AC-US-XX-YY-N`
+- Keep the scope as implemented behavior (as-is), not speculative backlog.
+- Update the affected story/criteria text rather than rewriting unrelated sections.
+- Maintain plain-text `Source:` tags (no markdown hyperlinks).
+- Ensure each `Source:` path exists in the repository.
+
+## Metadata upkeep
+
+- Update the `Last synced` line at the top of `docs/REQUIREMENTS.md` with current date and commit hash.
+- Preserve persona tagging and glossary consistency when adding new stories.
+
+## Hygiene
+
+- Do not merge user-visible behavior changes with stale requirements.
+- Treat requirements drift as a documentation bug.
