@@ -5,21 +5,21 @@ import { type Locator, type Page, expect } from "@playwright/test";
  * `id` is the DB `Product.id` after a fresh seed (products recreated 1..N).
  */
 export const SEED_PRODUCTS = [
-  { id: 1, name: "Wireless Mouse M200", price: 399 },
-  { id: 2, name: "Mechanical Keyboard K87", price: 1790 },
-  { id: 3, name: "27in QHD Monitor", price: 4990 },
-  { id: 4, name: "USB-C Docking Station", price: 1690 },
-  { id: 5, name: "Noise Cancelling Headphones", price: 2490 },
-  { id: 6, name: "1080p Webcam", price: 890 },
-  { id: 7, name: "Gaming Mouse Pad XL", price: 349 },
-  { id: 8, name: "External SSD 1TB", price: 1890 },
-  { id: 9, name: "USB-C Charger 65W", price: 699 },
-  { id: 10, name: "Laptop Stand Aluminum", price: 499 },
-  { id: 11, name: "Bluetooth Speaker Mini", price: 1190 },
-  { id: 12, name: "Smart LED Desk Lamp", price: 699 },
-  { id: 13, name: "Office Chair Ergo", price: 4990 },
-  { id: 14, name: "Full HD Projector", price: 11990 },
-  { id: 15, name: "Wi-Fi Router AX3000", price: 1490 },
+  { id: 1, name: "Wireless Mouse M200", price: 17 },
+  { id: 2, name: "Mechanical Keyboard K87", price: 75 },
+  { id: 3, name: "27in QHD Monitor", price: 208 },
+  { id: 4, name: "USB-C Docking Station", price: 70 },
+  { id: 5, name: "Noise Cancelling Headphones", price: 104 },
+  { id: 6, name: "1080p Webcam", price: 37 },
+  { id: 7, name: "Gaming Mouse Pad XL", price: 15 },
+  { id: 8, name: "External SSD 1TB", price: 79 },
+  { id: 9, name: "USB-C Charger 65W", price: 29 },
+  { id: 10, name: "Laptop Stand Aluminum", price: 21 },
+  { id: 11, name: "Bluetooth Speaker Mini", price: 50 },
+  { id: 12, name: "Smart LED Desk Lamp", price: 29 },
+  { id: 13, name: "Office Chair Ergo", price: 208 },
+  { id: 14, name: "Full HD Projector", price: 500 },
+  { id: 15, name: "Wi-Fi Router AX3000", price: 62 },
 ] as const;
 
 function seedProductByName(name: string): { id: number; name: string; price: number } {
@@ -117,7 +117,7 @@ export class ShopPage {
 
   /**
    * UI-only: default EN storefront formats cart money with €.
-   * Exact amounts / CZK→EUR math are asserted in backend integration tests.
+   * Exact amounts and locale conversion math are asserted in backend integration tests.
    */
   async expectCartLineShowsEurMoneyUi(productName: string): Promise<void> {
     const line = this.cartLineForProduct(productName);

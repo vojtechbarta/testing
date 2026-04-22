@@ -1231,6 +1231,94 @@
         }
       }
     },
+    "/exchange-rates/sync-now": {
+      "post": {
+        "tags": [
+          "ExchangeRates"
+        ],
+        "summary": "Trigger immediate CNB exchange-rate sync for testing.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2026-04-22",
+                    "description": "Optional target date in YYYY-MM-DD format."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sync succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "effectiveDate": {
+                      "type": "string",
+                      "format": "date",
+                      "example": "2026-04-22"
+                    },
+                    "importedCount": {
+                      "type": "integer",
+                      "example": 30
+                    }
+                  },
+                  "required": [
+                    "effectiveDate",
+                    "importedCount"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid date.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden for non-tester roles.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/orders": {
       "post": {
         "tags": [

@@ -412,23 +412,23 @@ describe("cartService", () => {
         product: {
           id: 10,
           name: "Keyboard",
-          price: 399,
+          price: 17,
           inStock: 10,
-          currency: { code: "CZK" },
+          currency: { code: "EUR" },
         },
       },
     ]);
 
     const cart = await getCart(TEST_CART_KEY, "en");
 
-    expect(cart.subtotal.amount).toBe(49.89);
+    expect(cart.subtotal.amount).toBe(51);
     expect(cart.discount).toMatchObject({
       code: "MOREISLESS",
       percent: 10,
       currencyCode: "EUR",
-      amount: 4.99,
+      amount: 5.1,
     });
-    expect(cart.total.amount).toBe(44.9);
+    expect(cart.total.amount).toBe(45.9);
   });
 
   it("getCart keeps EUR decimals for totals", async () => {
@@ -440,9 +440,9 @@ describe("cartService", () => {
         product: {
           id: 10,
           name: "Keyboard",
-          price: 399,
+          price: 17,
           inStock: 10,
-          currency: { code: "CZK" },
+          currency: { code: "EUR" },
         },
       },
     ]);
@@ -450,8 +450,8 @@ describe("cartService", () => {
     const cart = await getCart(TEST_CART_KEY, "en");
 
     expect(cart.total.currencyCode).toBe("EUR");
-    expect(cart.subtotal.amount).toBe(49.89);
-    expect(cart.total.amount).toBe(49.89);
+    expect(cart.subtotal.amount).toBe(51);
+    expect(cart.total.amount).toBe(51);
     expect(cart.discount).toBeNull();
   });
 

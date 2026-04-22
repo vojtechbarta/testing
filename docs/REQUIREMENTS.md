@@ -1,6 +1,6 @@
 # Functional Requirements Matrix
 
-Last synced: 2026-04-22 (commit `830ff94`)
+Last synced: 2026-04-22 (commit `734a1fa`)
 Scope: As-is functionality only (implemented behavior in current codebase)
 
 ## Purpose
@@ -121,11 +121,12 @@ Persona: Shopper
 
 Business details:
 - Price display follows the selected storefront language to support domestic and international views.
-- Currency conversion affects display only; stored product prices remain consistent in backend data.
+- Product prices are stored canonically in EUR in backend data.
+- Czech storefront uses FX conversion from EUR to CZK for localized display.
 
 Acceptance criteria:
 - `AC-US-01-06-1`: Czech storefront shows CZK pricing.
-- `AC-US-01-06-2`: English storefront can display EUR pricing when FX rate is available.
+- `AC-US-01-06-2`: English storefront shows EUR pricing directly from storage.
 - `AC-US-01-06-3`: Price formatting follows local conventions (currency symbol and number format).
 - `AC-US-01-06-4`: Exchange rates are ingested daily from official CNB source and latest available business-day rate is used when same-day data is unavailable.
 
@@ -597,6 +598,7 @@ Acceptance criteria:
 - `AC-US-05-10-2`: Developer can generate updated OpenAPI specification file using repository tooling.
 - `AC-US-05-10-3`: Generated OpenAPI output reflects current endpoints, parameters, request/response models, and auth requirements.
 - `AC-US-05-10-4`: Live Swagger UI and raw OpenAPI JSON endpoints remain available for interactive and machine-readable usage.
+- `AC-US-05-10-5`: Swagger exposes a tester-authenticated endpoint for manual CNB FX sync triggering during API testing.
 
 ### US-05-11 Archive accepted implementation plans
 Persona: Developer
@@ -627,4 +629,4 @@ Acceptance criteria:
 - `AC-US-05-12-5`: Deployed-environment UI test runs can be executed without starting local web servers.
 - `AC-US-05-12-6`: Pipeline outputs provide run history and test/deploy status to support release decisions.
 
-Source: `README.md`, `docker-compose.yaml`, `backend/package.json`, `frontend/package.json`, `frontend/playwright.config.ts`, `.cursor/skills/test-pyramid-coverage-evaluator/SKILL.md`, `.cursor/skills/test-pyramid-coverage-increase/SKILL.md`, `.cursor/skills/playwright-locator-review/SKILL.md`, `.cursor/rules/fault-injection-baseline-tests.mdc`, `.cursor/rules/swagger-openapi-sync.mdc`, `.github/workflows`, `azure-pipelines.yml`
+Source: `README.md`, `docker-compose.yaml`, `backend/package.json`, `backend/src/routes/exchangeRates.ts`, `backend/src/middleware/adminAuth.ts`, `frontend/package.json`, `frontend/playwright.config.ts`, `.cursor/skills/test-pyramid-coverage-evaluator/SKILL.md`, `.cursor/skills/test-pyramid-coverage-increase/SKILL.md`, `.cursor/skills/playwright-locator-review/SKILL.md`, `.cursor/rules/fault-injection-baseline-tests.mdc`, `.cursor/rules/swagger-openapi-sync.mdc`, `.github/workflows`, `azure-pipelines.yml`

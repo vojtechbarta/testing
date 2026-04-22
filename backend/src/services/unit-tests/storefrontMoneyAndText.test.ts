@@ -32,9 +32,9 @@ describe("storefrontMoney and storefrontProductText", () => {
     await expect(loadEurPerCzkRate()).resolves.toBeNull();
   });
 
-  it("keeps CZK in cs lang and converts CZK->EUR in en when rate exists", () => {
-    expect(toStorefrontMoney(399, "CZK", "cs", 24)).toEqual({ amount: 399, currencyCode: "CZK" });
-    expect(toStorefrontMoney(399, "CZK", "en", 24)).toEqual({ amount: 16.63, currencyCode: "EUR" });
+  it("keeps EUR in en lang and converts EUR->CZK in cs when rate exists", () => {
+    expect(toStorefrontMoney(17, "EUR", "en", 24)).toEqual({ amount: 17, currencyCode: "EUR" });
+    expect(toStorefrontMoney(17, "EUR", "cs", 24)).toEqual({ amount: 408, currencyCode: "CZK" });
   });
 
   it("keeps non-CZK non-EUR currency unchanged and keeps EUR rounded", () => {
@@ -49,9 +49,9 @@ describe("storefrontMoney and storefrontProductText", () => {
   });
 
   it("falls back to storage currency when EUR rate is missing", () => {
-    expect(toStorefrontMoney(399, "CZK", "en", null)).toEqual({
-      amount: 399,
-      currencyCode: "CZK",
+    expect(toStorefrontMoney(17, "EUR", "cs", null)).toEqual({
+      amount: 17,
+      currencyCode: "EUR",
     });
   });
 

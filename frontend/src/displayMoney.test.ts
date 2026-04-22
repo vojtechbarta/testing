@@ -9,22 +9,22 @@ const rates = [
 ];
 
 describe("toShopDisplayMoney", () => {
-  it("keeps CZK in Czech UI", () => {
+  it("keeps EUR in English UI", () => {
     expect(
-      toShopDisplayMoney(399, "CZK", { langIsCs: true, rates }),
-    ).toEqual({ amount: 399, currencyCode: "CZK" });
+      toShopDisplayMoney(17, "EUR", { langIsCs: false, rates }),
+    ).toEqual({ amount: 17, currencyCode: "EUR" });
   });
 
-  it("converts CZK to EUR in English UI using EUR→CZK rate", () => {
+  it("converts EUR to CZK in Czech UI using EUR→CZK rate", () => {
     expect(
-      toShopDisplayMoney(399, "CZK", { langIsCs: false, rates }),
-    ).toEqual({ amount: 16.63, currencyCode: "EUR" });
+      toShopDisplayMoney(17, "EUR", { langIsCs: true, rates }),
+    ).toEqual({ amount: 408, currencyCode: "CZK" });
   });
 
-  it("falls back to CZK in English when rate is missing", () => {
+  it("falls back to EUR in Czech when rate is missing", () => {
     expect(
-      toShopDisplayMoney(100, "CZK", { langIsCs: false, rates: [] }),
-    ).toEqual({ amount: 100, currencyCode: "CZK" });
+      toShopDisplayMoney(17, "EUR", { langIsCs: true, rates: [] }),
+    ).toEqual({ amount: 17, currencyCode: "EUR" });
   });
 });
 

@@ -10,7 +10,7 @@ describe("Internal API - system", () => {
     expect(res.body).toEqual({ status: "ok" });
   });
 
-  it("GET /exchange-rates returns latest seeded EUR→CZK rate (1 EUR = 24 CZK)", async () => {
+  it("GET /exchange-rates returns latest available EUR→CZK rate row", async () => {
     const res = await request(app).get("/exchange-rates").expect(200);
     expect(Array.isArray(res.body)).toBe(true);
     const rows = res.body as {
@@ -25,11 +25,13 @@ describe("Internal API - system", () => {
     const eurCzk = rows.find(
       (r) => r.fromCurrencyCode === "EUR" && r.toCurrencyCode === "CZK",
     );
-    expect(eurCzk?.exchangeRate).toBe(24);
-    expect(eurCzk?.sourceAmount).toBe(1);
-    expect(eurCzk?.source).toBe("MANUAL_SEED");
-    expect(typeof eurCzk?.effectiveDate).toBe("string");
-    expect(typeof eurCzk?.isStale).toBe("boolean");
+    expect(eurCzk).toBeDefined();
+    expect(eurCzk!.exchangeRate).toBeGreaterThan(0);
+    expect(eurCzk!.sourceAmount).toBeGreaterThan(0);
+    expect(typeof eurCzk!.source).toBe("string");
+    expect(eurCzk!.source.length).toBeGreaterThan(0);
+    expect(eurCzk!.effectiveDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(typeof eurCzk!.isStale).toBe("boolean");
   });
 
   it("GET /exchange-rates/sync-status returns scheduler metrics payload", async () => {

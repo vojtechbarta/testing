@@ -85,7 +85,7 @@ describe("storefrontCatalogService additional coverage", () => {
     const out = await getStorefrontCatalog({ lang: "en", sort: "name-asc" });
     expect(out).toEqual({
       products: [],
-      priceBounds: { min: 0, max: 0, currencyCode: "CZK" },
+      priceBounds: { min: 0, max: 0, currencyCode: "EUR" },
     });
   });
 

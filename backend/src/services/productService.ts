@@ -31,8 +31,8 @@ export function mapProductToDto(p: {
     description: p.description,
     inStock: p.inStock,
     active: p.active,
-    // Stored integer is the display amount in CZK for this demo (not cents).
-    price: { amount: p.price, currencyCode: p.currency?.code ?? "CZK" },
+    // Stored integer is display amount in product currency for this demo (not cents).
+    price: { amount: p.price, currencyCode: p.currency?.code ?? "EUR" },
   };
 }
 
@@ -81,10 +81,10 @@ export async function getAllProductsForAdmin(): Promise<ProductDto[]> {
 }
 
 async function upsertProductCurrencyId(currencyCode?: string) {
-  const code = currencyCode ?? "CZK";
+  const code = currencyCode ?? "EUR";
   const currency = await prisma.currency.findUnique({ where: { code } });
   if (!currency) {
-    // for now: create missing currency; in this project we seed CZK anyway.
+    // for now: create missing currency; in this project we seed EUR anyway.
     return prisma.currency.create({ data: { code } });
   }
   return currency;

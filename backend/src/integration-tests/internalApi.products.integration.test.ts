@@ -107,7 +107,7 @@ describe("Internal API - products", () => {
     expect(p1?.name).toBe("Bezdrátová myš M200");
   });
 
-  it("GET /products default lang en returns EUR display prices when seed EUR→CZK rate exists", async () => {
+  it("GET /products default lang en returns EUR storage prices", async () => {
     const res = await request(app).get("/products").expect(200);
     const { products } = res.body as {
       products: { id: number; name: string; price: { amount: number; currencyCode: string } }[];
@@ -118,7 +118,7 @@ describe("Internal API - products", () => {
     }
     const mouse = products.find((p) => p.id === 1);
     expect(mouse).toBeDefined();
-    expect(mouse!.price.amount).toBe(16.63);
+    expect(mouse!.price.amount).toBe(17);
   });
 
   it("GET /products?sort=name-asc returns names sorted ascending (English locale)", async () => {

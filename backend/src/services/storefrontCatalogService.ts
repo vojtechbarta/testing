@@ -104,7 +104,7 @@ export async function getStorefrontCatalog(params: {
   if (displayRows.length === 0) {
     return {
       products: [],
-      priceBounds: { min: 0, max: 0, currencyCode: "CZK" },
+      priceBounds: { min: 0, max: 0, currencyCode: params.lang === "cs" ? "CZK" : "EUR" },
     };
   }
 

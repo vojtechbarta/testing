@@ -68,7 +68,7 @@ Azure DevOps: see [`azure-pipelines.yml`](../../azure-pipelines.yml) at the repo
   - only `@smoke` tests on Firefox/WebKit
 - Keep smoke tests short, stable, and representative of critical user paths (shop/admin/tester/checkout).
 
-Product names in tests must match `backend/prisma/seed.ts` (English `name` as returned by the API for `lang=en`). **Exact cart/catalog amounts and CZK→EUR math** are covered by **backend integration tests** (`GET /products`, `GET /cart`); Playwright shop tests only check **UI**: grid, images, add-to-cart, quantity, and that money labels show **€** in the default English storefront.
+Product names in tests must match `backend/prisma/seed.ts` (English `name` as returned by the API for `lang=en`). **Exact cart/catalog amounts and locale conversion math** are covered by **backend integration tests** (`GET /products`, `GET /cart`); Playwright shop tests only check **UI**: grid, images, add-to-cart, quantity, and that money labels show **€** in the default English storefront.
 
 Product card **images** must live under **`frontend/public/catalog/`** (URLs `/catalog/…`) so they are not caught by the Vite dev proxy for the **`/products`** API. `shop.spec.ts` asserts `naturalWidth > 0` on those images.
 

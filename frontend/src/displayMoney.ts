@@ -29,29 +29,25 @@ export type ShopDisplayMoneyContext = {
 };
 
 /**
- * English storefront shows prices in EUR when API amounts are in CZK and EUR→CZK exists.
- * Czech storefront and admin/API storage stay in the original currency.
+ * EUR is canonical storage/display for EN. Czech storefront converts EUR->CZK when rate exists.
  */
 export function toShopDisplayMoney(
   amount: number,
   storageCurrencyCode: string,
   ctx: ShopDisplayMoneyContext,
 ): { amount: number; currencyCode: string } {
-  if (ctx.langIsCs) {
-    return { amount, currencyCode: storageCurrencyCode };
+  if (!ctx.langIsCs) {
+    return { amount: roundForCurrency(amount, storageCurrencyCode), currencyCode: storageCurrencyCode };
   }
-  if (storageCurrencyCode === "EUR") {
-    return { amount: roundForCurrency(amount, "EUR"), currencyCode: "EUR" };
-  }
-  if (storageCurrencyCode !== "CZK") {
+  if (storageCurrencyCode !== "EUR") {
     return { amount, currencyCode: storageCurrencyCode };
   }
   const czkPerEur = findDirectRate(ctx.rates, "EUR", "CZK");
   if (czkPerEur === undefined || czkPerEur === 0) {
     return { amount, currencyCode: storageCurrencyCode };
   }
-  const eur = amount / czkPerEur;
-  return { amount: roundForCurrency(eur, "EUR"), currencyCode: "EUR" };
+  const czk = amount * czkPerEur;
+  return { amount: roundForCurrency(czk, "CZK"), currencyCode: "CZK" };
 }
 
 /**

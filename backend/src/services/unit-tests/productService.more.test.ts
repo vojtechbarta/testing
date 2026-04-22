@@ -49,7 +49,7 @@ describe("productService additional coverage", () => {
     mockGetFaultSettings.mockReturnValue(undefined);
   });
 
-  it("mapProductToDto defaults currency to CZK when missing", () => {
+  it("mapProductToDto defaults currency to EUR when missing", () => {
     const dto = mapProductToDto({
       id: 1,
       name: "N",
@@ -59,7 +59,7 @@ describe("productService additional coverage", () => {
       price: 42,
       currency: null,
     });
-    expect(dto.price.currencyCode).toBe("CZK");
+    expect(dto.price.currencyCode).toBe("EUR");
   });
 
   it("getAllProducts maps rows and respects search query filter", async () => {
@@ -175,8 +175,8 @@ describe("productService additional coverage", () => {
     expect(row.id).toBe(3);
   });
 
-  it("createProduct uses default CZK currency when code is omitted", async () => {
-    mockPrisma.currency.findUnique.mockResolvedValue({ id: 1, code: "CZK" });
+  it("createProduct uses default EUR currency when code is omitted", async () => {
+    mockPrisma.currency.findUnique.mockResolvedValue({ id: 2, code: "EUR" });
     mockPrisma.product.create.mockResolvedValue({
       id: 10,
       name: "NoCode",
@@ -184,7 +184,7 @@ describe("productService additional coverage", () => {
       inStock: 1,
       active: true,
       price: 5,
-      currency: { code: "CZK" },
+      currency: { code: "EUR" },
     });
 
     const row = await createProduct({
@@ -195,8 +195,8 @@ describe("productService additional coverage", () => {
       price: { amount: 5.2, currencyCode: undefined as unknown as string },
     });
 
-    expect(mockPrisma.currency.findUnique).toHaveBeenCalledWith({ where: { code: "CZK" } });
-    expect(row.price.currencyCode).toBe("CZK");
+    expect(mockPrisma.currency.findUnique).toHaveBeenCalledWith({ where: { code: "EUR" } });
+    expect(row.price.currencyCode).toBe("EUR");
   });
 
   it("deleteProduct removes references and product in transaction", async () => {

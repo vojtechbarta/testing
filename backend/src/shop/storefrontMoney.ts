@@ -23,7 +23,7 @@ function roundForCurrency(amount: number, currencyCode: string): number {
 }
 
 /**
- * Storefront display money: CS keeps storage currency; EN + CZK storage converts to EUR when rate exists.
+ * Storefront display money: EN keeps EUR storage; CS converts EUR to CZK when rate exists.
  */
 export function toStorefrontMoney(
   amount: number,
@@ -31,23 +31,20 @@ export function toStorefrontMoney(
   lang: StorefrontLang,
   eurPerCzk: number | null,
 ): { amount: number; currencyCode: string } {
-  if (lang === "cs") {
-    return { amount, currencyCode: storageCurrencyCode };
-  }
-  if (storageCurrencyCode === "EUR") {
+  if (lang === "en") {
     return {
-      amount: roundForCurrency(amount, "EUR"),
-      currencyCode: "EUR",
+      amount: roundForCurrency(amount, storageCurrencyCode),
+      currencyCode: storageCurrencyCode,
     };
   }
-  if (storageCurrencyCode !== "CZK") {
+  if (storageCurrencyCode !== "EUR") {
     return { amount, currencyCode: storageCurrencyCode };
   }
   if (eurPerCzk === null) {
     return { amount, currencyCode: storageCurrencyCode };
   }
-  const eur = amount / eurPerCzk;
-  return { amount: roundForCurrency(eur, "EUR"), currencyCode: "EUR" };
+  const czk = amount * eurPerCzk;
+  return { amount: roundForCurrency(czk, "CZK"), currencyCode: "CZK" };
 }
 
 export function multiplyStorefrontMoney(
