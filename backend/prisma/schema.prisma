@@ -24,12 +24,18 @@ model ExchangeRate {
   id             Int      @id @default(autoincrement())
   fromCurrencyId Int
   toCurrencyId   Int
+  source         String   @default("MANUAL")
+  effectiveDate  DateTime @db.Date
+  sourceAmount   Int      @default(1)
   exchangeRate   Decimal  @db.Decimal(18, 8)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   fromCurrency Currency @relation("ExchangeRateFrom", fields: [fromCurrencyId], references: [id])
   toCurrency   Currency @relation("ExchangeRateTo", fields: [toCurrencyId], references: [id])
 
-  @@unique([fromCurrencyId, toCurrencyId])
+  @@unique([source, effectiveDate, fromCurrencyId, toCurrencyId], name: "exrate_src_day_pair_uq")
+  @@index([fromCurrencyId, toCurrencyId, effectiveDate], map: "exrate_pair_day_idx")
   @@map("ExchangeRate")
 }
 

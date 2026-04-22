@@ -9,6 +9,7 @@ export async function loadEurPerCzkRate(): Promise<number | null> {
       toCurrency: { code: "CZK" },
     },
     select: { exchangeRate: true },
+    orderBy: [{ effectiveDate: "desc" }, { id: "desc" }],
   });
   if (!row) return null;
   const n = Number(row.exchangeRate);

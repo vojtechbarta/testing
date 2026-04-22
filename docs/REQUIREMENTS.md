@@ -1,6 +1,6 @@
 # Functional Requirements Matrix
 
-Last synced: 2026-04-21 (commit `298d35c`)
+Last synced: 2026-04-22 (commit `830ff94`)
 Scope: As-is functionality only (implemented behavior in current codebase)
 
 ## Purpose
@@ -127,6 +127,7 @@ Acceptance criteria:
 - `AC-US-01-06-1`: Czech storefront shows CZK pricing.
 - `AC-US-01-06-2`: English storefront can display EUR pricing when FX rate is available.
 - `AC-US-01-06-3`: Price formatting follows local conventions (currency symbol and number format).
+- `AC-US-01-06-4`: Exchange rates are ingested daily from official CNB source and latest available business-day rate is used when same-day data is unavailable.
 
 ### US-01-07 View product card details and stock-aware add action
 Persona: Shopper
@@ -154,7 +155,7 @@ Acceptance criteria:
 - `AC-US-01-08-4`: Export content reflects the currently selected storefront language (localized text and language-specific product fields).
 - `AC-US-01-08-5`: Export content matches the catalog currently shown on screen, including active search query, selected sort, and selected price-filter result set.
 
-Source: `backend/src/routes/products.ts`, `backend/src/services/storefrontCatalogService.ts`, `backend/src/shop/storefrontMoney.ts`, `frontend/src/App.tsx`, `frontend/src/productImages.ts`
+Source: `backend/src/routes/products.ts`, `backend/src/routes/exchangeRates.ts`, `backend/src/services/storefrontCatalogService.ts`, `backend/src/services/cnbExchangeRateSyncService.ts`, `backend/src/shop/storefrontMoney.ts`, `frontend/src/App.tsx`, `frontend/src/productImages.ts`
 
 ## EP-02 Cart and Checkout
 

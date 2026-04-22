@@ -22,8 +22,14 @@ describe("exchangeRateService.getAllExchangeRates", () => {
   it("maps prisma rows to dto shape with numeric exchangeRate", async () => {
     mockPrisma.exchangeRate.findMany.mockResolvedValue([
       {
+        id: 11,
+        fromCurrencyId: 1,
+        toCurrencyId: 2,
         fromCurrency: { code: "EUR" },
         toCurrency: { code: "CZK" },
+        sourceAmount: 1,
+        source: "CNB_API",
+        effectiveDate: new Date("2026-04-22T00:00:00.000Z"),
         exchangeRate: "24.00",
       },
     ]);
@@ -34,7 +40,11 @@ describe("exchangeRateService.getAllExchangeRates", () => {
       {
         fromCurrencyCode: "EUR",
         toCurrencyCode: "CZK",
+        sourceAmount: 1,
         exchangeRate: 24,
+        source: "CNB_API",
+        effectiveDate: "2026-04-22",
+        isStale: expect.any(Boolean),
       },
     ]);
   });

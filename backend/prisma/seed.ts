@@ -53,15 +53,22 @@ async function main() {
     where: { code: "EUR" },
   });
 
+  await prisma.exchangeRate.deleteMany();
+
   await prisma.exchangeRate.upsert({
     where: {
-      fromCurrencyId_toCurrencyId: {
+      exrate_src_day_pair_uq: {
+        source: "MANUAL_SEED",
+        effectiveDate: new Date("2026-01-01T00:00:00.000Z"),
         fromCurrencyId: eurRow.id,
         toCurrencyId: czkRow.id,
       },
     },
-    update: { exchangeRate: 24 },
+    update: { sourceAmount: 1, exchangeRate: 24 },
     create: {
+      source: "MANUAL_SEED",
+      effectiveDate: new Date("2026-01-01T00:00:00.000Z"),
+      sourceAmount: 1,
       fromCurrencyId: eurRow.id,
       toCurrencyId: czkRow.id,
       exchangeRate: 24,

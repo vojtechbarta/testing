@@ -1,13 +1,13 @@
 # Test Pyramid Coverage Report
 
-Generated: 2026-04-19T07:04:30.173Z
+Generated: 2026-04-22T17:43:09.462Z
 
 ## Unit Coverage
 
-- line: 97.22% (target >= 95%) - OK
-- function: 98.90% (target >= 95%) - OK
-- branch: 92.23% (target >= 90%) - OK
-- statement: 97.15% (target >= 95%) - OK
+- line: 96.44% (target >= 95%) - OK
+- function: 98.13% (target >= 95%) - OK
+- branch: 90.68% (target >= 90%) - OK
+- statement: 96.43% (target >= 95%) - OK
 
 - No threshold warnings at Unit level.
 
@@ -21,6 +21,7 @@ Generated: 2026-04-19T07:04:30.173Z
 | `GET /cart` | Yes |
 | `GET /docs-json` | Yes |
 | `GET /exchange-rates` | Yes |
+| `GET /exchange-rates/sync-status` | Yes |
 | `GET /faults/inject-error` | Yes |
 | `GET /faults/ui` | Yes |
 | `GET /health` | Yes |
@@ -41,8 +42,8 @@ Generated: 2026-04-19T07:04:30.173Z
 ## UI Coverage
 
 - Spec files: 8
-- Total tests: 19
-- Independent setup signals: 19/19
+- Total tests: 20
+- Independent setup signals: 20/20
 - Independence score: 100.00%
 - Perspective coverage: shop=Yes, admin=Yes, tester=Yes
 - Matrix coverage: 10/10 area(s) fully covered
@@ -87,7 +88,7 @@ Generated: 2026-04-19T07:04:30.173Z
 - `frontend/e2e/tests/checkout.spec.ts`: 1 test(s)
 - `frontend/e2e/tests/i18n.spec.ts`: 1 test(s)
 - `frontend/e2e/tests/locator-audit-demo-bad-patterns.spec.ts`: 1 test(s)
-- `frontend/e2e/tests/shop.spec.ts`: 5 test(s)
+- `frontend/e2e/tests/shop.spec.ts`: 6 test(s)
 - `frontend/e2e/tests/tester.spec.ts`: 5 test(s)
 
 ## Prioritized Gaps
