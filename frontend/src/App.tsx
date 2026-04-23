@@ -1705,8 +1705,9 @@ function App() {
               {products.map((p) => {
                 const inCartQty =
                   cart?.items.find((i) => i.productId === p.id)?.quantity ?? 0;
+                const remainingStock = Math.max(0, p.inStock - inCartQty);
                 const step = uiDoubleAddAlways ? 2 : 1;
-                const canAddFromList = inCartQty + step <= p.inStock;
+                const canAddFromList = remainingStock >= step;
                 const imgSrc = getProductImageSrcById(p.id);
                 return (
                   <article
@@ -1742,7 +1743,7 @@ function App() {
                       {showLabelTypos
                         ? t("shop.inSockTypo")
                         : t("shop.inStock")}{" "}
-                      · {t("shop.stockLeft", { count: p.inStock })}
+                      · {t("shop.stockLeft", { count: remainingStock })}
                     </p>
                     <button
                       type="button"

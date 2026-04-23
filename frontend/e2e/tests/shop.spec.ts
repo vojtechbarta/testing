@@ -95,6 +95,34 @@ test.describe("Shop — catalog and cart", () => {
     await shop.expectEstimatedTotalShowsEurUi();
   });
 
+  test("product card stock count decreases after add to cart", async ({
+    page,
+  }) => {
+    const shop = new ShopPage(page);
+    await shop.goto();
+    const mouse = SEED_PRODUCTS[0]!;
+    const card = shop.productCardByName(mouse.name);
+    const stockLabel = card.locator(".product-card__stock");
+
+    const beforeText = await stockLabel.innerText();
+    const beforeMatch = beforeText.match(/(\d+)/);
+    expect(
+      beforeMatch,
+      `Expected initial stock label to include a number, got "${beforeText}"`,
+    ).not.toBeNull();
+    const beforeStock = Number(beforeMatch![1]);
+
+    await shop.addToCart(mouse.name);
+
+    await expect
+      .poll(async () => {
+        const text = await stockLabel.innerText();
+        const match = text.match(/(\d+)/);
+        return match ? Number(match[1]) : null;
+      })
+      .toBe(beforeStock - 1);
+  });
+
   test("can export products and cart as CSV", async ({ page }) => {
     const shop = new ShopPage(page);
 
