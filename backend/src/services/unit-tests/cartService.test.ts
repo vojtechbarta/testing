@@ -31,7 +31,7 @@ const { mockPrisma, mockShouldTriggerFault } = vi.hoisted(() => ({
       findUnique: vi.fn(),
     },
     exchangeRate: {
-      findFirst: vi.fn().mockResolvedValue(null),
+      findMany: vi.fn().mockResolvedValue([]),
     },
   },
   mockShouldTriggerFault: vi.fn(),
@@ -55,7 +55,7 @@ const TEST_CART_KEY = "aaaaaaaa-bbbb-4ccc-bddd-111111111111";
 describe("cartService", () => {
   beforeEach(() => {
     mockShouldTriggerFault.mockResolvedValue(false);
-    mockPrisma.exchangeRate.findFirst.mockResolvedValue(null);
+    mockPrisma.exchangeRate.findMany.mockResolvedValue([]);
     mockPrisma.cartPromotion.findUnique.mockResolvedValue(null);
     mockResolveMoreIsLessFinalPercent.mockResolvedValue(10);
   });
@@ -399,7 +399,6 @@ describe("cartService", () => {
   });
 
   it("applies MoreIsLess discount with EUR rounding on subtotal", async () => {
-    mockPrisma.exchangeRate.findFirst.mockResolvedValue({ exchangeRate: 24 });
     mockPrisma.cartPromotion.findUnique.mockResolvedValue({
       cartKey: TEST_CART_KEY,
       appliedCode: "MOREISLESS",
@@ -432,7 +431,6 @@ describe("cartService", () => {
   });
 
   it("getCart keeps EUR decimals for totals", async () => {
-    mockPrisma.exchangeRate.findFirst.mockResolvedValue({ exchangeRate: 24 });
     mockPrisma.cartItem.findMany.mockResolvedValue([
       {
         productId: 10,
@@ -456,7 +454,6 @@ describe("cartService", () => {
   });
 
   it("getCart defaults missing product currency to CZK", async () => {
-    mockPrisma.exchangeRate.findFirst.mockResolvedValue(null);
     mockPrisma.cartItem.findMany.mockResolvedValue([
       {
         productId: 33,

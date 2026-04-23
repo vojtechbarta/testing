@@ -1,13 +1,13 @@
 # Test Pyramid Coverage Report
 
-Generated: 2026-04-22T17:43:09.462Z
+Generated: 2026-04-23T05:31:41.975Z
 
 ## Unit Coverage
 
-- line: 96.44% (target >= 95%) - OK
-- function: 98.13% (target >= 95%) - OK
-- branch: 90.68% (target >= 90%) - OK
-- statement: 96.43% (target >= 95%) - OK
+- line: 95.26% (target >= 95%) - OK
+- function: 98.16% (target >= 95%) - OK
+- branch: 90.04% (target >= 90%) - OK
+- statement: 95.29% (target >= 95%) - OK
 
 - No threshold warnings at Unit level.
 
@@ -34,6 +34,7 @@ Generated: 2026-04-22T17:43:09.462Z
 | `POST /checkout/bank-transfer` | Yes |
 | `POST /checkout/gateway/:orderId/mock-pay` | Yes |
 | `POST /checkout/gateway/init` | Yes |
+| `POST /exchange-rates/sync-now` | Yes |
 | `POST /orders` | Yes |
 | `PUT /admin/products/:id` | Yes |
 
