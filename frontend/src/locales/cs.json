@@ -46,7 +46,7 @@
     "sortId": "ID",
     "sortName": "Název",
     "sortDescription": "Popis",
-    "sortPrice": "Cena (CZK)",
+    "sortPrice": "Cena (EUR)",
     "sortStock": "Sklad",
     "sortActive": "Aktivní"
   },

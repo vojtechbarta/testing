@@ -37,3 +37,13 @@ export async function getAllExchangeRates(): Promise<ExchangeRateDto[]> {
     };
   });
 }
+
+/** Same EUR→CZK numeric rate as exposed by GET /exchange-rates (authoritative for storefront conversion). */
+export async function getLatestEurToCzkRate(): Promise<number | null> {
+  const rates = await getAllExchangeRates();
+  const hit = rates.find(
+    (r) => r.fromCurrencyCode === "EUR" && r.toCurrencyCode === "CZK",
+  );
+  if (!hit || !(hit.exchangeRate > 0)) return null;
+  return hit.exchangeRate;
+}

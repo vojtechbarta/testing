@@ -60,7 +60,7 @@
           },
           "currencyCode": {
             "type": "string",
-            "example": "CZK"
+            "example": "EUR"
           }
         },
         "required": [
@@ -490,7 +490,7 @@
                       },
                       "currencyCode": {
                         "type": "string",
-                        "example": "CZK"
+                        "example": "EUR"
                       }
                     },
                     "required": [
@@ -582,7 +582,7 @@
                       },
                       "currencyCode": {
                         "type": "string",
-                        "example": "CZK"
+                        "example": "EUR"
                       }
                     },
                     "required": [

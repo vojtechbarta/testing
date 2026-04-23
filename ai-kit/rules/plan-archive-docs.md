@@ -1,0 +1,13 @@
+# Plan archive in docs/plan
+
+When you produce or finalize a **plan** for this workspace (Plan mode, CreatePlan, or any multi-step implementation plan the user accepts):
+
+1. **Write a copy** under [`docs/plan/`](docs/plan/) named **`YYYY-MM-DD-short-topic.md`**
+   - **Date:** use the authoritative “today” from user/session context when available; otherwise use the actual calendar date when archiving.
+   - **Topic:** lowercase kebab-case, short and specific (e.g. `volume-discount-and-faults`).
+
+2. **Contents:** include the full plan markdown (overview, decisions, file paths, todos if useful). Optionally add one line at the top: `Archived: YYYY-MM-DD`.
+
+3. **Do not replace** Cursor’s working plan file under `~/.cursor/plans/`—this rule adds a **repository** snapshot for Git and humans.
+
+4. If the user explicitly declines archiving or the plan is trivial (one-line scope), skip the file write.

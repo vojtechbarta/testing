@@ -967,7 +967,7 @@ function App() {
       const created = await createAdminProduct(adminToken, {
         name: "New product",
         description: "Product description",
-        price: { amount: 100, currencyCode: "CZK" },
+        price: { amount: 25, currencyCode: "EUR" },
         inStock: 0,
         active: false,
       });

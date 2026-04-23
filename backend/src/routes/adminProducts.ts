@@ -67,7 +67,7 @@ router.get("/", async (_req, res, next) => {
  *                 type: object
  *                 properties:
  *                   amount: { type: number }
- *                   currencyCode: { type: string, example: CZK }
+ *                   currencyCode: { type: string, example: EUR }
  *                 required: [amount, currencyCode]
  *             required: [name, description, inStock, active, price]
  *     responses:
@@ -142,7 +142,7 @@ router.post("/", async (req, res, next) => {
  *                 type: object
  *                 properties:
  *                   amount: { type: number }
- *                   currencyCode: { type: string, example: CZK }
+ *                   currencyCode: { type: string, example: EUR }
  *                 required: [amount, currencyCode]
  *             required: [name, description, inStock, active, price]
  *     responses:

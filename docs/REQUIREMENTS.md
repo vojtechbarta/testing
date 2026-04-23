@@ -1,6 +1,6 @@
 # Functional Requirements Matrix
 
-Last synced: 2026-04-22 (commit `734a1fa`)
+Last synced: 2026-04-23 (commit `e8a47e5`)
 Scope: As-is functionality only (implemented behavior in current codebase)
 
 ## Purpose
@@ -43,7 +43,7 @@ Project contributor who runs environments, tests, coverage workflows, and techni
   - Unit: Service/data layer behavior fault.
 - Failure rate: Probability-like value used by supported faults.
 - MoreIsLess: Promotion code `MOREISLESS` with quantity tiers.
-- Storefront money: Product prices shown in CZK or EUR depending on language/FX behavior.
+- Storefront money: Product prices shown in CZK or EUR depending on language/FX behavior; admin catalog price input uses EUR as canonical storage currency (CZK is derived when shown on the Czech storefront).
 - Seeded accounts: Pre-seeded users for admin and tester roles.
 
 ## EP-01 Product Catalog
@@ -129,6 +129,7 @@ Acceptance criteria:
 - `AC-US-01-06-2`: English storefront shows EUR pricing directly from storage.
 - `AC-US-01-06-3`: Price formatting follows local conventions (currency symbol and number format).
 - `AC-US-01-06-4`: Exchange rates are ingested daily from official CNB source and latest available business-day rate is used when same-day data is unavailable.
+- `AC-US-01-06-5`: Czech storefront product prices come from GET /products with `lang=cs`, using the same EUR→CZK rate selection as GET /exchange-rates (authoritative backend conversion before display).
 
 ### US-01-07 View product card details and stock-aware add action
 Persona: Shopper
@@ -339,6 +340,7 @@ Acceptance criteria:
 - `AC-US-03-02-1`: Admin can open product table with core product fields.
 - `AC-US-03-02-2`: Table supports sorting-oriented management behavior.
 - `AC-US-03-02-3`: Admin view is accessible only for authenticated admin role.
+- `AC-US-03-02-4`: Product price column is labeled for EUR and new products are created with EUR as the storage currency (aligned with canonical catalog pricing).
 
 ### US-03-03 Update existing product inline
 Persona: Administrator
@@ -356,7 +358,7 @@ Acceptance criteria:
 Persona: Administrator
 
 Business details:
-- New product creation starts from sensible defaults for fast catalog extension.
+- New product creation starts from sensible defaults for fast catalog extension (including EUR-priced defaults consistent with canonical storage).
 - Created records must become manageable immediately through the same inline table flow.
 
 Acceptance criteria:

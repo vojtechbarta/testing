@@ -97,6 +97,24 @@ docker compose down -v       # also remove volume -> empty DB on next `up`
 
 ---
 
+## Migration checks (Prisma)
+
+Before **pushing** changes that add or edit files under `backend/prisma/migrations/` (or schema changes that ship new migrations), confirm that **`prisma migrate deploy` succeeds on an empty database** — the same class of failure as Azure container startup (`npm run start:azure`).
+
+**Local:** with MySQL running (see [Docker (MySQL)](#docker-mysql)), from **`backend/`**:
+
+```bash
+npm run prisma:migrate:verify
+```
+
+This drops/recreates a dedicated database (`prisma_migrate_verify` by default), runs `prisma migrate deploy`, then `prisma migrate status`. It does **not** target your normal dev database from `.env`.
+
+Optional environment variables are documented in [`backend/scripts/verify-migrations.local.sh`](backend/scripts/verify-migrations.local.sh). If your DB password needs URL encoding, set `PRISMA_MIGRATE_VERIFY_DATABASE_URL` to an empty database you manage yourself instead of using the defaults.
+
+**CI:** Pull requests and pushes to `main` run [`.github/workflows/prisma-migrations.yml`](.github/workflows/prisma-migrations.yml) against a fresh MySQL 8.4 service when `backend/prisma/**`, `backend/package.json`, [`backend/scripts/verify-migrations.local.sh`](backend/scripts/verify-migrations.local.sh), or that workflow file changes.
+
+---
+
 ## First run (local)
 
 ### 1. Dependencies

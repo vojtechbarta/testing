@@ -12,7 +12,7 @@ vi.mock("../../db/prisma", () => ({
   default: mockPrisma,
 }));
 
-import { getAllExchangeRates } from "../exchangeRateService";
+import { getAllExchangeRates, getLatestEurToCzkRate } from "../exchangeRateService";
 
 describe("exchangeRateService.getAllExchangeRates", () => {
   beforeEach(() => {
@@ -47,5 +47,28 @@ describe("exchangeRateService.getAllExchangeRates", () => {
         isStale: expect.any(Boolean),
       },
     ]);
+  });
+
+  it("getLatestEurToCzkRate returns EUR→CZK numeric rate from latest pair", async () => {
+    mockPrisma.exchangeRate.findMany.mockResolvedValue([
+      {
+        id: 11,
+        fromCurrencyId: 1,
+        toCurrencyId: 2,
+        fromCurrency: { code: "EUR" },
+        toCurrency: { code: "CZK" },
+        sourceAmount: 1,
+        source: "CNB_API",
+        effectiveDate: new Date("2026-04-22T00:00:00.000Z"),
+        exchangeRate: "24.35",
+      },
+    ]);
+
+    await expect(getLatestEurToCzkRate()).resolves.toBe(24.35);
+  });
+
+  it("getLatestEurToCzkRate returns null when no EUR→CZK row", async () => {
+    mockPrisma.exchangeRate.findMany.mockResolvedValue([]);
+    await expect(getLatestEurToCzkRate()).resolves.toBeNull();
   });
 });

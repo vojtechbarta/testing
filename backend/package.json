@@ -9,6 +9,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc -p tsconfig.build.json",
     "postinstall": "prisma generate",
+    "prisma:migrate:verify": "sh ./scripts/verify-migrations.local.sh",
     "start": "node dist/index.js",
     "start:azure": "prisma migrate deploy && node dist/index.js",
     "test": "vitest run",

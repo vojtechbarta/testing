@@ -97,6 +97,24 @@ docker compose down -v       # navíc smazat volume → prázdná DB při pří�
 
 ---
 
+## Kontrola migrací (Prisma)
+
+Než **pushneš** změny, které přidávají nebo upravují soubory v `backend/prisma/migrations/` (nebo změny schématu s novými migracemi), ověř, že **`prisma migrate deploy` proběhne na prázdné databázi** — stejná třída chyb jako při startu na Azure (`npm run start:azure`).
+
+**Lokálně:** s běžícím MySQL (viz [Docker (MySQL)](#docker-mysql)), z adresáře **`backend/`**:
+
+```bash
+npm run prisma:migrate:verify
+```
+
+Skript smaže a znovu vytvoří vyhrazenou databázi (výchozí název `prisma_migrate_verify`), spustí `prisma migrate deploy` a pak `prisma migrate status`. **Nepoužívá** běžnou vývojářskou databázi z `.env`.
+
+Volitelné proměnné prostředí jsou popsány v [`backend/scripts/verify-migrations.local.sh`](backend/scripts/verify-migrations.local.sh). Pokud heslo vyžaduje URL kódování, nastav `PRISMA_MIGRATE_VERIFY_DATABASE_URL` na prázdnou databázi, kterou spravuješ sám.
+
+**CI:** u pull requestů a pushů na `main` běží [`.github/workflows/prisma-migrations.yml`](.github/workflows/prisma-migrations.yml) proti čerstvé službě MySQL 8.4 při změnách v `backend/prisma/**`, `backend/package.json`, [`backend/scripts/verify-migrations.local.sh`](backend/scripts/verify-migrations.local.sh) nebo v tomto workflow souboru.
+
+---
+
 ## První spuštění (lokálně)
 
 ### 1. Závislosti

@@ -1,19 +1,10 @@
-import prisma from "../db/prisma";
+import { getLatestEurToCzkRate } from "../services/exchangeRateService";
 
 export type StorefrontLang = "en" | "cs";
 
+/** Delegates to {@link getLatestEurToCzkRate} so catalog/cart match GET /exchange-rates. */
 export async function loadEurPerCzkRate(): Promise<number | null> {
-  const row = await prisma.exchangeRate.findFirst({
-    where: {
-      fromCurrency: { code: "EUR" },
-      toCurrency: { code: "CZK" },
-    },
-    select: { exchangeRate: true },
-    orderBy: [{ effectiveDate: "desc" }, { id: "desc" }],
-  });
-  if (!row) return null;
-  const n = Number(row.exchangeRate);
-  return n > 0 ? n : null;
+  return getLatestEurToCzkRate();
 }
 
 function roundForCurrency(amount: number, currencyCode: string): number {

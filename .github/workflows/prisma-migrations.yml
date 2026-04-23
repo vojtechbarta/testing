@@ -1,0 +1,61 @@
+# Validates that all Prisma migrations apply cleanly to an empty MySQL database
+# (same command family as Azure container start: prisma migrate deploy).
+#
+# Triggers: edits under backend/prisma/, backend/package.json, or this workflow.
+name: Prisma migrations
+
+on:
+  pull_request:
+    paths:
+      - "backend/prisma/**"
+      - "backend/scripts/verify-migrations.local.sh"
+      - "backend/package.json"
+      - ".github/workflows/prisma-migrations.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/prisma/**"
+      - "backend/scripts/verify-migrations.local.sh"
+      - "backend/package.json"
+      - ".github/workflows/prisma-migrations.yml"
+
+jobs:
+  migrate-deploy:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci
+          MYSQL_DATABASE: prisma_migrate_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=30
+
+    env:
+      DATABASE_URL: mysql://root:ci@127.0.0.1:3306/prisma_migrate_ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Prisma migrate deploy (fresh DB from service)
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          npx prisma migrate deploy
+          npx prisma migrate status

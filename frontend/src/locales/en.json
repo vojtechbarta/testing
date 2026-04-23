@@ -46,7 +46,7 @@
     "sortId": "ID",
     "sortName": "Name",
     "sortDescription": "Description",
-    "sortPrice": "Price (CZK)",
+    "sortPrice": "Price (EUR)",
     "sortStock": "Stock",
     "sortActive": "Active"
   },

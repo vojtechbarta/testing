@@ -57,7 +57,7 @@ const options: OAS3Options = {
           type: "object",
           properties: {
             amount: { type: "number" },
-            currencyCode: { type: "string", example: "CZK" },
+            currencyCode: { type: "string", example: "EUR" },
           },
           required: ["amount", "currencyCode"],
         },

@@ -1,0 +1,11 @@
+# Fault catalog (`docs/FAULTS.md`)
+
+Whenever you **add** a new injected fault, **rename** a fault key, or **change** fault behavior (level, UI/API/unit wiring, `failureRate` semantics, admin name/description in seed, or anything user-visible in the tester/admin fault list):
+
+1. **Update** [`docs/FAULTS.md`](docs/FAULTS.md) in the same change (or immediately after in the same task): add or edit the matching `### \`fault_key\`` section with Level, Name, Description, Supports `failureRate`, and Affected area.
+
+2. **Sort** fault reference entries **alphabetically by fault key** (the backtick identifier).
+
+3. **Stay aligned** with [`backend/prisma/seed.ts`](backend/prisma/seed.ts) `faultConfig` metadata (name/description/level) unless you intentionally document extra nuance—then say so briefly.
+
+Typical touchpoints for faults: seed upserts, `FAULT_KEYS` / runtime in [`backend/src/faults/`](backend/src/faults/), routes under [`backend/src/routes/`](backend/src/routes/), services under [`backend/src/services/`](backend/src/services/), and UI branches in [`frontend/src/App.tsx`](frontend/src/App.tsx). Do not merge fault-only work without catalog updates.

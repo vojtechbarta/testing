@@ -110,15 +110,44 @@ describe("Internal API - products", () => {
   it("GET /products default lang en returns EUR storage prices", async () => {
     const res = await request(app).get("/products").expect(200);
     const { products } = res.body as {
-      products: { id: number; name: string; price: { amount: number; currencyCode: string } }[];
+      products: {
+        id: number;
+        name: string;
+        price: { amount: number; currencyCode: string };
+      }[];
     };
     expect(products.length).toBeGreaterThan(0);
-    for (const p of products) {
-      expect(p.price.currencyCode).toBe("EUR");
-    }
     const mouse = products.find((p) => p.id === 1);
     expect(mouse).toBeDefined();
+    expect(mouse!.price.currencyCode).toBe("EUR");
     expect(mouse!.price.amount).toBe(17);
+  });
+
+  it("GET /products?lang=cs converts EUR display to CZK using same rate as /exchange-rates", async () => {
+    const ratesRes = await request(app).get("/exchange-rates").expect(200);
+    const rates = ratesRes.body as Array<{
+      fromCurrencyCode: string;
+      toCurrencyCode: string;
+      exchangeRate: number;
+    }>;
+    const eurToCzk = rates.find(
+      (r) => r.fromCurrencyCode === "EUR" && r.toCurrencyCode === "CZK",
+    );
+    expect(eurToCzk?.exchangeRate).toBeGreaterThan(0);
+
+    const res = await request(app).get("/products").query({ lang: "cs" }).expect(200);
+    const { products } = res.body as {
+      products: {
+        id: number;
+        price: { amount: number; currencyCode: string };
+      }[];
+    };
+    const mouse = products.find((p) => p.id === 1);
+    expect(mouse).toBeDefined();
+    expect(mouse!.price.currencyCode).toBe("CZK");
+    expect(mouse!.price.amount).toBe(
+      Math.round(17 * eurToCzk!.exchangeRate),
+    );
   });
 
   it("GET /products?sort=name-asc returns names sorted ascending (English locale)", async () => {

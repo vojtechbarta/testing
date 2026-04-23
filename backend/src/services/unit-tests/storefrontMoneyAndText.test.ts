@@ -1,15 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockPrisma } = vi.hoisted(() => ({
-  mockPrisma: {
-    exchangeRate: {
-      findFirst: vi.fn(),
-    },
-  },
+const { mockGetLatestEurToCzkRate } = vi.hoisted(() => ({
+  mockGetLatestEurToCzkRate: vi.fn(),
 }));
 
-vi.mock("../../db/prisma", () => ({
-  default: mockPrisma,
+vi.mock("../../services/exchangeRateService", () => ({
+  getLatestEurToCzkRate: () => mockGetLatestEurToCzkRate(),
 }));
 
 import { loadEurPerCzkRate, multiplyStorefrontMoney, toStorefrontMoney } from "../../shop/storefrontMoney";
@@ -21,14 +17,12 @@ describe("storefrontMoney and storefrontProductText", () => {
   });
 
   it("loads positive EUR/CZK rate and converts to number", async () => {
-    mockPrisma.exchangeRate.findFirst.mockResolvedValue({ exchangeRate: "24.0" });
+    mockGetLatestEurToCzkRate.mockResolvedValue(24);
     await expect(loadEurPerCzkRate()).resolves.toBe(24);
   });
 
   it("returns null for missing or invalid non-positive rate", async () => {
-    mockPrisma.exchangeRate.findFirst.mockResolvedValue(null);
-    await expect(loadEurPerCzkRate()).resolves.toBeNull();
-    mockPrisma.exchangeRate.findFirst.mockResolvedValue({ exchangeRate: 0 });
+    mockGetLatestEurToCzkRate.mockResolvedValue(null);
     await expect(loadEurPerCzkRate()).resolves.toBeNull();
   });
 

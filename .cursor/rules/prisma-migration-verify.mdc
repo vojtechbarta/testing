@@ -1,0 +1,31 @@
+---
+description: Run empty-DB migration verification when changing Prisma migrations or schema
+globs: backend/prisma/**
+alwaysApply: false
+---
+
+# Prisma migration verification
+
+When you **add or edit** migrations under `backend/prisma/migrations/`, change `schema.prisma` in a way that implies a **new migration**, or otherwise touch migration-related Prisma artifacts, validation must include applying all migrations to a **fresh empty database** (same class of failure as Azure `prisma migrate deploy` on startup).
+
+## Before finishing
+
+1. Ensure MySQL 8 is running (e.g. repo root: `docker compose up -d`).
+2. From **`backend/`**, run:
+
+   ```bash
+   npm run prisma:migrate:verify
+   ```
+
+   This recreates a dedicated database (default name `prisma_migrate_verify`), runs `prisma migrate deploy`, then `prisma migrate status`.
+
+3. If the command cannot run here (no Docker/MySQL, sandbox), tell the user to run it locally before merge and note that **CI** (`.github/workflows/prisma-migrations.yml`) will still fail if migrations are broken.
+
+## Do not
+
+- Mark migration work complete while `prisma migrate deploy` fails against an empty DB.
+- Point the verify script at the developer’s main dev database — the script uses a separate DB name by default; overrides are documented in `backend/scripts/verify-migrations.local.sh`.
+
+## Related
+
+- Root **README** section *Migration checks (Prisma)* for env vars and CI behavior.

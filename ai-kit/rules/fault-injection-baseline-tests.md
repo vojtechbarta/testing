@@ -1,0 +1,24 @@
+# Fault Injection Baseline Test Rule
+
+Fault injection simulates real user-visible regressions. Baseline tests must detect them, not adapt to them.
+
+## Required behavior
+
+- Do not weaken, skip, or invert baseline test assertions to make tests pass when a fault is enabled.
+- Keep baseline expectations aligned with correct product behavior (faults off).
+- If fault-specific behavior needs validation, add separate explicit fault-mode tests instead of modifying baseline tests.
+- Treat baseline test failures under injected faults as a success signal for detection, not as a reason to relax checks.
+
+## Test design guidance
+
+- Prefer deterministic checks for regressions:
+  - functional assertions for API/flow behavior
+  - geometry/DOM assertions for layout integrity
+  - targeted visual comparisons only when geometry checks are insufficient
+- Keep smoke tests strict on core user paths (shop/admin/tester/checkout).
+
+## Do/Don't examples
+
+- Do: add `layout-fault.spec.ts` for fault-on behavior if needed.
+- Do: keep `shop.spec.ts` asserting non-overlapping layout for baseline behavior.
+- Don't: change baseline assertions to accept broken layout when `grid_non_chrome_broken` is active.
