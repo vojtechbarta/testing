@@ -68,6 +68,22 @@ model Product {
   updatedAt   DateTime    @updatedAt
   orderItems  OrderItem[]
   cartItems   CartItem[]
+  translations ProductTranslation[]
+}
+
+model ProductTranslation {
+  id          Int      @id @default(autoincrement())
+  productId   Int
+  locale      String   @db.VarChar(8)
+  name        String
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, locale], name: "product_locale_unique")
+  @@index([locale], map: "product_translation_locale_idx")
 }
 
 model Order {

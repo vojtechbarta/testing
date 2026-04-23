@@ -3,6 +3,8 @@ import {
   createProduct,
   deleteProduct,
   getAllProductsForAdmin,
+  getProductTranslationsForAdmin,
+  upsertProductTranslation,
   updateProduct,
 } from "../services/productService";
 import prisma from "../db/prisma";
@@ -180,6 +182,111 @@ router.put("/:id", async (req, res, next) => {
     });
 
     res.json(product);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * @openapi
+ * /admin/products/{id}/translations:
+ *   get:
+ *     tags: [Products]
+ *     summary: List product translations by locale.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Translation list for the product.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items: { $ref: '#/components/schemas/ProductTranslation' }
+ */
+router.get("/:id/translations", async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id || Number.isNaN(id)) {
+      res.status(400).json({ message: "Invalid product id" });
+      return;
+    }
+    const existing = await prisma.product.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ message: "Product not found" });
+      return;
+    }
+    const translations = await getProductTranslationsForAdmin(id);
+    res.json(translations);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * @openapi
+ * /admin/products/{id}/translations/{locale}:
+ *   put:
+ *     tags: [Products]
+ *     summary: Upsert product translation for one locale.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *       - in: path
+ *         name: locale
+ *         required: true
+ *         schema: { type: string, example: cs }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { $ref: '#/components/schemas/ProductTranslationInput' }
+ *     responses:
+ *       200:
+ *         description: Product translation saved.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ProductTranslation' }
+ */
+router.put("/:id/translations/:locale", async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const locale = String(req.params.locale ?? "").trim().toLowerCase();
+    const { name, description } = req.body as {
+      name?: string;
+      description?: string;
+    };
+    if (!id || Number.isNaN(id)) {
+      res.status(400).json({ message: "Invalid product id" });
+      return;
+    }
+    if (locale === "") {
+      res.status(400).json({ message: "Locale is required" });
+      return;
+    }
+    if (!name || !description) {
+      res.status(400).json({ message: "Name and description are required" });
+      return;
+    }
+    const existing = await prisma.product.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ message: "Product not found" });
+      return;
+    }
+    const translation = await upsertProductTranslation(id, locale, {
+      name,
+      description,
+    });
+    res.json(translation);
   } catch (err) {
     next(err);
   }

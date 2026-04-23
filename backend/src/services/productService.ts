@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import prisma from "../db/prisma";
 import { getFaultSettings, isFaultEnabled } from "../faults/faultService";
+import type { StorefrontLang } from "../shop/storefrontMoney";
 
 export type Money = {
   amount: number;
@@ -14,6 +15,12 @@ export type ProductDto = {
   inStock: number;
   active: boolean;
   price: Money;
+};
+
+export type ProductTranslationDto = {
+  locale: string;
+  name: string;
+  description: string;
 };
 
 export function mapProductToDto(p: {
@@ -42,26 +49,44 @@ export function mapProductToDto(p: {
  */
 export function productListingWhere(
   searchQuery?: string,
+  lang: StorefrontLang = "en",
 ): Prisma.ProductWhereInput {
   const q = searchQuery?.trim();
   const where: Prisma.ProductWhereInput = { active: true };
   if (q) {
-    where.OR = [
+    const baseOr: Prisma.ProductWhereInput[] = [
       { name: { contains: q } },
       { description: { contains: q } },
     ];
+    if (lang === "cs") {
+      baseOr.push({
+        translations: {
+          some: {
+            locale: "cs",
+            OR: [
+              { name: { contains: q } },
+              { description: { contains: q } },
+            ],
+          },
+        },
+      });
+    }
+    where.OR = baseOr;
   }
   return where;
 }
 
-export async function getAllProducts(searchQuery?: string): Promise<ProductDto[]> {
+export async function getAllProducts(
+  searchQuery?: string,
+  lang: StorefrontLang = "en",
+): Promise<ProductDto[]> {
   if (isFaultEnabled("productListing_latency")) {
     const settings = getFaultSettings("productListing_latency");
     const latency = settings?.latencyMs ?? 1000;
     await new Promise((resolve) => setTimeout(resolve, latency));
   }
 
-  const where = productListingWhere(searchQuery);
+  const where = productListingWhere(searchQuery, lang);
 
   const products = await prisma.product.findMany({
     where,
@@ -137,6 +162,41 @@ export async function createProduct(data: {
     },
     include: { currency: true },
   }).then(mapProductToDto);
+}
+
+export async function getProductTranslationsForAdmin(
+  productId: number,
+): Promise<ProductTranslationDto[]> {
+  const rows = await prisma.productTranslation.findMany({
+    where: { productId },
+    select: { locale: true, name: true, description: true },
+    orderBy: { locale: "asc" },
+  });
+  return rows;
+}
+
+export async function upsertProductTranslation(
+  productId: number,
+  locale: string,
+  data: { name: string; description: string },
+): Promise<ProductTranslationDto> {
+  const row = await prisma.productTranslation.upsert({
+    where: {
+      product_locale_unique: { productId, locale },
+    },
+    update: {
+      name: data.name,
+      description: data.description,
+    },
+    create: {
+      productId,
+      locale,
+      name: data.name,
+      description: data.description,
+    },
+    select: { locale: true, name: true, description: true },
+  });
+  return row;
 }
 
 /** Removes cart/order line references so the product row can be deleted (no CASCADE on Product in schema). */

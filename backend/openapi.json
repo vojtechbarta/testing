@@ -99,6 +99,41 @@
           "price"
         ]
       },
+      "ProductTranslation": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "example": "cs"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "locale",
+          "name",
+          "description"
+        ]
+      },
+      "ProductTranslationInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ]
+      },
       "StorefrontCatalogResponse": {
         "type": "object",
         "properties": {
@@ -655,6 +690,98 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/products/{id}/translations": {
+      "get": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "List product translations by locale.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Translation list for the product.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProductTranslation"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/products/{id}/translations/{locale}": {
+      "put": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Upsert product translation for one locale.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "locale",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "cs"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductTranslationInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Product translation saved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductTranslation"
                 }
               }
             }

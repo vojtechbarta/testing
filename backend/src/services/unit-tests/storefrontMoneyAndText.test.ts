@@ -57,13 +57,19 @@ describe("storefrontMoney and storefrontProductText", () => {
   });
 
   it("returns Czech copy for known ids and fallback db text otherwise", () => {
-    const knownName = storefrontProductName(1, "Wireless Mouse M200", "cs");
-    const knownDesc = storefrontProductDescription(1, "default", "cs");
+    const knownName = storefrontProductName(1, "Wireless Mouse M200", "cs", []);
+    const knownDesc = storefrontProductDescription(1, "default", "cs", []);
     expect(knownName).not.toBe("Wireless Mouse M200");
     expect(knownDesc).not.toBe("default");
-    expect(storefrontProductName(999, "FallbackName", "cs")).toBe("FallbackName");
-    expect(storefrontProductDescription(999, "FallbackDesc", "cs")).toBe("FallbackDesc");
-    expect(storefrontProductName(1, "EnglishName", "en")).toBe("EnglishName");
-    expect(storefrontProductDescription(1, "EnglishDesc", "en")).toBe("EnglishDesc");
+    expect(storefrontProductName(999, "FallbackName", "cs", [])).toBe("FallbackName");
+    expect(storefrontProductDescription(999, "FallbackDesc", "cs", [])).toBe("FallbackDesc");
+    expect(storefrontProductName(1, "EnglishName", "en", [])).toBe("EnglishName");
+    expect(storefrontProductDescription(1, "EnglishDesc", "en", [])).toBe("EnglishDesc");
+  });
+
+  it("prefers db translations over hardcoded fallback maps", () => {
+    const dbRows = [{ locale: "cs", name: "Databaze Nazev", description: "Databaze Popis" }];
+    expect(storefrontProductName(1, "Wireless Mouse M200", "cs", dbRows)).toBe("Databaze Nazev");
+    expect(storefrontProductDescription(1, "default", "cs", dbRows)).toBe("Databaze Popis");
   });
 });

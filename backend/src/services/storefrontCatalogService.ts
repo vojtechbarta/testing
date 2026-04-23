@@ -35,16 +35,19 @@ function parseOptionalPriceParam(raw: unknown): number | undefined {
 }
 
 function toStorefrontRow(
-  p: Parameters<typeof mapProductToDto>[0],
+  p: Parameters<typeof mapProductToDto>[0] & {
+    translations?: Array<{ locale: string; name: string; description: string }>;
+  },
   lang: StorefrontLang,
   eurPerCzk: number | null,
 ): ProductDto {
   const base = mapProductToDto(p);
-  const name = storefrontProductName(base.id, base.name, lang);
+  const name = storefrontProductName(base.id, base.name, lang, p.translations);
   const description = storefrontProductDescription(
     base.id,
     base.description,
     lang,
+    p.translations,
   );
   const price = toStorefrontMoney(
     base.price.amount,
@@ -89,11 +92,11 @@ export async function getStorefrontCatalog(params: {
     await new Promise((resolve) => setTimeout(resolve, latency));
   }
 
-  const where = productListingWhere(params.searchQuery);
+  const where = productListingWhere(params.searchQuery, params.lang);
 
   const rows = await prisma.product.findMany({
     where,
-    include: { currency: true },
+    include: { currency: true, translations: true },
   });
 
   const eurPerCzk = await loadEurPerCzkRate();

@@ -30,4 +30,25 @@ describe("productListingWhere (storefront search / filter shape)", () => {
       ],
     });
   });
+
+  it("adds Czech translation search branch for cs storefront", () => {
+    expect(productListingWhere("mys", "cs")).toEqual({
+      active: true,
+      OR: [
+        { name: { contains: "mys" } },
+        { description: { contains: "mys" } },
+        {
+          translations: {
+            some: {
+              locale: "cs",
+              OR: [
+                { name: { contains: "mys" } },
+                { description: { contains: "mys" } },
+              ],
+            },
+          },
+        },
+      ],
+    });
+  });
 });

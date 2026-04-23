@@ -34,4 +34,35 @@ test.describe("Admin — products", () => {
       }
     }
   });
+
+  test("can save and reload Czech translations in modal", async ({
+    page,
+    request,
+  }) => {
+    const admin = new AdminPage(page);
+    let createdId: number | undefined;
+    const translationName = `Preklad nazev ${Date.now()}`;
+    const translationDescription = `Preklad popis ${Date.now()}`;
+
+    try {
+      await admin.goto();
+      await admin.openAdminLogin();
+      await admin.signIn();
+
+      createdId = await admin.clickAddNewProduct();
+      await admin.openCzechTranslationsByProductId(createdId);
+      await admin.saveCzechTranslations(translationName, translationDescription);
+      await admin.expectCzechTranslationValues(translationName, translationDescription);
+      await admin.closeTranslationsModal();
+
+      await admin.openCzechTranslationsByProductId(createdId);
+      await admin.expectCzechTranslationValues(translationName, translationDescription);
+      await admin.closeTranslationsModal();
+    } finally {
+      if (createdId !== undefined) {
+        const token = await loginAsAdmin(request);
+        await deleteAdminProduct(request, token, createdId);
+      }
+    }
+  });
 });

@@ -48,7 +48,13 @@
     "sortDescription": "Description",
     "sortPrice": "Price (EUR)",
     "sortStock": "Stock",
-    "sortActive": "Active"
+    "sortActive": "Active",
+    "translations": "Translations",
+    "editCs": "Edit CS",
+    "translationsForProduct": "Czech translations for product #{{productId}}",
+    "translationNameCs": "Czech name",
+    "translationDescriptionCs": "Czech description",
+    "translationCloseAria": "Close translations editor"
   },
   "faults": {
     "title": "Fault injection",
@@ -187,7 +193,9 @@
     "loginFailed": "Login failed",
     "productSaveFailed": "Product save failed",
     "productCreationFailed": "Product creation failed",
-    "faultSaveFailed": "Fault save failed"
+    "faultSaveFailed": "Fault save failed",
+    "translationLoadFailed": "Failed to load product translation",
+    "translationSaveFailed": "Failed to save product translation"
   },
   "products": {
     "byId": {

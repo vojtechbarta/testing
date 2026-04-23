@@ -20,8 +20,11 @@ import {
   adminLogin,
   createAdminProduct,
   getAdminProducts,
+  getAdminProductTranslations,
+  saveAdminProductTranslation,
   updateAdminProduct,
   type AdminProduct,
+  type ProductTranslation,
 } from "./api/admin";
 import {
   getAdminFaults,
@@ -58,6 +61,12 @@ const FAILURE_RATE_SUPPORTED_KEYS = new Set<string>([
 type ViewMode = "shop" | "admin" | "bugs";
 
 type CheckoutStep = "buyer" | "payment" | "bankResult" | "gatewayPay";
+type EditableTranslation = {
+  productId: number;
+  locale: string;
+  name: string;
+  description: string;
+};
 
 const emptyBuyer: BuyerFormPayload = {
   customerEmail: "",
@@ -126,6 +135,9 @@ function App() {
     localStorage.getItem("adminRole"),
   );
   const [adminFaults, setAdminFaults] = useState<AdminFault[]>([]);
+  const [editingTranslation, setEditingTranslation] =
+    useState<EditableTranslation | null>(null);
+  const [translationModalBusy, setTranslationModalBusy] = useState(false);
   const [faultsSaving, setFaultsSaving] = useState(false);
   const [faultLevelFilter, setFaultLevelFilter] = useState<
     "ALL" | "UI" | "API" | "Unit"
@@ -845,6 +857,7 @@ function App() {
     localStorage.removeItem("adminRole");
     setAdminProducts([]);
     setAdminFaults([]);
+    setEditingTranslation(null);
     setViewMode("shop");
   };
 
@@ -976,6 +989,74 @@ function App() {
       setAdminError(
         err instanceof Error ? err.message : t("errors.productCreationFailed"),
       );
+    }
+  };
+
+  const handleOpenTranslationModal = async (productId: number) => {
+    if (!adminToken) return;
+    try {
+      setAdminError(null);
+      setTranslationModalBusy(true);
+      const translations = await getAdminProductTranslations(adminToken, productId);
+      const cs = translations.find((row) => row.locale === "cs");
+      setEditingTranslation({
+        productId,
+        locale: "cs",
+        name: cs?.name ?? "",
+        description: cs?.description ?? "",
+      });
+    } catch (err) {
+      setAdminError(
+        err instanceof Error ? err.message : t("errors.translationLoadFailed"),
+      );
+    } finally {
+      setTranslationModalBusy(false);
+    }
+  };
+
+  const handleTranslationFieldChange = (
+    field: keyof Omit<ProductTranslation, "locale">,
+    value: string,
+  ) => {
+    setEditingTranslation((prev) =>
+      prev
+        ? {
+            ...prev,
+            [field]: value,
+          }
+        : prev,
+    );
+  };
+
+  const handleSaveTranslation = async () => {
+    if (!adminToken || !editingTranslation) return;
+    try {
+      setAdminError(null);
+      setTranslationModalBusy(true);
+      const saved = await saveAdminProductTranslation(
+        adminToken,
+        editingTranslation.productId,
+        editingTranslation.locale,
+        {
+          name: editingTranslation.name,
+          description: editingTranslation.description,
+        },
+      );
+      setEditingTranslation((prev) =>
+        prev
+          ? {
+              ...prev,
+              name: saved.name,
+              description: saved.description,
+            }
+          : prev,
+      );
+    } catch (err) {
+      setAdminError(
+        err instanceof Error ? err.message : t("errors.translationSaveFailed"),
+      );
+    } finally {
+      setTranslationModalBusy(false);
     }
   };
 
@@ -1293,6 +1374,7 @@ function App() {
                           {t("admin.sortActive")} {getSortArrow("active")}
                         </button>
                       </th>
+                      <th>{t("admin.translations")}</th>
                       <th />
                     </tr>
                   </thead>
@@ -1363,6 +1445,16 @@ function App() {
                               )
                             }
                           />
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn-table"
+                            data-testid={`admin-open-translations-${p.id}`}
+                            onClick={() => void handleOpenTranslationModal(p.id)}
+                          >
+                            {t("admin.editCs")}
+                          </button>
                         </td>
                         <td>
                           <button
@@ -2030,6 +2122,76 @@ function App() {
         </section>
       )}
       </main>
+
+      {editingTranslation && (
+        <div
+          className="checkout-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="translation-modal-title"
+          data-testid="admin-translation-modal"
+        >
+          <div className="checkout-modal translation-modal">
+            <button
+              type="button"
+              className="checkout-close"
+              aria-label={t("admin.translationCloseAria")}
+              onClick={() => setEditingTranslation(null)}
+            >
+              ×
+            </button>
+            <h2 id="translation-modal-title" className="checkout-title">
+              {t("admin.translationsForProduct", {
+                productId: editingTranslation.productId,
+              })}
+            </h2>
+            <div className="checkout-form-stack">
+              <label htmlFor="translation-cs-name">
+                {t("admin.translationNameCs")}
+                <input
+                  id="translation-cs-name"
+                  data-testid="admin-translation-cs-name"
+                  value={editingTranslation.name}
+                  onChange={(e) =>
+                    handleTranslationFieldChange("name", e.target.value)
+                  }
+                />
+              </label>
+              <label htmlFor="translation-cs-description">
+                {t("admin.translationDescriptionCs")}
+                <textarea
+                  id="translation-cs-description"
+                  rows={4}
+                  data-testid="admin-translation-cs-description"
+                  value={editingTranslation.description}
+                  onChange={(e) =>
+                    handleTranslationFieldChange("description", e.target.value)
+                  }
+                />
+              </label>
+              <div className="checkout-actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost-dark"
+                  onClick={() => setEditingTranslation(null)}
+                  disabled={translationModalBusy}
+                >
+                  {t("checkout.cancel")}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  data-testid="admin-translation-save"
+                  onClick={() => void handleSaveTranslation()}
+                  disabled={translationModalBusy}
+                >
+                  {translationModalBusy ? t("faults.saving") : t("admin.save")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {checkoutOpen && (
         <div

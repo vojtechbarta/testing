@@ -324,4 +324,63 @@ describe("Internal API - products", () => {
     await request(app).delete(`/admin/products/${id}`).set("Authorization", `Bearer ${token}`).expect(204);
     await request(app).delete(`/admin/products/${id}`).set("Authorization", `Bearer ${token}`).expect(404);
   });
+
+  it("PUT/GET /admin/products/:id/translations persists Czech product text", async () => {
+    const token = await loginAsAdmin();
+    const uniqueName = `Integration API Product translation ${Date.now()}`;
+    const createRes = await request(app)
+      .post("/admin/products")
+      .set("Content-Type", "application/json")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: uniqueName,
+        description: "translation target",
+        price: { amount: 33, currencyCode: "EUR" },
+        inStock: 4,
+        active: true,
+      })
+      .expect(201);
+
+    const id = (createRes.body as { id: number }).id;
+
+    await request(app)
+      .put(`/admin/products/${id}/translations/cs`)
+      .set("Content-Type", "application/json")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Preklad Nazev",
+        description: "Preklad Popis",
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toMatchObject({
+          locale: "cs",
+          name: "Preklad Nazev",
+          description: "Preklad Popis",
+        });
+      });
+
+    await request(app)
+      .get(`/admin/products/${id}/translations`)
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              locale: "cs",
+              name: "Preklad Nazev",
+              description: "Preklad Popis",
+            }),
+          ]),
+        );
+      });
+
+    const csSearch = await request(app)
+      .get("/products")
+      .query({ lang: "cs", q: "Preklad Nazev" })
+      .expect(200);
+    const csProducts = (csSearch.body as { products: { id: number }[] }).products;
+    expect(csProducts.some((p) => p.id === id)).toBe(true);
+  });
 });

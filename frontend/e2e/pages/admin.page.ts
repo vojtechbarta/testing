@@ -90,4 +90,35 @@ export class AdminPage {
   async expectRowName(row: Locator, name: string): Promise<void> {
     await expect(row.getByRole("textbox").first()).toHaveValue(name);
   }
+
+  async openCzechTranslationsByProductId(productId: number): Promise<void> {
+    await this.page.getByTestId(`admin-open-translations-${productId}`).click();
+    await expect(this.page.getByTestId("admin-translation-modal")).toBeVisible();
+  }
+
+  async saveCzechTranslations(name: string, description: string): Promise<void> {
+    await this.page.getByTestId("admin-translation-cs-name").fill(name);
+    await this.page.getByTestId("admin-translation-cs-description").fill(description);
+    await Promise.all([
+      this.page.waitForResponse(
+        (res) =>
+          /\/admin\/products\/\d+\/translations\/cs$/.test(new URL(res.url()).pathname) &&
+          res.request().method() === "PUT" &&
+          res.ok(),
+      ),
+      this.page.getByTestId("admin-translation-save").click(),
+    ]);
+  }
+
+  async expectCzechTranslationValues(name: string, description: string): Promise<void> {
+    await expect(this.page.getByTestId("admin-translation-cs-name")).toHaveValue(name);
+    await expect(this.page.getByTestId("admin-translation-cs-description")).toHaveValue(
+      description,
+    );
+  }
+
+  async closeTranslationsModal(): Promise<void> {
+    await this.page.getByRole("button", { name: "Cancel" }).click();
+    await expect(this.page.getByTestId("admin-translation-modal")).toHaveCount(0);
+  }
 }

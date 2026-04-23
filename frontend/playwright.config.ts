@@ -52,7 +52,8 @@ export default defineConfig({
         webServer: {
           command: "npm run dev:e2e",
           url: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:5173",
-          reuseExistingServer: !process.env.CI,
+          // Always start fresh to avoid stale backend/frontend processes serving old code.
+          reuseExistingServer: false,
           timeout: 180_000,
         },
       }),

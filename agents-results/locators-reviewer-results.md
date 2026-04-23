@@ -54,3 +54,32 @@ Append dated sections here after each Playwright locator review (see `.cursor/sk
 
 - **Stable** — Uses existing `data-testid` hooks: `cart-promo-input`, `cart-promo-apply`, `cart-promo-clear`, `cart-discount-amount`.
 - **Low risk** — Quantity bump uses `cart-line-${id}` plus `.cart-qty-btn` **first()** (+ before − in markup). Documented in page object; if button order swaps, adjust to `nth(0)` semantics or add `data-testid` on +/− controls.
+
+## 2026-04-23 — Admin translations modal (`admin.page.ts`, `admin.spec.ts`, `App.tsx`)
+
+**Files touched:** `frontend/e2e/pages/admin.page.ts`, `frontend/e2e/tests/admin.spec.ts`, `frontend/src/App.tsx`
+
+**Findings:**
+
+- **Fixed locator** — Added explicit row action hooks in UI: `data-testid="admin-open-translations-${id}"` and modal hooks (`admin-translation-modal`, `admin-translation-cs-name`, `admin-translation-cs-description`, `admin-translation-save`) to avoid brittle table-cell index selectors.
+- **Stable** — Page object now prefers these test ids over structural CSS chains; resilient to column reorder and text localization.
+- **Low risk** — Modal close in page object currently uses role/name `"Cancel"`; stable for EN E2E default, but if future locale-dependent E2E is added, consider adding dedicated close test id to remove language coupling.
+
+## 2026-04-23 — Checkout test hardening (`checkout-errors.spec.ts`, `checkout.spec.ts`)
+
+**Files touched:** `frontend/e2e/tests/checkout-errors.spec.ts`, `frontend/e2e/tests/checkout.spec.ts`
+
+**Findings:**
+
+- **Fixed locator usage** — Removed brittle retry loop with short click timeout around `Increase quantity`; now uses stable row-scoped locator + deterministic quantity assertion (`.cart-qty-label`) per click.
+- **Stable** — Retained role-based locator `getByRole("button", { name: "Increase quantity" })` scoped to cart line, which is resilient and readable.
+- **Fixed wait robustness** — Increased bank-transfer result visibility timeout for `Dummy transfer details` to account for legitimate backend response variance during checkout processing.
+
+## 2026-04-23 — Checkout stock-ceiling concurrency hardening (`checkout-errors.spec.ts`)
+
+**Files touched:** `frontend/e2e/tests/checkout-errors.spec.ts`
+
+**Findings:**
+
+- **Fixed assertion stability** — Removed hardcoded assumption that stock ceiling is always 10; test now derives the active stock ceiling from UI (`.cart-qty-stock`) and asserts final quantity equals displayed stock when `Increase quantity` becomes disabled.
+- **Stable** — Kept locator scope anchored to `cart-line-${id}` + role-based button lookup to avoid brittle global selectors.

@@ -995,6 +995,14 @@
   border-radius: 4px;
 }
 
+.checkout-form-stack textarea {
+  font: inherit;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  resize: vertical;
+}
+
 .checkout-form-stack .input-invalid {
   border-color: #dc2626;
 }
@@ -1214,4 +1222,8 @@
 .checkout-dl dd {
   margin: 0;
   text-align: right;
+}
+
+.translation-modal {
+  max-width: 640px;
 }

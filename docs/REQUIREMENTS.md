@@ -1,6 +1,6 @@
 # Functional Requirements Matrix
 
-Last synced: 2026-04-23 (commit `e8a47e5`)
+Last synced: 2026-04-23 (commit `1a5854f`)
 Scope: As-is functionality only (implemented behavior in current codebase)
 
 ## Purpose
@@ -315,6 +315,7 @@ Business goal: Administrator can manage product catalog data securely.
 Epic acceptance criteria:
 - Admin login grants access to admin-only product management.
 - Admin can create and update products in the UI.
+- Admin can maintain Czech product copy without widening the main product table.
 - Session can be terminated through logout.
 
 ### US-03-01 Log in as administrator
@@ -378,7 +379,20 @@ Acceptance criteria:
 - `AC-US-03-05-2`: UI leaves admin-only view after logout.
 - `AC-US-03-05-3`: Invalid/expired token flow clears stored credentials and prompts re-login.
 
-Source: `backend/src/routes/auth.ts`, `backend/src/routes/adminProducts.ts`, `backend/src/middleware/adminAuth.ts`, `backend/prisma/seed.ts`, `frontend/src/App.tsx`, `frontend/src/api/admin.ts`
+### US-03-06 Manage Czech product translations in focused modal
+Persona: Administrator
+
+Business details:
+- Admin product table stays compact and focused on canonical catalog fields.
+- Language-specific product copy is edited in a dedicated translation modal per product row.
+
+Acceptance criteria:
+- `AC-US-03-06-1`: Admin can open per-product translations modal from the product table.
+- `AC-US-03-06-2`: Modal supports editing Czech product name and Czech product description.
+- `AC-US-03-06-3`: Save upserts Czech translation and stored value is returned when modal is reopened.
+- `AC-US-03-06-4`: Storefront language `cs` uses saved Czech translation when available, with fallback to canonical product text when translation is missing.
+
+Source: `backend/src/routes/auth.ts`, `backend/src/routes/adminProducts.ts`, `backend/src/middleware/adminAuth.ts`, `backend/src/services/productService.ts`, `backend/src/services/storefrontCatalogService.ts`, `backend/src/shop/storefrontProductText.ts`, `backend/prisma/schema.prisma`, `backend/prisma/seed.ts`, `frontend/src/App.tsx`, `frontend/src/api/admin.ts`
 
 ## EP-04 Fault Injection (Tester Playground)
 

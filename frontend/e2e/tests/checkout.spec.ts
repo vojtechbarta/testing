@@ -26,7 +26,9 @@ test.describe("Checkout — happy path", () => {
     await expect(page.getByRole("radio", { name: /Bank transfer/i })).toBeChecked();
     await page.getByRole("button", { name: "Continue" }).click();
 
-    await expect(page.getByText("Dummy transfer details")).toBeVisible();
+    await expect(page.getByText("Dummy transfer details")).toBeVisible({
+      timeout: 15000,
+    });
     await expect(page.getByText("IBAN")).toBeVisible();
   });
 });

@@ -1,5 +1,6 @@
 import { FaultLevel, PrismaClient, UserRole } from "@prisma/client";
 import bcrypt from "bcrypt";
+import { CZECH_PRODUCT_DESC_BY_ID, CZECH_PRODUCT_NAME_BY_ID } from "../src/shop/czechProductCopy";
 
 const prisma = new PrismaClient();
 
@@ -574,6 +575,24 @@ async function main() {
       data: { ...p, currencyId: eurRow.id },
     });
     console.log("Product:", product.name, "id=", product.id);
+  }
+
+  for (const p of productsData) {
+    const translatedName = CZECH_PRODUCT_NAME_BY_ID[p.id];
+    const translatedDescription = CZECH_PRODUCT_DESC_BY_ID[p.id];
+    if (!translatedName || !translatedDescription) {
+      continue;
+    }
+    await prisma.productTranslation.upsert({
+      where: { product_locale_unique: { productId: p.id, locale: "cs" } },
+      update: { name: translatedName, description: translatedDescription },
+      create: {
+        productId: p.id,
+        locale: "cs",
+        name: translatedName,
+        description: translatedDescription,
+      },
+    });
   }
 }
 

@@ -80,6 +80,23 @@ const options: OAS3Options = {
             "price",
           ],
         },
+        ProductTranslation: {
+          type: "object",
+          properties: {
+            locale: { type: "string", example: "cs" },
+            name: { type: "string" },
+            description: { type: "string" },
+          },
+          required: ["locale", "name", "description"],
+        },
+        ProductTranslationInput: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            description: { type: "string" },
+          },
+          required: ["name", "description"],
+        },
         StorefrontCatalogResponse: {
           type: "object",
           properties: {

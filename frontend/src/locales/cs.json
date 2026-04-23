@@ -48,7 +48,13 @@
     "sortDescription": "Popis",
     "sortPrice": "Cena (EUR)",
     "sortStock": "Sklad",
-    "sortActive": "Aktivní"
+    "sortActive": "Aktivní",
+    "translations": "Překlady",
+    "editCs": "Upravit CS",
+    "translationsForProduct": "České překlady pro produkt #{{productId}}",
+    "translationNameCs": "Český název",
+    "translationDescriptionCs": "Český popis",
+    "translationCloseAria": "Zavřít editor překladů"
   },
   "faults": {
     "title": "Injekce chyb",
@@ -187,7 +193,9 @@
     "loginFailed": "Přihlášení selhalo",
     "productSaveFailed": "Uložení produktu selhalo",
     "productCreationFailed": "Vytvoření produktu selhalo",
-    "faultSaveFailed": "Uložení chyb selhalo"
+    "faultSaveFailed": "Uložení chyb selhalo",
+    "translationLoadFailed": "Nepodařilo se načíst překlad produktu",
+    "translationSaveFailed": "Nepodařilo se uložit překlad produktu"
   },
   "products": {
     "byId": {

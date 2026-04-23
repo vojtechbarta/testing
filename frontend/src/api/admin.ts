@@ -21,6 +21,12 @@ export interface AdminLoginResponse {
   };
 }
 
+export interface ProductTranslation {
+  locale: string;
+  name: string;
+  description: string;
+}
+
 export async function adminLogin(
   username: string,
   password: string,
@@ -90,6 +96,48 @@ export async function createAdminProduct(
 
   if (!res.ok) {
     throw new Error(`Failed to create product (${res.status})`);
+  }
+
+  return res.json();
+}
+
+export async function getAdminProductTranslations(
+  token: string,
+  productId: number,
+): Promise<ProductTranslation[]> {
+  const res = await fetch(`${API_BASE_URL}/admin/products/${productId}/translations`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to load product translations (${res.status})`);
+  }
+
+  return res.json();
+}
+
+export async function saveAdminProductTranslation(
+  token: string,
+  productId: number,
+  locale: string,
+  data: { name: string; description: string },
+): Promise<ProductTranslation> {
+  const res = await fetch(
+    `${API_BASE_URL}/admin/products/${productId}/translations/${encodeURIComponent(locale)}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(`Failed to save product translation (${res.status})`);
   }
 
   return res.json();

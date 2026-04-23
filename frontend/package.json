@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:e2e": "concurrently --kill-others -n backend,frontend -c blue,green \"npm run dev --prefix ../backend\" \"wait-on http://127.0.0.1:4000/health && vite --host localhost --port 5173\"",
+    "dev:e2e": "concurrently --kill-others -n backend,frontend -c blue,green \"npm run dev --prefix ../backend\" \"wait-on http://127.0.0.1:4000/health && vite --host localhost --port 5173 --strictPort\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
