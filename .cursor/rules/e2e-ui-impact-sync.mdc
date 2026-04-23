@@ -1,0 +1,29 @@
+---
+description: Require E2E impact check after frontend UI changes
+globs: frontend/src/**
+alwaysApply: false
+---
+
+# Frontend UI -> E2E Impact Rule
+
+When changing UI-facing frontend code, always evaluate Playwright impact before finishing.
+
+## Trigger scope
+
+This applies to edits under `frontend/src/**` that affect:
+- visible labels/text or accessibility names
+- navigation flows, modal/dialog behavior, or form interactions
+- element attributes used by tests (`data-testid`, role/name semantics)
+
+## Required behavior
+
+- Explicitly state one of:
+  - `No E2E impact` with a short reason, or
+  - `E2E updated` with touched files under `frontend/e2e/tests/**` and/or `frontend/e2e/pages/**`.
+- If locators or test flows changed, run/update Playwright tests for the affected area.
+- After Playwright test/page updates, append findings to `agents-results/locators-reviewer-results.md`.
+
+## Do not
+
+- Do not ship UI behavior changes with silent E2E drift.
+- Do not rely on brittle selectors when stable test ids/role locators are available.

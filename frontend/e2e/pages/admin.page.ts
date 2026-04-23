@@ -110,6 +110,10 @@ export class AdminPage {
     ]);
   }
 
+  async expectTranslationsModalClosed(): Promise<void> {
+    await expect(this.page.getByTestId("admin-translation-modal")).toHaveCount(0);
+  }
+
   async expectCzechTranslationValues(name: string, description: string): Promise<void> {
     await expect(this.page.getByTestId("admin-translation-cs-name")).toHaveValue(name);
     await expect(this.page.getByTestId("admin-translation-cs-description")).toHaveValue(

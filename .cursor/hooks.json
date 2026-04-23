@@ -5,6 +5,10 @@
       {
         "command": ".cursor/hooks/readme-cs-sync-check.sh",
         "loop_limit": 1
+      },
+      {
+        "command": ".cursor/hooks/e2e-impact-check.sh",
+        "loop_limit": 1
       }
     ]
   }

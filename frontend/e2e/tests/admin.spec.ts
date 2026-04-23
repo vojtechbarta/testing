@@ -52,8 +52,7 @@ test.describe("Admin — products", () => {
       createdId = await admin.clickAddNewProduct();
       await admin.openCzechTranslationsByProductId(createdId);
       await admin.saveCzechTranslations(translationName, translationDescription);
-      await admin.expectCzechTranslationValues(translationName, translationDescription);
-      await admin.closeTranslationsModal();
+      await admin.expectTranslationsModalClosed();
 
       await admin.openCzechTranslationsByProductId(createdId);
       await admin.expectCzechTranslationValues(translationName, translationDescription);

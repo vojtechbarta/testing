@@ -1033,7 +1033,7 @@ function App() {
     try {
       setAdminError(null);
       setTranslationModalBusy(true);
-      const saved = await saveAdminProductTranslation(
+      await saveAdminProductTranslation(
         adminToken,
         editingTranslation.productId,
         editingTranslation.locale,
@@ -1042,15 +1042,7 @@ function App() {
           description: editingTranslation.description,
         },
       );
-      setEditingTranslation((prev) =>
-        prev
-          ? {
-              ...prev,
-              name: saved.name,
-              description: saved.description,
-            }
-          : prev,
-      );
+      setEditingTranslation(null);
     } catch (err) {
       setAdminError(
         err instanceof Error ? err.message : t("errors.translationSaveFailed"),
