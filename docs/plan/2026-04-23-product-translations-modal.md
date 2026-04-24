@@ -60,3 +60,9 @@ Today Czech storefront text is not editable in Admin: it comes from static maps 
 - `admin-api`: Add GET/PUT translation routes; OpenAPI + service helpers.
 - `admin-ui-modal`: Add per-row translations button/modal and UI copy.
 - `tests-docs`: Add backend tests + simple Playwright modal E2E + requirements sync.
+
+## As built
+
+- Delivered: `ProductTranslation` model and migration, admin translation routes, per-row **Edit CS** modal in `frontend/src/App.tsx`, and storefront name/description resolution via `storefrontProductText` (with tests and OpenAPI where applicable). See `git log` on `main` for the `feat(admin): … product translations` commits.
+- User-visible scope is reflected in `docs/REQUIREMENTS.md` for the same feature window.
+- No material deviations from the archived plan; Czech search beyond canonical text was left as a follow-up if product asks for it.

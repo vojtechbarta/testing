@@ -16,3 +16,10 @@ When you produce or finalize a **plan** for this workspace (Plan mode, CreatePla
 3. **Do not replace** Cursor’s working plan file under `~/.cursor/plans/`—this rule adds a **repository** snapshot for Git and humans.
 
 4. If the user explicitly declines archiving or the plan is trivial (one-line scope), skip the file write.
+
+5. **As built (optional, after implementation):** When a multi-step plan has been **implemented and merged** (or the user marks it done) and the archive in `docs/plan/` already exists, **append** a short section to that file—**do not** replace the original plan body, and do **not** touch `~/.cursor/plans/`.
+   - **Title:** `## As built` or `## Implementation summary` (one or the other, pick one and stay consistent in the file).
+   - **Length:** about **2–6 lines** or a few bullets—factual, minimal.
+   - **What to include:** what actually shipped, main **commit/PR** reference if you have it, 1–2 bullets on **notable deviations** from the plan or follow-ups, and pointers to `docs/REQUIREMENTS.md` or `docs/FAULTS.md` if those were updated for the same work.
+   - **When to skip:** trivial one-file fixes, the user declines, or the plan was already archived with no further implementation in this task.
+   - If you write the archive **in one go** at the end of a feature (instead of at plan-acceptance time), you may place the as-built block **at the end** in the same write.
