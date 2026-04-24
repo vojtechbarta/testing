@@ -23,3 +23,13 @@ When you produce or finalize a **plan** for this workspace (Plan mode, CreatePla
    - **What to include:** what actually shipped, main **commit/PR** reference if you have it, 1–2 bullets on **notable deviations** from the plan or follow-ups, and pointers to `docs/REQUIREMENTS.md` or `docs/FAULTS.md` if those were updated for the same work.
    - **When to skip:** trivial one-file fixes, the user declines, or the plan was already archived with no further implementation in this task.
    - If you write the archive **in one go** at the end of a feature (instead of at plan-acceptance time), you may place the as-built block **at the end** in the same write.
+
+## End-of-task checklist (required)
+
+Before sending your final “done” message for any multi-step task that had a plan:
+
+1. Confirm a matching archive file exists in `docs/plan/` for that plan.
+2. If implementation happened in the task, confirm the archive includes `## As built` (or `## Implementation summary`).
+3. If either check fails, update the archive **before** finalizing your response.
+
+Treat missing plan archive/as-built as an incomplete task, not optional polish.
