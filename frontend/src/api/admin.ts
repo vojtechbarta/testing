@@ -15,6 +15,10 @@ export interface AdminProduct {
   active: boolean;
 }
 
+export type AdminProductInput = Omit<AdminProduct, "id" | "category" | "categoryId"> & {
+  categoryId?: number;
+};
+
 export interface AdminLoginResponse {
   token: string;
   user: {
@@ -71,7 +75,7 @@ export async function getAdminProducts(token: string): Promise<AdminProduct[]> {
 export async function updateAdminProduct(
   token: string,
   id: number,
-  data: Omit<AdminProduct, "id" | "category">,
+  data: AdminProductInput,
 ): Promise<AdminProduct> {
   const res = await fetch(`${API_BASE_URL}/admin/products/${id}`, {
     method: "PUT",
@@ -91,7 +95,7 @@ export async function updateAdminProduct(
 
 export async function createAdminProduct(
   token: string,
-  data: Omit<AdminProduct, "id" | "category">,
+  data: AdminProductInput,
 ): Promise<AdminProduct> {
   const res = await fetch(`${API_BASE_URL}/admin/products`, {
     method: "POST",
