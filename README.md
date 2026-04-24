@@ -235,6 +235,13 @@ Two project skills automate test-pyramid coverage analysis and iterative test im
   - Generates latest pyramid coverage report (Unit / Integration/API / UI).
 - **Increase loop:** [`.cursor/skills/test-pyramid-coverage-increase/SKILL.md`](.cursor/skills/test-pyramid-coverage-increase/SKILL.md)
   - Proposes the next medium batch of tests (4-8), waits for explicit approval, then implementation can continue in the next loop iteration.
+- **Bug triage to GitHub Project:** [`.cursor/skills/triage-issue/SKILL.md`](.cursor/skills/triage-issue/SKILL.md)
+  - Investigates a bug, creates a GitHub issue with a TDD fix plan, adds it to `vojtechbarta/projects/1`, and sets `Status` to `To triage` (hard-fails if project placement fails).
+
+GitHub CLI prerequisites for triage skill:
+
+- `gh auth status` is authenticated for the target repo owner.
+- Token/session can read and update Projects v2 metadata/items/fields (`read:project`, `project` scopes).
 
 Canonical outputs in `agents-results/`:
 

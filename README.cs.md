@@ -235,6 +235,13 @@ Dvě projektové skills automatizují analýzu coverage podle test pyramidy a it
   - Vygeneruje aktuální report coverage pyramidy (Unit / Integration/API / UI).
 - **Increase loop:** [`.cursor/skills/test-pyramid-coverage-increase/SKILL.md`](.cursor/skills/test-pyramid-coverage-increase/SKILL.md)
   - Navrhne další střední dávku testů (4-8), počká na explicitní schválení, a pak může implementace pokračovat v další iteraci.
+- **Bug triage do GitHub Projectu:** [`.cursor/skills/triage-issue/SKILL.md`](.cursor/skills/triage-issue/SKILL.md)
+  - Provede analýzu bugu, vytvoří GitHub issue s TDD plánem opravy, přidá issue do `vojtechbarta/projects/1` a nastaví `Status` na `To triage` (při selhání zařazení do projektu workflow selže).
+
+Předpoklady GitHub CLI pro triage skill:
+
+- `gh auth status` je přihlášené pro vlastníka cílového repozitáře.
+- Token/session umí číst i upravovat metadata/položky/pole v Projects v2 (`read:project`, `project` scopes).
 
 Kanonické výstupy v `agents-results/`:
 

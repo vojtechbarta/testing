@@ -1,0 +1,31 @@
+---
+description: Use triage-issue skill for bug triage and issue filing with GitHub Projects
+alwaysApply: false
+---
+
+# Triage Issue Skill Activation Rule
+
+When user intent indicates bug investigation that should end with a tracked GitHub issue, use the `triage-issue` skill from `.cursor/skills/triage-issue/SKILL.md` before implementation.
+
+## Trigger signals
+
+Apply this rule when the user:
+
+- asks to triage a bug or investigate root cause
+- asks to create/file a GitHub issue from findings
+- asks for a TDD-based fix plan for a reported bug
+- asks to connect triage output to GitHub Project tracking
+
+## Expected behavior
+
+- Investigate first, then identify root cause.
+- Produce a concrete RED-GREEN TDD fix plan.
+- Create issue via `gh issue create` without unnecessary review pauses.
+- Add the created issue to GitHub Project `https://github.com/users/vojtechbarta/projects/1`.
+- Set project `Status` to `To triage`.
+- Treat project add/status failures as workflow failures and output remediation commands.
+
+## Non-goals
+
+- Do not use this skill for feature brainstorming without a concrete bug report.
+- Do not skip project tracking for issue triage workflows.
