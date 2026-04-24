@@ -93,3 +93,13 @@ Append dated sections here after each Playwright locator review (see `.cursor/sk
 - **Fixed locator stability** — Added dedicated category test ids in UI (`admin-category-select-${id}`, `admin-category-new-${id}`, `shop-category-filter-${name}`, `shop-category-breadcrumb-pick-${name}`, breadcrumb reset hook) to avoid brittle text/layout selectors.
 - **Stable** — New E2E assertions use these explicit hooks and row-scoped admin save action; resilient to table column reorder and localized visible labels.
 - **Low risk** — Category filter test ids currently derive from category names; safe for seed/admin-generated simple names, but if names later include special characters/spaces, a slugified hook format should be adopted.
+
+## 2026-04-24 — Breadcrumb clear regression fix (`shop.spec.ts`, `App.tsx`)
+
+**Files touched:** `frontend/e2e/tests/shop.spec.ts`, `frontend/src/App.tsx`
+
+**Findings:**
+
+- **Stable** — Breadcrumb clear interaction remains anchored to `data-testid="shop-breadcrumb-all-categories"` and category selection uses `shop-category-filter-*`; both are explicit app-owned hooks.
+- **Fixed behavior coverage** — Updated E2E assertion now validates that clicking `All categories` restores full catalog count, which matches user-visible behavior and guards this regression.
+- **Low risk** — Product count assertion still uses `.product-card` CSS class count; acceptable for catalog card presence checks, but adding a grid-level `data-testid` plus item test ids would further reduce coupling to class naming.

@@ -1289,6 +1289,7 @@ function App() {
               onClick={() => {
                 resetPriceFilterForCatalogScopeChange();
                 setBreadcrumbCategory(null);
+                setMultiCategoryFilter([]);
               }}
             >
               {shopLang === "cs" ? "Všechny kategorie" : "All categories"}

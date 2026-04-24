@@ -191,8 +191,6 @@ test.describe("Shop — catalog and cart", () => {
       .toBeLessThan(2);
 
     await page.getByTestId("shop-breadcrumb-all-categories").click();
-    await expect(page.locator(".product-card")).toHaveCount(2);
-    await page.getByTestId("shop-category-filter-audio").uncheck();
     await expect(page.locator(".product-card")).toHaveCount(15);
 
     await shop.goto();
