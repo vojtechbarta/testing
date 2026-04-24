@@ -67,6 +67,8 @@ const options: OAS3Options = {
             id: { type: "integer" },
             name: { type: "string" },
             description: { type: "string" },
+            categoryId: { type: "integer" },
+            category: { type: "string" },
             inStock: { type: "integer" },
             active: { type: "boolean" },
             price: { $ref: "#/components/schemas/Money" },
@@ -75,6 +77,8 @@ const options: OAS3Options = {
             "id",
             "name",
             "description",
+            "categoryId",
+            "category",
             "inStock",
             "active",
             "price",
@@ -104,6 +108,10 @@ const options: OAS3Options = {
               type: "array",
               items: { $ref: "#/components/schemas/Product" },
             },
+            categoryOptions: {
+              type: "array",
+              items: { type: "string" },
+            },
             priceBounds: {
               type: "object",
               properties: {
@@ -114,7 +122,7 @@ const options: OAS3Options = {
               required: ["min", "max", "currencyCode"],
             },
           },
-          required: ["products", "priceBounds"],
+          required: ["products", "categoryOptions", "priceBounds"],
         },
         CartLine: {
           type: "object",

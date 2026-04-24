@@ -62,6 +62,8 @@ model Product {
   price       Int
   inStock     Int
   active      Boolean     @default(true)
+  categoryId  Int
+  category    Category    @relation(fields: [categoryId], references: [id])
   currencyId  Int?
   currency    Currency?   @relation(fields: [currencyId], references: [id])
   createdAt   DateTime    @default(now())
@@ -69,6 +71,14 @@ model Product {
   orderItems  OrderItem[]
   cartItems   CartItem[]
   translations ProductTranslation[]
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
 }
 
 model ProductTranslation {

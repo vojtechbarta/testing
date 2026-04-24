@@ -12,6 +12,8 @@ export type ProductDto = {
   id: number;
   name: string;
   description: string;
+  categoryId: number;
+  category: string;
   inStock: number;
   active: boolean;
   price: Money;
@@ -27,6 +29,8 @@ export function mapProductToDto(p: {
   id: number;
   name: string;
   description: string;
+  categoryId: number;
+  categoryName?: string;
   inStock: number;
   active: boolean;
   price: number;
@@ -36,6 +40,8 @@ export function mapProductToDto(p: {
     id: p.id,
     name: p.name,
     description: p.description,
+    categoryId: p.categoryId,
+    category: p.categoryName ?? "other",
     inStock: p.inStock,
     active: p.active,
     // Stored integer is display amount in product currency for this demo (not cents).
@@ -79,6 +85,8 @@ export function productListingWhere(
 export async function getAllProducts(
   searchQuery?: string,
   lang: StorefrontLang = "en",
+  category?: string,
+  categoryMulti?: string[],
 ): Promise<ProductDto[]> {
   if (isFaultEnabled("productListing_latency")) {
     const settings = getFaultSettings("productListing_latency");
@@ -87,13 +95,26 @@ export async function getAllProducts(
   }
 
   const where = productListingWhere(searchQuery, lang);
+  const categoryNames = [
+    ...(category?.trim() ? [category.trim()] : []),
+    ...(categoryMulti ?? []).map((c) => c.trim()).filter(Boolean),
+  ];
+  if (categoryNames.length > 0) {
+    const categoryIds = await resolveCategoryIdsByName(categoryNames);
+    if (categoryIds.length === 0) {
+      return [];
+    }
+    where.categoryId = { in: categoryIds };
+  }
 
   const products = await prisma.product.findMany({
     where,
     include: { currency: true },
   });
-
-  return products.map(mapProductToDto);
+  const categoryMap = await loadCategoryNameMap(products.map((p) => p.categoryId));
+  return products.map((product) =>
+    mapProductToDto({ ...product, categoryName: categoryMap.get(product.categoryId) ?? "other" }),
+  );
 }
 
 export async function getAllProductsForAdmin(): Promise<ProductDto[]> {
@@ -101,8 +122,10 @@ export async function getAllProductsForAdmin(): Promise<ProductDto[]> {
     orderBy: { id: "asc" },
     include: { currency: true },
   });
-
-  return products.map(mapProductToDto);
+  const categoryMap = await loadCategoryNameMap(products.map((p) => p.categoryId));
+  return products.map((product) =>
+    mapProductToDto({ ...product, categoryName: categoryMap.get(product.categoryId) ?? "other" }),
+  );
 }
 
 async function upsertProductCurrencyId(currencyCode?: string) {
@@ -115,6 +138,68 @@ async function upsertProductCurrencyId(currencyCode?: string) {
   return currency;
 }
 
+const DEFAULT_CATEGORY_NAME = "other";
+
+export async function getOrCreateCategory(data: {
+  categoryId?: number;
+  newCategoryName?: string;
+}): Promise<{ id: number; name: string }> {
+  const newCategoryName = data.newCategoryName?.trim();
+  if (newCategoryName) {
+    return prisma.category.upsert({
+      where: { name: newCategoryName },
+      update: {},
+      create: { name: newCategoryName },
+    });
+  }
+
+  if (data.categoryId !== undefined) {
+    const category = await prisma.category.findUnique({
+      where: { id: data.categoryId },
+    });
+    if (category) {
+      return category;
+    }
+  }
+
+  return prisma.category.upsert({
+    where: { name: DEFAULT_CATEGORY_NAME },
+    update: {},
+    create: { name: DEFAULT_CATEGORY_NAME },
+  });
+}
+
+export async function getAllCategoriesForAdmin(): Promise<Array<{ id: number; name: string }>> {
+  return prisma.category.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+}
+
+async function loadCategoryNameMap(categoryIds: number[]): Promise<Map<number, string>> {
+  const uniqueIds = [...new Set(categoryIds)];
+  if (uniqueIds.length === 0) {
+    return new Map();
+  }
+  const categories = await prisma.category.findMany({
+    where: { id: { in: uniqueIds } },
+    select: { id: true, name: true },
+  });
+  return new Map(categories.map((category) => [category.id, category.name]));
+}
+
+async function resolveCategoryIdsByName(categoryNames: string[]): Promise<number[]> {
+  const uniqueNames = [...new Set(categoryNames)];
+  if (uniqueNames.length === 0) {
+    return [];
+  }
+  const categories = await prisma.category.findMany({
+    where: { name: { in: uniqueNames } },
+    select: { id: true },
+  });
+  return categories.map((category) => category.id);
+}
+
 export async function updateProduct(
   id: number,
   data: {
@@ -123,11 +208,17 @@ export async function updateProduct(
     price: Money;
     inStock: number;
     active: boolean;
+    categoryId?: number;
+    newCategoryName?: string;
   },
 ) {
   const currency = await upsertProductCurrencyId(data.price.currencyCode);
+  const category = await getOrCreateCategory({
+    categoryId: data.categoryId,
+    newCategoryName: data.newCategoryName,
+  });
 
-  return prisma.product.update({
+  const updated = await prisma.product.update({
     where: { id },
     data: {
       name: data.name,
@@ -136,9 +227,17 @@ export async function updateProduct(
       active: data.active,
       price: Math.round(data.price.amount),
       currencyId: currency.id,
+      categoryId: category.id,
     },
     include: { currency: true },
-  }).then(mapProductToDto);
+  });
+  const resolvedCategory = await prisma.category.findUnique({
+    where: { id: updated.categoryId },
+  });
+  return mapProductToDto({
+    ...updated,
+    categoryName: resolvedCategory?.name ?? "other",
+  });
 }
 
 export async function createProduct(data: {
@@ -148,10 +247,16 @@ export async function createProduct(data: {
   inStock: number;
   active: boolean;
   currencyCode?: string;
+  categoryId?: number;
+  newCategoryName?: string;
 }) {
   const currency = await upsertProductCurrencyId(data.price.currencyCode);
+  const category = await getOrCreateCategory({
+    categoryId: data.categoryId,
+    newCategoryName: data.newCategoryName,
+  });
 
-  return prisma.product.create({
+  const created = await prisma.product.create({
     data: {
       name: data.name,
       description: data.description,
@@ -159,9 +264,17 @@ export async function createProduct(data: {
       active: data.active,
       price: Math.round(data.price.amount),
       currencyId: currency.id,
+      categoryId: category.id,
     },
     include: { currency: true },
-  }).then(mapProductToDto);
+  });
+  const resolvedCategory = await prisma.category.findUnique({
+    where: { id: created.categoryId },
+  });
+  return mapProductToDto({
+    ...created,
+    categoryName: resolvedCategory?.name ?? "other",
+  });
 }
 
 export async function getProductTranslationsForAdmin(

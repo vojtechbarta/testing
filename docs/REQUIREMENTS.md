@@ -1,6 +1,6 @@
 # Functional Requirements Matrix
 
-Last synced: 2026-04-23 (commit `1a5854f`)
+Last synced: 2026-04-24 (commit `uncommitted`)
 Scope: As-is functionality only (implemented behavior in current codebase)
 
 ## Purpose
@@ -103,6 +103,18 @@ Acceptance criteria:
 - `AC-US-01-04-1`: Shopper can set minimum and maximum price.
 - `AC-US-01-04-2`: System returns products within selected bounds.
 - `AC-US-01-04-3`: Initial filter limits come from the price range returned by the catalog API.
+
+### US-01-04A Filter products by category
+Persona: Shopper
+
+Business details:
+- Storefront supports category-based navigation and filtering.
+- Top breadcrumb uses a single selected category while a separate control supports multi-select filtering.
+
+Acceptance criteria:
+- `AC-US-01-04A-1`: Shopper can set a single breadcrumb category filter from storefront category options.
+- `AC-US-01-04A-2`: Shopper can select multiple categories in the dedicated multi-select filter control.
+- `AC-US-01-04A-3`: Catalog response includes category options and product category metadata used by the storefront filters.
 
 ### US-01-05 Switch language EN/CS
 Persona: Shopper
@@ -366,6 +378,8 @@ Acceptance criteria:
 - `AC-US-03-04-1`: Admin can create new product row with defaults.
 - `AC-US-03-04-2`: Created product is available in admin dataset after save.
 - `AC-US-03-04-3`: Created product can be further adjusted through inline edit/save.
+- `AC-US-03-04-4`: Product category is always assigned; when no explicit category is selected, default category is `other`.
+- `AC-US-03-04-5`: Admin can select an existing category or enter a new category inline while creating/updating a product.
 
 ### US-03-05 Log out of admin session
 Persona: Administrator

@@ -4,6 +4,8 @@ export interface Product {
   id: number;
   name: string;
   description: string;
+  categoryId: number;
+  category: string;
   price: {
     amount: number;
     currencyCode: string;
@@ -20,6 +22,7 @@ export type ShopSort =
 
 export type StorefrontCatalogResponse = {
   products: Product[];
+  categoryOptions: string[];
   priceBounds: { min: number; max: number; currencyCode: string };
 };
 
@@ -60,6 +63,9 @@ function normalizeCatalogResponse(raw: unknown): StorefrontCatalogResponse {
 
   return {
     products,
+    categoryOptions: Array.isArray(asRecord?.categoryOptions)
+      ? (asRecord.categoryOptions as string[])
+      : [],
     priceBounds: hasValidPriceBounds
       ? {
           min: pb.min as number,
@@ -77,6 +83,8 @@ export async function getStorefrontProducts(params: {
   sort: ShopSort;
   priceMin?: number;
   priceMax?: number;
+  category?: string;
+  categories?: string[];
 }): Promise<StorefrontCatalogResponse> {
   const sp = new URLSearchParams();
   sp.set("lang", params.lang);
@@ -89,6 +97,12 @@ export async function getStorefrontProducts(params: {
   }
   if (params.priceMax !== undefined) {
     sp.set("priceMax", String(params.priceMax));
+  }
+  if (params.category) {
+    sp.set("category", params.category);
+  }
+  if (params.categories && params.categories.length > 0) {
+    sp.set("categories", params.categories.join(","));
   }
   const raw = await apiGet<unknown>(`/products?${sp.toString()}`);
   return normalizeCatalogResponse(raw);

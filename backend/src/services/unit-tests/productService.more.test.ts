@@ -12,6 +12,11 @@ const { mockPrisma, mockIsFaultEnabled, mockGetFaultSettings } = vi.hoisted(() =
       findUnique: vi.fn(),
       create: vi.fn(),
     },
+    category: {
+      findUnique: vi.fn(),
+      upsert: vi.fn(),
+      findMany: vi.fn(),
+    },
     cartItem: {
       deleteMany: vi.fn(),
     },
@@ -36,8 +41,10 @@ vi.mock("../../faults/faultService", () => ({
 import {
   createProduct,
   deleteProduct,
+  getAllCategoriesForAdmin,
   getAllProducts,
   getAllProductsForAdmin,
+  getOrCreateCategory,
   mapProductToDto,
   updateProduct,
 } from "../productService";
@@ -47,6 +54,9 @@ describe("productService additional coverage", () => {
     vi.clearAllMocks();
     mockIsFaultEnabled.mockReturnValue(false);
     mockGetFaultSettings.mockReturnValue(undefined);
+    mockPrisma.category.upsert.mockResolvedValue({ id: 1, name: "other" });
+    mockPrisma.category.findUnique.mockResolvedValue({ id: 1, name: "other" });
+    mockPrisma.category.findMany.mockResolvedValue([{ id: 1, name: "other" }]);
   });
 
   it("mapProductToDto defaults currency to EUR when missing", () => {
@@ -54,12 +64,15 @@ describe("productService additional coverage", () => {
       id: 1,
       name: "N",
       description: "D",
+      categoryId: 1,
+      category: { name: "other" },
       inStock: 3,
       active: true,
       price: 42,
       currency: null,
     });
     expect(dto.price.currencyCode).toBe("EUR");
+    expect(dto.category).toBe("other");
   });
 
   it("getAllProducts maps rows and respects search query filter", async () => {
@@ -68,6 +81,8 @@ describe("productService additional coverage", () => {
         id: 2,
         name: "Wireless",
         description: "Mouse",
+        categoryId: 1,
+        category: { name: "other" },
         inStock: 4,
         active: true,
         price: 20,
@@ -102,6 +117,8 @@ describe("productService additional coverage", () => {
         id: 1,
         name: "A",
         description: "B",
+        categoryId: 1,
+        category: { name: "other" },
         inStock: 1,
         active: true,
         price: 100,
@@ -123,6 +140,8 @@ describe("productService additional coverage", () => {
       id: 9,
       name: "Prod",
       description: "Desc",
+      categoryId: 1,
+      category: { name: "other" },
       inStock: 2,
       active: true,
       price: 11,
@@ -152,6 +171,8 @@ describe("productService additional coverage", () => {
       id: 3,
       name: "Updated",
       description: "d",
+      categoryId: 1,
+      category: { name: "other" },
       inStock: 8,
       active: false,
       price: 16,
@@ -181,6 +202,8 @@ describe("productService additional coverage", () => {
       id: 10,
       name: "NoCode",
       description: "desc",
+      categoryId: 1,
+      category: { name: "other" },
       inStock: 1,
       active: true,
       price: 5,
@@ -211,5 +234,38 @@ describe("productService additional coverage", () => {
     await deleteProduct(77);
 
     expect(mockPrisma.$transaction).toHaveBeenCalledWith([t1, t2, t3]);
+  });
+
+  it("getOrCreateCategory falls back to default other category", async () => {
+    const category = await getOrCreateCategory({});
+    expect(mockPrisma.category.upsert).toHaveBeenCalledWith({
+      where: { name: "other" },
+      update: {},
+      create: { name: "other" },
+    });
+    expect(category).toEqual({ id: 1, name: "other" });
+  });
+
+  it("getOrCreateCategory upserts and returns trimmed new category name", async () => {
+    mockPrisma.category.upsert.mockResolvedValue({ id: 9, name: "audio" });
+
+    const category = await getOrCreateCategory({ newCategoryName: "  audio  " });
+
+    expect(mockPrisma.category.upsert).toHaveBeenCalledWith({
+      where: { name: "audio" },
+      update: {},
+      create: { name: "audio" },
+    });
+    expect(category).toEqual({ id: 9, name: "audio" });
+  });
+
+  it("getAllCategoriesForAdmin returns alphabetical list", async () => {
+    mockPrisma.category.findMany.mockResolvedValue([{ id: 1, name: "other" }]);
+    const categories = await getAllCategoriesForAdmin();
+    expect(mockPrisma.category.findMany).toHaveBeenCalledWith({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    });
+    expect(categories).toEqual([{ id: 1, name: "other" }]);
   });
 });

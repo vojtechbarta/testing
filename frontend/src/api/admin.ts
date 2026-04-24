@@ -4,6 +4,9 @@ export interface AdminProduct {
   id: number;
   name: string;
   description: string;
+  categoryId: number;
+  category: string;
+  newCategoryName?: string;
   price: {
     amount: number;
     currencyCode: string;
@@ -25,6 +28,11 @@ export interface ProductTranslation {
   locale: string;
   name: string;
   description: string;
+}
+
+export interface AdminCategory {
+  id: number;
+  name: string;
 }
 
 export async function adminLogin(
@@ -63,7 +71,7 @@ export async function getAdminProducts(token: string): Promise<AdminProduct[]> {
 export async function updateAdminProduct(
   token: string,
   id: number,
-  data: Omit<AdminProduct, "id">,
+  data: Omit<AdminProduct, "id" | "category">,
 ): Promise<AdminProduct> {
   const res = await fetch(`${API_BASE_URL}/admin/products/${id}`, {
     method: "PUT",
@@ -83,7 +91,7 @@ export async function updateAdminProduct(
 
 export async function createAdminProduct(
   token: string,
-  data: Omit<AdminProduct, "id">,
+  data: Omit<AdminProduct, "id" | "category">,
 ): Promise<AdminProduct> {
   const res = await fetch(`${API_BASE_URL}/admin/products`, {
     method: "POST",
@@ -96,6 +104,20 @@ export async function createAdminProduct(
 
   if (!res.ok) {
     throw new Error(`Failed to create product (${res.status})`);
+  }
+
+  return res.json();
+}
+
+export async function getAdminCategories(token: string): Promise<AdminCategory[]> {
+  const res = await fetch(`${API_BASE_URL}/admin/products/categories`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to load admin categories (${res.status})`);
   }
 
   return res.json();

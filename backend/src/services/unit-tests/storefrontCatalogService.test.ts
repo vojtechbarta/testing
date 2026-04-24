@@ -22,6 +22,22 @@ describe("storefrontCatalogService.parseStorefrontCatalogQuery", () => {
     });
   });
 
+  it("parses category and categories query params", () => {
+    const parsed = parseStorefrontCatalogQuery({
+      query: {
+        category: " office ",
+        categories: "office,audio",
+      },
+    });
+
+    expect(parsed).toEqual({
+      lang: "en",
+      sort: "name-asc",
+      category: "office",
+      categories: ["office", "audio"],
+    });
+  });
+
   it("falls back to defaults for invalid inputs", () => {
     const parsed = parseStorefrontCatalogQuery({
       query: {

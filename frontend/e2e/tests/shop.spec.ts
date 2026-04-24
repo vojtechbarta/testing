@@ -138,7 +138,7 @@ test.describe("Shop — catalog and cart", () => {
     const productsContent = await readFile(productsPath!, "utf-8");
     expect(productsContent).toContain("Wireless Mouse M200");
     expect(productsContent.split("\n")[0]).toContain(
-      "Name,Description,Price,In stock",
+      "Name,Description,Category,Price,In stock",
     );
 
     const mouse = SEED_PRODUCTS[0]!;
@@ -168,5 +168,35 @@ test.describe("Shop — catalog and cart", () => {
 
     const cartDownload = await shop.exportCartPdf();
     expect(cartDownload.suggestedFilename()).toMatch(/cart-export-.*\.pdf$/);
+  });
+
+  test("category breadcrumb and multi-select filter are applied", async ({ page }) => {
+    const shop = new ShopPage(page);
+    await shop.goto();
+    await shop.expectProductCount(15);
+
+    await page.getByTestId("shop-category-filter-audio").check();
+    await expect(page.locator(".product-card")).toHaveCount(2);
+
+    const minInput = page.locator(".shop-controls__price-input").first();
+    const maxInput = page.locator(".shop-controls__price-input").nth(1);
+    const minBoundValue = await minInput.inputValue();
+    await minInput.fill(minBoundValue);
+    await maxInput.fill(minBoundValue);
+    await expect
+      .poll(async () => page.locator(".product-card").count())
+      .toBeGreaterThan(0);
+    await expect
+      .poll(async () => page.locator(".product-card").count())
+      .toBeLessThan(2);
+
+    await page.getByTestId("shop-breadcrumb-all-categories").click();
+    await expect(page.locator(".product-card")).toHaveCount(2);
+    await page.getByTestId("shop-category-filter-audio").uncheck();
+    await expect(page.locator(".product-card")).toHaveCount(15);
+
+    await shop.goto();
+    await page.getByTestId("shop-category-breadcrumb-pick-video").click();
+    await expect(page.locator(".product-card")).toHaveCount(3);
   });
 });

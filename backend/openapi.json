@@ -80,6 +80,12 @@
           "description": {
             "type": "string"
           },
+          "categoryId": {
+            "type": "integer"
+          },
+          "category": {
+            "type": "string"
+          },
           "inStock": {
             "type": "integer"
           },
@@ -94,6 +100,8 @@
           "id",
           "name",
           "description",
+          "categoryId",
+          "category",
           "inStock",
           "active",
           "price"
@@ -143,6 +151,12 @@
               "$ref": "#/components/schemas/Product"
             }
           },
+          "categoryOptions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "priceBounds": {
             "type": "object",
             "properties": {
@@ -165,6 +179,7 @@
         },
         "required": [
           "products",
+          "categoryOptions",
           "priceBounds"
         ]
       },
@@ -1566,6 +1581,24 @@
             "schema": {
               "type": "number"
             }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Single breadcrumb category filter."
+          },
+          {
+            "in": "query",
+            "name": "categories",
+            "schema": {
+              "type": "string",
+              "example": "audio",
+              "office": null
+            },
+            "description": "Comma-separated multi-select category filter."
           }
         ],
         "responses": {

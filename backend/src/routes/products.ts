@@ -34,6 +34,14 @@ const router = Router();
  *       - in: query
  *         name: priceMax
  *         schema: { type: number }
+ *       - in: query
+ *         name: category
+ *         schema: { type: string }
+ *         description: Single breadcrumb category filter.
+ *       - in: query
+ *         name: categories
+ *         schema: { type: string, example: audio,office }
+ *         description: Comma-separated multi-select category filter.
  *     responses:
  *       200:
  *         description: Storefront catalog response.
@@ -43,7 +51,7 @@ const router = Router();
  */
 router.get("/", async (req, res, next) => {
   try {
-    const { q, lang, sort, priceMin, priceMax } = parseStorefrontCatalogQuery({
+    const { q, lang, sort, priceMin, priceMax, category, categories } = parseStorefrontCatalogQuery({
       query: req.query as Record<string, unknown>,
     });
     const payload = await getStorefrontCatalog({
@@ -52,6 +60,8 @@ router.get("/", async (req, res, next) => {
       sort,
       priceMin,
       priceMax,
+      category,
+      categories,
     });
     res.json(payload);
   } catch (err) {

@@ -457,11 +457,23 @@ async function main() {
 
   // Stable ids 1..N so E2E `data-testid="shop-add-to-cart-${id}"` matches after every seed.
   // (MySQL AUTO_INCREMENT does not reset on `deleteMany`, so implicit ids would drift.)
+  const categoryNames = ["audio", "furniture", "network", "other", "peripherals", "video"];
+  const categoriesByName = new Map<string, { id: number; name: string }>();
+  for (const categoryName of categoryNames) {
+    const category = await prisma.category.upsert({
+      where: { name: categoryName },
+      update: {},
+      create: { name: categoryName },
+    });
+    categoriesByName.set(categoryName, category);
+  }
+
   const productsData = [
     {
       id: 1,
       name: "Wireless Mouse M200",
       description: "Reliable wireless mouse for everyday office work.",
+      category: "peripherals",
       price: 17,
       inStock: 10,
     },
@@ -469,6 +481,7 @@ async function main() {
       id: 2,
       name: "Mechanical Keyboard K87",
       description: "Compact mechanical keyboard with tactile switches.",
+      category: "peripherals",
       price: 75,
       inStock: 10,
     },
@@ -476,6 +489,7 @@ async function main() {
       id: 3,
       name: "27in QHD Monitor",
       description: "Crisp 1440p monitor suitable for work and media.",
+      category: "video",
       price: 208,
       inStock: 10,
     },
@@ -483,6 +497,7 @@ async function main() {
       id: 4,
       name: "USB-C Docking Station",
       description: "Dock with HDMI, Ethernet, and USB ports for laptops.",
+      category: "other",
       price: 70,
       inStock: 10,
     },
@@ -490,6 +505,7 @@ async function main() {
       id: 5,
       name: "Noise Cancelling Headphones",
       description: "Over-ear headphones with active noise cancellation.",
+      category: "audio",
       price: 104,
       inStock: 10,
     },
@@ -497,6 +513,7 @@ async function main() {
       id: 6,
       name: "1080p Webcam",
       description: "Full HD webcam with built-in dual microphones.",
+      category: "video",
       price: 37,
       inStock: 10,
     },
@@ -504,6 +521,7 @@ async function main() {
       id: 7,
       name: "Gaming Mouse Pad XL",
       description: "Large desk mat with smooth tracking surface.",
+      category: "peripherals",
       price: 15,
       inStock: 10,
     },
@@ -511,6 +529,7 @@ async function main() {
       id: 8,
       name: "External SSD 1TB",
       description: "Portable high-speed SSD with USB 3.2 support.",
+      category: "other",
       price: 79,
       inStock: 10,
     },
@@ -518,6 +537,7 @@ async function main() {
       id: 9,
       name: "USB-C Charger 65W",
       description: "Fast GaN charger compatible with phones and laptops.",
+      category: "other",
       price: 29,
       inStock: 10,
     },
@@ -525,6 +545,7 @@ async function main() {
       id: 10,
       name: "Laptop Stand Aluminum",
       description: "Ergonomic stand improving airflow and posture.",
+      category: "other",
       price: 21,
       inStock: 10,
     },
@@ -532,6 +553,7 @@ async function main() {
       id: 11,
       name: "Bluetooth Speaker Mini",
       description: "Portable speaker with balanced sound and deep bass.",
+      category: "audio",
       price: 50,
       inStock: 10,
     },
@@ -539,6 +561,7 @@ async function main() {
       id: 12,
       name: "Smart LED Desk Lamp",
       description: "Dimmable desk lamp with adjustable color temperature.",
+      category: "other",
       price: 29,
       inStock: 10,
     },
@@ -546,6 +569,7 @@ async function main() {
       id: 13,
       name: "Office Chair Ergo",
       description: "Comfortable ergonomic chair with lumbar support.",
+      category: "furniture",
       price: 208,
       inStock: 10,
     },
@@ -553,6 +577,7 @@ async function main() {
       id: 14,
       name: "Full HD Projector",
       description: "Home and office projector with HDMI connectivity.",
+      category: "video",
       price: 500,
       inStock: 10,
     },
@@ -560,6 +585,7 @@ async function main() {
       id: 15,
       name: "Wi-Fi Router AX3000",
       description: "Dual-band router with stable high-speed performance.",
+      category: "network",
       price: 62,
       inStock: 10,
     },
@@ -569,10 +595,29 @@ async function main() {
   await prisma.order.deleteMany();
   await prisma.cartItem.deleteMany();
   await prisma.product.deleteMany();
+  await prisma.category.deleteMany();
+
+  for (const categoryName of categoryNames) {
+    const category = await prisma.category.upsert({
+      where: { name: categoryName },
+      update: {},
+      create: { name: categoryName },
+    });
+    categoriesByName.set(categoryName, category);
+  }
 
   for (const p of productsData) {
+    const category = categoriesByName.get(p.category) ?? categoriesByName.get("other");
     const product = await prisma.product.create({
-      data: { ...p, currencyId: eurRow.id },
+      data: {
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        price: p.price,
+        inStock: p.inStock,
+        currencyId: eurRow.id,
+        categoryId: category!.id,
+      },
     });
     console.log("Product:", product.name, "id=", product.id);
   }

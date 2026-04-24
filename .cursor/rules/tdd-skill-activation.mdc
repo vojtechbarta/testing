@@ -1,0 +1,29 @@
+---
+description: Use TDD skill for test-first feature and bug work
+alwaysApply: false
+---
+
+# TDD Skill Activation Rule
+
+When user intent indicates test-first implementation, use the `tdd` skill from `.cursor/skills/tdd/SKILL.md` before coding.
+
+## Trigger signals
+
+Apply this rule when the user:
+
+- explicitly asks for TDD, test-first development, or red-green-refactor
+- asks to add/fix a feature with behavior-first tests
+- requests higher confidence for bugfixes through automated tests
+- asks to implement behavior incrementally with one test at a time
+
+## Expected behavior
+
+- Follow vertical slices: one behavior test -> minimal implementation -> repeat.
+- Keep tests focused on public interfaces and observable outcomes.
+- Avoid implementation-detail assertions and unnecessary internal mocking.
+- Refactor only after GREEN and keep tests passing after each refactor step.
+
+## Non-goals
+
+- Do not force TDD when the task is documentation-only or purely exploratory.
+- Do not weaken baseline tests to fit injected-fault behavior.

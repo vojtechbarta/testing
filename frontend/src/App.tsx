@@ -19,10 +19,12 @@ import {
 import {
   adminLogin,
   createAdminProduct,
+  getAdminCategories,
   getAdminProducts,
   getAdminProductTranslations,
   saveAdminProductTranslation,
   updateAdminProduct,
+  type AdminCategory,
   type AdminProduct,
   type ProductTranslation,
 } from "./api/admin";
@@ -121,6 +123,7 @@ function App() {
     return storedRole && storedToken ? storedToken : null;
   });
   const [adminProducts, setAdminProducts] = useState<AdminProduct[]>([]);
+  const [adminCategories, setAdminCategories] = useState<AdminCategory[]>([]);
   const [adminError, setAdminError] = useState<string | null>(null);
   const [adminLoginError, setAdminLoginError] = useState<string | null>(null);
   const [adminSort, setAdminSort] = useState<{
@@ -162,6 +165,9 @@ function App() {
     min: number;
     max: number;
   } | null>(null);
+  const [shopCategoryOptions, setShopCategoryOptions] = useState<string[]>([]);
+  const [breadcrumbCategory, setBreadcrumbCategory] = useState<string | null>(null);
+  const [multiCategoryFilter, setMultiCategoryFilter] = useState<string[]>([]);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>("buyer");
   const [checkoutBusy, setCheckoutBusy] = useState(false);
@@ -262,6 +268,10 @@ function App() {
           q: submittedSearch || undefined,
           lang: shopLang,
           sort: shopSort,
+          ...(breadcrumbCategory ? { category: breadcrumbCategory } : {}),
+          ...(multiCategoryFilter.length > 0
+            ? { categories: multiCategoryFilter }
+            : {}),
           ...(!skipPrice && priceFilter !== null
             ? { priceMin: priceFilter.min, priceMax: priceFilter.max }
             : {}),
@@ -271,6 +281,7 @@ function App() {
         }
         setError(null);
         setProducts(res.products);
+        setShopCategoryOptions(res.categoryOptions);
         setCatalogPriceBounds(res.priceBounds);
         if (skipPrice) {
           setPriceFilter((prev) => {
@@ -297,7 +308,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [shopLang, shopSort, submittedSearch, priceFilter]);
+  }, [shopLang, shopSort, submittedSearch, priceFilter, breadcrumbCategory, multiCategoryFilter]);
 
   const uiDoubleAddFailureRate =
     activeUiFaultConfigs.find((f) => f.key === "cart_add_ui_double_call")
@@ -386,6 +397,11 @@ function App() {
     resetCatalogPriceFilterRef.current = true;
     setPriceFilter(null);
     setSubmittedSearch("");
+  };
+
+  const resetPriceFilterForCatalogScopeChange = () => {
+    resetCatalogPriceFilterRef.current = true;
+    setPriceFilter(null);
   };
 
   const priceFilterCoversFullCatalogRange =
@@ -496,6 +512,10 @@ function App() {
         q: submittedSearch || undefined,
         lang: shopLang,
         sort: shopSort,
+        ...(breadcrumbCategory ? { category: breadcrumbCategory } : {}),
+        ...(multiCategoryFilter.length > 0
+          ? { categories: multiCategoryFilter }
+          : {}),
         ...(priceFilter !== null
           ? { priceMin: priceFilter.min, priceMax: priceFilter.max }
           : {}),
@@ -503,11 +523,12 @@ function App() {
     ]);
     setCart(cartData);
     setProducts(catalogRes.products);
+    setShopCategoryOptions(catalogRes.categoryOptions);
     setCatalogPriceBounds(catalogRes.priceBounds);
     setPriceFilter((prev) =>
       mergePriceFilterFromBounds(prev, catalogRes.priceBounds),
     );
-  }, [shopLang, submittedSearch, shopSort, priceFilter]);
+  }, [shopLang, submittedSearch, shopSort, priceFilter, breadcrumbCategory, multiCategoryFilter]);
 
   const openCheckout = () => {
     setCheckoutOpen(true);
@@ -676,10 +697,11 @@ function App() {
       productsForExport = omitMiddleProductForExport(productsForExport);
     }
     const rows = buildProductsExportRows(productsForExport);
-    const headers = ["Name", "Description", "Price", "In stock"];
+    const headers = ["Name", "Description", "Category", "Price", "In stock"];
     const csvRows = rows.map((r) => [
       r.name,
       r.description,
+      r.category,
       r.price,
       r.inStock,
     ]);
@@ -721,10 +743,11 @@ function App() {
       sections: [
         {
           title: "Search results",
-          headers: ["Name", "Description", "Price", "In stock"],
+          headers: ["Name", "Description", "Category", "Price", "In stock"],
           rows: rows.map((row) => [
             row.name,
             row.description,
+            row.category,
             row.price,
             row.inStock,
           ]),
@@ -773,8 +796,12 @@ function App() {
       return;
     }
     try {
-      const productsData = await getAdminProducts(adminToken);
+      const [productsData, categoriesData] = await Promise.all([
+        getAdminProducts(adminToken),
+        getAdminCategories(adminToken),
+      ]);
       setAdminProducts(productsData);
+      setAdminCategories(categoriesData);
     } catch (err) {
       setAdminError(
         err instanceof Error ? err.message : t("errors.loadProductsFailed"),
@@ -798,6 +825,7 @@ function App() {
         setAdminRole(null);
         localStorage.removeItem("adminRole");
         setAdminProducts([]);
+        setAdminCategories([]);
         setAdminFaults([]);
         setAdminError(null);
         setAdminLoginError(t("errors.sessionExpired"));
@@ -842,7 +870,10 @@ function App() {
       localStorage.setItem("adminRole", res.user.role);
       const productsData =
         res.user.role === "ADMIN" ? await getAdminProducts(res.token) : [];
+      const categoriesData =
+        res.user.role === "ADMIN" ? await getAdminCategories(res.token) : [];
       setAdminProducts(productsData);
+      setAdminCategories(categoriesData);
     } catch (err) {
       setAdminLoginError(
         err instanceof Error ? err.message : t("errors.loginFailed"),
@@ -856,6 +887,7 @@ function App() {
     setAdminRole(null);
     localStorage.removeItem("adminRole");
     setAdminProducts([]);
+    setAdminCategories([]);
     setAdminFaults([]);
     setEditingTranslation(null);
     setViewMode("shop");
@@ -863,7 +895,7 @@ function App() {
 
   const handleAdminProductChange = (
     id: number,
-    field: keyof Omit<AdminProduct, "id">,
+    field: keyof Omit<AdminProduct, "id" | "category">,
     value: string | boolean,
   ) => {
     setAdminProducts((prev) =>
@@ -875,6 +907,8 @@ function App() {
                 ? { active: Boolean(value) }
                 : field === "inStock"
                   ? { inStock: Number(value) }
+                  : field === "categoryId"
+                    ? { categoryId: Number(value) }
                   : field === "price"
                     ? {
                         price: {
@@ -962,10 +996,14 @@ function App() {
         price: product.price,
         inStock: product.inStock,
         active: product.active,
+        categoryId: product.categoryId,
+        newCategoryName: product.newCategoryName,
       });
       setAdminProducts((prev) =>
         prev.map((p) => (p.id === updated.id ? updated : p)),
       );
+      const categories = await getAdminCategories(adminToken);
+      setAdminCategories(categories);
     } catch (err) {
       setAdminError(
         err instanceof Error ? err.message : t("errors.productSaveFailed"),
@@ -983,8 +1021,12 @@ function App() {
         price: { amount: 25, currencyCode: "EUR" },
         inStock: 0,
         active: false,
+        categoryId: undefined,
+        newCategoryName: undefined,
       });
       setAdminProducts((prev) => [...prev, created]);
+      const categories = await getAdminCategories(adminToken);
+      setAdminCategories(categories);
     } catch (err) {
       setAdminError(
         err instanceof Error ? err.message : t("errors.productCreationFailed"),
@@ -1238,7 +1280,33 @@ function App() {
 
       <div className="store-subnav">
         <div className="store-subnav-inner">
-          <span>{t("subnav.demo")}</span>
+          <span>
+            {t("subnav.demo")} /{" "}
+            <button
+              type="button"
+              className="sort-btn"
+              data-testid="shop-breadcrumb-all-categories"
+              onClick={() => {
+                resetPriceFilterForCatalogScopeChange();
+                setBreadcrumbCategory(null);
+              }}
+            >
+              {shopLang === "cs" ? "Všechny kategorie" : "All categories"}
+            </button>
+            {breadcrumbCategory ? (
+              <>
+                {" / "}
+                <button
+                  type="button"
+                  className="sort-btn"
+                  data-testid="shop-breadcrumb-selected-category"
+                  onClick={() => setBreadcrumbCategory(breadcrumbCategory)}
+                >
+                  {breadcrumbCategory}
+                </button>
+              </>
+            ) : null}
+          </span>
           {cart && cart.items.length > 0 && (
             <span className="muted" style={{ marginLeft: "auto" }}>
               {t("subnav.cartCount", {
@@ -1366,6 +1434,7 @@ function App() {
                           {t("admin.sortActive")} {getSortArrow("active")}
                         </button>
                       </th>
+                      <th>Category</th>
                       <th>{t("admin.translations")}</th>
                       <th />
                     </tr>
@@ -1434,6 +1503,37 @@ function App() {
                                 p.id,
                                 "active",
                                 e.target.checked,
+                              )
+                            }
+                          />
+                        </td>
+                        <td>
+                          <select
+                            data-testid={`admin-category-select-${p.id}`}
+                            value={p.categoryId}
+                            onChange={(e) =>
+                              handleAdminProductChange(
+                                p.id,
+                                "categoryId",
+                                e.target.value,
+                              )
+                            }
+                          >
+                            {adminCategories.map((category) => (
+                              <option key={category.id} value={category.id}>
+                                {category.name}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            data-testid={`admin-category-new-${p.id}`}
+                            placeholder="New category"
+                            value={p.newCategoryName ?? ""}
+                            onChange={(e) =>
+                              handleAdminProductChange(
+                                p.id,
+                                "newCategoryName",
+                                e.target.value,
                               )
                             }
                           />
@@ -1789,6 +1889,45 @@ function App() {
                   <option value="price-desc">{t("shop.sortPriceDesc")}</option>
                 </select>
               </label>
+              <div className="shop-controls__field">
+                <div>Categories</div>
+                {shopCategoryOptions.map((category) => (
+                  <label key={category} className="shop-controls__checkbox">
+                    <input
+                      type="checkbox"
+                      data-testid={`shop-category-filter-${category}`}
+                      checked={multiCategoryFilter.includes(category)}
+                      onChange={(e) =>
+                        {
+                          resetPriceFilterForCatalogScopeChange();
+                          setMultiCategoryFilter((prev) =>
+                            e.target.checked
+                              ? [...prev, category]
+                              : prev.filter((value) => value !== category),
+                          );
+                        }
+                      }
+                    />
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      data-testid={`shop-category-breadcrumb-pick-${category}`}
+                      onClick={() => {
+                        resetPriceFilterForCatalogScopeChange();
+                        setBreadcrumbCategory(category);
+                      }}
+                      onKeyDown={(evt) => {
+                        if (evt.key === "Enter") {
+                          resetPriceFilterForCatalogScopeChange();
+                          setBreadcrumbCategory(category);
+                        }
+                      }}
+                    >
+                      {category}
+                    </span>
+                  </label>
+                ))}
+              </div>
 
               <div className="shop-controls__price">
                 <span className="shop-controls__price-label">

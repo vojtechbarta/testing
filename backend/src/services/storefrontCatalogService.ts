@@ -12,6 +12,7 @@ import { mapProductToDto, productListingWhere, type ProductDto } from "./product
 
 export type StorefrontCatalogResponse = {
   products: ProductDto[];
+  categoryOptions: string[];
   priceBounds: { min: number; max: number; currencyCode: string };
 };
 
@@ -32,6 +33,21 @@ function parseOptionalPriceParam(raw: unknown): number | undefined {
   if (raw === undefined || raw === null || raw === "") return undefined;
   const n = Number(raw);
   return Number.isFinite(n) ? n : undefined;
+}
+
+function parseOptionalCategory(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+function parseOptionalCategories(raw: unknown): string[] | undefined {
+  if (typeof raw !== "string") return undefined;
+  const parsed = raw
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  return parsed.length > 0 ? [...new Set(parsed)] : undefined;
 }
 
 function toStorefrontRow(
@@ -69,6 +85,8 @@ export async function getStorefrontCatalog(params: {
   sort: ShopSort;
   priceMin?: number;
   priceMax?: number;
+  category?: string;
+  categories?: string[];
 }): Promise<StorefrontCatalogResponse> {
   if (await isFaultEnabled(FAULT_KEYS.apiProductsOddMinuteDelay)) {
     const now = new Date();
@@ -93,20 +111,60 @@ export async function getStorefrontCatalog(params: {
   }
 
   const where = productListingWhere(params.searchQuery, params.lang);
+  const parsedSingleCategory = params.category?.trim();
+  const parsedMultiCategories = params.categories
+    ?.map((c) => c.trim())
+    .filter((c) => c.length > 0);
+  const categoryNames = [
+    ...(parsedSingleCategory ? [parsedSingleCategory] : []),
+    ...(parsedMultiCategories ?? []),
+  ];
+  if (categoryNames.length > 0) {
+    const categories = await prisma.category.findMany({
+      where: { name: { in: [...new Set(categoryNames)] } },
+      select: { id: true },
+    });
+    const categoryIds = categories.map((category) => category.id);
+    if (categoryIds.length === 0) {
+      return {
+        products: [],
+        categoryOptions: [],
+        priceBounds: { min: 0, max: 0, currencyCode: params.lang === "cs" ? "CZK" : "EUR" },
+      };
+    }
+    where.categoryId = { in: categoryIds };
+  }
 
   const rows = await prisma.product.findMany({
     where,
     include: { currency: true, translations: true },
   });
+  const categoryIds = [...new Set(rows.map((row) => row.categoryId))];
+  const categories = await prisma.category.findMany({
+    where: { id: { in: categoryIds } },
+    select: { id: true, name: true },
+  });
+  const categoryMap = new Map(categories.map((category) => [category.id, category.name]));
+  const categoryOptions = [...new Set(categories.map((category) => category.name))].sort((a, b) =>
+    a.localeCompare(b),
+  );
 
   const eurPerCzk = await loadEurPerCzkRate();
   const displayRows: ProductDto[] = rows.map((row) =>
-    toStorefrontRow(row, params.lang, eurPerCzk),
+    toStorefrontRow(
+      {
+        ...row,
+        categoryName: categoryMap.get(row.categoryId) ?? "other",
+      },
+      params.lang,
+      eurPerCzk,
+    ),
   );
 
   if (displayRows.length === 0) {
     return {
       products: [],
+      categoryOptions,
       priceBounds: { min: 0, max: 0, currencyCode: params.lang === "cs" ? "CZK" : "EUR" },
     };
   }
@@ -146,7 +204,7 @@ export async function getStorefrontCatalog(params: {
 
   const products = applySortUiFaultSwap(sorted, params.sort, faultKeys);
 
-  return { products, priceBounds };
+  return { products, categoryOptions, priceBounds };
 }
 
 export function parseStorefrontCatalogQuery(req: {
@@ -157,6 +215,8 @@ export function parseStorefrontCatalogQuery(req: {
   sort: ShopSort;
   priceMin?: number;
   priceMax?: number;
+  category?: string;
+  categories?: string[];
 } {
   const qRaw = req.query.q;
   const q =
@@ -169,6 +229,8 @@ export function parseStorefrontCatalogQuery(req: {
 
   const priceMin = parseOptionalPriceParam(req.query.priceMin);
   const priceMax = parseOptionalPriceParam(req.query.priceMax);
+  const category = parseOptionalCategory(req.query.category);
+  const categories = parseOptionalCategories(req.query.categories);
 
   const out: {
     q?: string;
@@ -176,6 +238,8 @@ export function parseStorefrontCatalogQuery(req: {
     sort: ShopSort;
     priceMin?: number;
     priceMax?: number;
+    category?: string;
+    categories?: string[];
   } = { lang, sort };
   if (q !== undefined) {
     out.q = q;
@@ -185,6 +249,12 @@ export function parseStorefrontCatalogQuery(req: {
   }
   if (priceMax !== undefined) {
     out.priceMax = priceMax;
+  }
+  if (category !== undefined) {
+    out.category = category;
+  }
+  if (categories !== undefined) {
+    out.categories = categories;
   }
   return out;
 }

@@ -64,4 +64,30 @@ test.describe("Admin — products", () => {
       }
     }
   });
+
+  test("can select an existing seeded category on product row", async ({ page, request }) => {
+    const admin = new AdminPage(page);
+    let createdId: number | undefined;
+    const categoryName = "audio";
+
+    try {
+      await admin.goto();
+      await admin.openAdminLogin();
+      await admin.signIn();
+
+      createdId = await admin.clickAddNewProduct();
+      await page
+        .getByTestId(`admin-category-select-${createdId}`)
+        .selectOption({ label: categoryName });
+      await admin.saveRow(admin.productRowById(createdId));
+      await expect(page.getByTestId(`admin-category-select-${createdId}`)).toContainText(
+        categoryName,
+      );
+    } finally {
+      if (createdId !== undefined) {
+        const token = await loginAsAdmin(request);
+        await deleteAdminProduct(request, token, createdId);
+      }
+    }
+  });
 });

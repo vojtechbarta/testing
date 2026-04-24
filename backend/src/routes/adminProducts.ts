@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   createProduct,
   deleteProduct,
+  getAllCategoriesForAdmin,
   getAllProductsForAdmin,
   getProductTranslationsForAdmin,
   upsertProductTranslation,
@@ -41,6 +42,15 @@ router.get("/", async (_req, res, next) => {
   try {
     const products = await getAllProductsForAdmin();
     res.json(products);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/categories", async (_req, res, next) => {
+  try {
+    const categories = await getAllCategoriesForAdmin();
+    res.json(categories);
   } catch (err) {
     next(err);
   }
@@ -86,12 +96,14 @@ router.get("/", async (_req, res, next) => {
  */
 router.post("/", async (req, res, next) => {
   try {
-    const { name, description, price, inStock, active } = req.body as {
+    const { name, description, price, inStock, active, categoryId, newCategoryName } = req.body as {
       name: string;
       description: string;
       price: { amount: number; currencyCode: string };
       inStock: number;
       active: boolean;
+      categoryId?: number;
+      newCategoryName?: string;
     };
 
     if (!name || !description) {
@@ -108,6 +120,10 @@ router.post("/", async (req, res, next) => {
       },
       inStock: Number(inStock),
       active: Boolean(active),
+      categoryId:
+        categoryId === undefined || categoryId === null ? undefined : Number(categoryId),
+      newCategoryName:
+        typeof newCategoryName === "string" ? newCategoryName : undefined,
     });
 
     res.status(201).json(product);
@@ -157,12 +173,14 @@ router.post("/", async (req, res, next) => {
 router.put("/:id", async (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    const { name, description, price, inStock, active } = req.body as {
+    const { name, description, price, inStock, active, categoryId, newCategoryName } = req.body as {
       name: string;
       description: string;
       price: { amount: number; currencyCode: string };
       inStock: number;
       active: boolean;
+      categoryId?: number;
+      newCategoryName?: string;
     };
 
     if (!id || Number.isNaN(id)) {
@@ -179,6 +197,10 @@ router.put("/:id", async (req, res, next) => {
       },
       inStock: Number(inStock),
       active: Boolean(active),
+      categoryId:
+        categoryId === undefined || categoryId === null ? undefined : Number(categoryId),
+      newCategoryName:
+        typeof newCategoryName === "string" ? newCategoryName : undefined,
     });
 
     res.json(product);

@@ -16,6 +16,9 @@ const {
     product: {
       findMany: vi.fn(),
     },
+    category: {
+      findMany: vi.fn(),
+    },
   },
   mockIsFaultEnabledRuntime: vi.fn(),
   mockIsFaultEnabledStatic: vi.fn(),
@@ -74,6 +77,7 @@ describe("storefrontCatalogService additional coverage", () => {
       amount,
       currencyCode: "CZK",
     }));
+    mockPrisma.category.findMany.mockResolvedValue([{ id: 1, name: "other" }]);
     mockStorefrontProductName.mockImplementation((_id: number, dbName: string) => dbName);
     mockStorefrontProductDescription.mockImplementation((_id: number, dbDesc: string) => dbDesc);
     mockSortStorefrontProducts.mockImplementation((rows: unknown[]) => rows);
@@ -85,6 +89,7 @@ describe("storefrontCatalogService additional coverage", () => {
     const out = await getStorefrontCatalog({ lang: "en", sort: "name-asc" });
     expect(out).toEqual({
       products: [],
+      categoryOptions: ["other"],
       priceBounds: { min: 0, max: 0, currencyCode: "EUR" },
     });
   });
@@ -95,6 +100,8 @@ describe("storefrontCatalogService additional coverage", () => {
         id: 1,
         name: "A",
         description: "d",
+        categoryId: 1,
+        category: { name: "other" },
         inStock: 1,
         active: true,
         price: 100,
@@ -104,6 +111,8 @@ describe("storefrontCatalogService additional coverage", () => {
         id: 2,
         name: "B",
         description: "d",
+        categoryId: 1,
+        category: { name: "other" },
         inStock: 1,
         active: true,
         price: 300,
@@ -133,6 +142,8 @@ describe("storefrontCatalogService additional coverage", () => {
         id: 1,
         name: "A",
         description: "d",
+        categoryId: 1,
+        category: { name: "other" },
         inStock: 1,
         active: true,
         price: 100,
@@ -142,6 +153,8 @@ describe("storefrontCatalogService additional coverage", () => {
         id: 2,
         name: "B",
         description: "d",
+        categoryId: 1,
+        category: { name: "other" },
         inStock: 1,
         active: true,
         price: 300,
@@ -178,6 +191,21 @@ describe("storefrontCatalogService additional coverage", () => {
     });
   });
 
+  it("parseStorefrontCatalogQuery parses category selectors", () => {
+    const parsed = parseStorefrontCatalogQuery({
+      query: {
+        category: " audio ",
+        categories: "audio,office",
+      },
+    });
+    expect(parsed).toEqual({
+      lang: "en",
+      sort: "name-asc",
+      category: "audio",
+      categories: ["audio", "office"],
+    });
+  });
+
   it("adds runtime sort fault keys and calls swap for matching sorts", async () => {
     mockIsFaultEnabledRuntime
       .mockResolvedValueOnce(false) // odd-minute delay
@@ -188,6 +216,8 @@ describe("storefrontCatalogService additional coverage", () => {
         id: 1,
         name: "A",
         description: "d",
+        categoryId: 1,
+        category: { name: "other" },
         inStock: 1,
         active: true,
         price: 100,
@@ -197,6 +227,8 @@ describe("storefrontCatalogService additional coverage", () => {
         id: 2,
         name: "B",
         description: "d",
+        categoryId: 1,
+        category: { name: "other" },
         inStock: 1,
         active: true,
         price: 200,

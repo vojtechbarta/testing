@@ -9,10 +9,11 @@ function formatMoney(amount: number, currencyCode: string): string {
 
 export function buildProductsExportRows(
   products: Product[],
-): Array<{ name: string; description: string; price: string; inStock: number }> {
+): Array<{ name: string; description: string; category: string; price: string; inStock: number }> {
   return products.map((p) => ({
     name: p.name,
     description: p.description,
+    category: p.category,
     price: formatMoney(p.price.amount, p.price.currencyCode),
     inStock: p.inStock,
   }));

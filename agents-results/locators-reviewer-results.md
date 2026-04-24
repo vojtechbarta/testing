@@ -83,3 +83,13 @@ Append dated sections here after each Playwright locator review (see `.cursor/sk
 
 - **Fixed assertion stability** — Removed hardcoded assumption that stock ceiling is always 10; test now derives the active stock ceiling from UI (`.cart-qty-stock`) and asserts final quantity equals displayed stock when `Increase quantity` becomes disabled.
 - **Stable** — Kept locator scope anchored to `cart-line-${id}` + role-based button lookup to avoid brittle global selectors.
+
+## 2026-04-24 — Product categories E2E updates (`admin.spec.ts`, `shop.spec.ts`, `App.tsx`)
+
+**Files touched:** `frontend/e2e/tests/admin.spec.ts`, `frontend/e2e/tests/shop.spec.ts`, `frontend/src/App.tsx`
+
+**Findings:**
+
+- **Fixed locator stability** — Added dedicated category test ids in UI (`admin-category-select-${id}`, `admin-category-new-${id}`, `shop-category-filter-${name}`, `shop-category-breadcrumb-pick-${name}`, breadcrumb reset hook) to avoid brittle text/layout selectors.
+- **Stable** — New E2E assertions use these explicit hooks and row-scoped admin save action; resilient to table column reorder and localized visible labels.
+- **Low risk** — Category filter test ids currently derive from category names; safe for seed/admin-generated simple names, but if names later include special characters/spaces, a slugified hook format should be adopted.

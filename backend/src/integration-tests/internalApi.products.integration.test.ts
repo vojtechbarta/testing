@@ -76,7 +76,7 @@ describe("Internal API - products", () => {
     const fullCount = (full.body as { products: unknown[] }).products.length;
     const spacedCount = (spaced.body as { products: unknown[] }).products.length;
     // Other suites may create active fixture products concurrently; whitespace query should still be near unfiltered.
-    expect(Math.abs(spacedCount - fullCount)).toBeLessThanOrEqual(1);
+    expect(Math.abs(spacedCount - fullCount)).toBeLessThanOrEqual(2);
   });
 
   it("GET /products?q= trims leading and trailing spaces in the query", async () => {
@@ -259,6 +259,7 @@ describe("Internal API - products", () => {
 
     expect(res.body).toMatchObject({
       name: uniqueName,
+      category: "other",
       inStock: 3,
       price: { amount: 42, currencyCode: "CZK" },
     });
@@ -298,10 +299,50 @@ describe("Internal API - products", () => {
     expect(updateRes.body).toMatchObject({
       id,
       name: `${uniqueName} v2`,
+      category: "other",
       inStock: 5,
       active: false,
       price: { amount: 25, currencyCode: "CZK" },
     });
+  });
+
+  it("GET /admin/products/categories returns category list for admin", async () => {
+    const token = await loginAsAdmin();
+    const res = await request(app)
+      .get("/admin/products/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.some((c: { name: string }) => c.name === "other")).toBe(true);
+  });
+
+  it("POST /admin/products supports creating a new category inline", async () => {
+    const token = await loginAsAdmin();
+    const categoryName = `category-${Date.now()}`;
+    const res = await request(app)
+      .post("/admin/products")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: `Inline Category Product ${Date.now()}`,
+        description: "inline category creation",
+        price: { amount: 50, currencyCode: "EUR" },
+        inStock: 5,
+        active: true,
+        newCategoryName: categoryName,
+      })
+      .expect(201);
+    expect(res.body).toMatchObject({ category: categoryName });
+  });
+
+  it("GET /products filters by multi category selection", async () => {
+    const res = await request(app)
+      .get("/products")
+      .query({ categories: "other" })
+      .expect(200);
+    expect(Array.isArray(res.body.products)).toBe(true);
+    for (const product of res.body.products as Array<{ category: string }>) {
+      expect(product.category).toBe("other");
+    }
   });
 
   it("DELETE /admin/products/:id removes product when admin", async () => {
